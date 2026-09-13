@@ -107,6 +107,16 @@ function logSpend(usage: Anthropic.Beta.BetaUsage) {
 export type Turn = { role: 'user' | 'assistant'; content: string };
 export type Answer = { reply: string; route?: string };
 
+/**
+ * One piece of an answer on its way out.
+ *
+ * Text arrives in as many beats as the model takes to write it; a route, if he
+ * decided to move, arrives once and last. Last on purpose: the page must not
+ * change under someone who is still reading the sentence explaining why it is
+ * about to.
+ */
+export type Beat = { text: string } | { route: string };
+
 /** How much of the conversation travels with each turn. Four exchanges is enough
  *  for "and what about that one" to make sense, and cheap enough to send always. */
 const HISTORY_TURNS = 8;
@@ -136,25 +146,6 @@ function usableHistory(history: Turn[]): Anthropic.Beta.BetaMessageParam[] {
 export const modelConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
 /**
- * The reply, as one run of text.
- *
- * Whitespace is flattened because the chat bubble is a single `<p>`: HTML
- * collapses the line breaks anyway, so a stray blank line becomes an invisible
- * double space rather than the paragraph the model intended. Normalising here
- * means the string we store, log and send is the string that gets read. The
- * brief already asks for one or two sentences; this is what makes the occasional
- * drift harmless instead of scruffy.
- */
-function textOf(content: Anthropic.Beta.BetaContentBlock[]): string {
-  return content
-    .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
  * A reply has to contain words.
  *
  * Since the emoji set opened up, some messages reliably come back as nothing but
@@ -166,14 +157,59 @@ function textOf(content: Anthropic.Beta.BetaContentBlock[]): string {
  * The brief asks for words twice, in the two places the model weights most, and
  * it still does this about four times in five on the inputs that invite it. So
  * the rule lives here instead: an instruction that is only obeyed sometimes is
- * not a rule. Returning empty rather than throwing lets the existing paths take
- * over — the keyword table answers, or, if he also called the navigate tool, the
- * second request asks him to say something about where he just took you.
+ * not a rule.
  */
-function withWords(text: string): string {
-  if (/\p{L}/u.test(text)) return text;
-  if (text) console.warn(`[podshar] wordless reply discarded: ${text}`);
-  return '';
+const hasWords = (text: string) => /\p{L}/u.test(text);
+
+/**
+ * One response, poured out as it is written.
+ *
+ * Only `text_delta` is forwarded. The model thinks first and those deltas come
+ * down the same pipe; they are working notes, not an answer, and putting them on
+ * screen would be both a lie about what he said and a leak of the reasoning the
+ * brief tells him to keep to himself.
+ *
+ * Whitespace is flattened for the same reason it always was — the bubble is a
+ * single `<p>`, so a blank line the model intended becomes an invisible double
+ * space. Doing it to the whole accumulated string rather than to each fragment
+ * is what makes it safe: a run of spaces split across two deltas still collapses
+ * to one. Normalising is prefix-stable, so what has already been sent never has
+ * to be taken back, and each turn of the loop emits only the tail that is new.
+ *
+ * The wordless-reply rule survives streaming by holding everything back until
+ * the first letter appears. In practice that is the first delta, so it costs
+ * nothing visible; and if a letter never comes, nothing was ever sent and the
+ * caller is free to fall back to the keyword table exactly as before. That is
+ * the whole reason for the gate: text already on screen cannot be unsaid.
+ */
+async function* pour(
+  stream: AsyncIterable<Anthropic.Beta.BetaRawMessageStreamEvent>,
+  out: { said: string }
+): AsyncGenerator<Beat> {
+  let raw = '';
+  let sent = '';
+  let opened = false;
+
+  for await (const event of stream) {
+    if (event.type !== 'content_block_delta' || event.delta.type !== 'text_delta') continue;
+    raw += event.delta.text;
+
+    // `trimStart` and not `trim`: a trailing space is not rubbish mid-stream, it
+    // is the gap before the next word arriving.
+    const norm = raw.replace(/\s+/g, ' ').trimStart();
+    if (!opened) {
+      if (!hasWords(norm)) continue;
+      opened = true;
+    }
+    if (norm.length <= sent.length) continue;
+
+    const piece = norm.slice(sent.length);
+    sent = norm;
+    yield { text: piece };
+  }
+
+  out.said = sent.trim();
+  if (!opened && raw.trim()) console.warn(`[podshar] wordless reply discarded: ${raw.trim()}`);
 }
 
 function navigationIn(content: Anthropic.Beta.BetaContentBlock[]) {
@@ -184,17 +220,27 @@ function navigationIn(content: Anthropic.Beta.BetaContentBlock[]) {
 }
 
 /**
- * Ask Podshar. Returns `null` for every failure, so the caller can fall back to
- * the keyword router instead of showing an error: a dumber dog is a much better
- * outcome than a broken one, and the person on the other end cannot tell which
- * half answered.
+ * Ask Podshar, and hand back the answer as it is written.
+ *
+ * Yields nothing at all for every failure — no key, no balance, a rate limit, a
+ * refusal, a dropped connection — so the caller can fall back to the keyword
+ * router instead of showing an error: a dumber dog is a much better outcome than
+ * a broken one, and the person on the other end cannot tell which half answered.
+ * The one thing that cannot be undone is text already sent, which is why the
+ * word gate in `pour` holds the first fragment back until it is sure.
+ *
+ * Streaming rather than one lump, because the wait is the complaint. He thinks
+ * for a second or two before the first word, and under a single response that
+ * silence was the whole visible behaviour: nothing, nothing, nothing, a finished
+ * paragraph. The tokens arrive over the same seconds either way; this is only
+ * the difference between watching someone write and watching a blank panel.
  *
  * Thinking stays on with effort turned down. Turning it off on this model has a
  * documented failure mode where the tool call is written into the visible text
  * instead of being made — which here would mean the dog saying "taking you
  * there" while the page never changes.
  */
-export async function askPodshar({
+export async function* streamPodshar({
   brief,
   history,
   message
@@ -202,8 +248,8 @@ export async function askPodshar({
   brief: string;
   history: Turn[];
   message: string;
-}): Promise<Answer | null> {
-  if (!modelConfigured()) return null;
+}): AsyncGenerator<Beat> {
+  if (!modelConfigured()) return;
 
   // A key created without a workspace is rejected — "not scoped to a workspace"
   // — unless the request names one. A key made *inside* a workspace carries that
@@ -230,7 +276,7 @@ export async function askPodshar({
     : {};
 
   const ask = (turns: Anthropic.Beta.BetaMessageParam[]) =>
-    client.beta.messages.create({
+    client.beta.messages.stream({
       ...rescue,
       model: MODEL,
       max_tokens: MAX_TOKENS,
@@ -243,36 +289,44 @@ export async function askPodshar({
       messages: turns
     });
 
-  try {
-    const first = await ask(messages);
-    logSpend(first.usage);
-    if (first.stop_reason === 'refusal') return null;
+  // Filled in by `pour` once each response has run dry. Read afterwards rather
+  // than returned, because the generator's yields are the text and there is
+  // nowhere else to put the total.
+  const out = { said: '' };
 
-    const nav = navigationIn(first.content);
-    const said = withWords(textOf(first.content));
+  try {
+    const first = ask(messages);
+    yield* pour(first, out);
+
+    // Available only once the stream has ended: the tool call, the stop reason
+    // and the bill all belong to the assembled message, not to any one delta.
+    const whole = await first.finalMessage();
+    logSpend(whole.usage);
+    if (whole.stop_reason === 'refusal') return;
+
+    const nav = navigationIn(whole.content);
+    const href = nav ? String((nav.input as { href: string }).href) : undefined;
 
     // Usually he says something *and* calls the tool, which is one round trip.
-    if (said) return { reply: said, route: nav?.input ? String((nav.input as { href: string }).href) : undefined };
+    if (out.said) {
+      if (href) yield { route: href };
+      return;
+    }
 
     // He only moved. Hand the tool its result so he can also say something —
     // arriving somewhere in silence reads like the site glitched.
-    if (nav) {
-      const second = await ask([
-        ...messages,
-        { role: 'assistant', content: first.content },
-        {
-          role: 'user',
-          content: [{ type: 'tool_result', tool_use_id: nav.id, content: 'done' }]
-        }
-      ]);
-      logSpend(second.usage);
-      const followUp = withWords(textOf(second.content));
-      if (followUp) {
-        return { reply: followUp, route: String((nav.input as { href: string }).href) };
+    if (!nav) return;
+    const second = ask([
+      ...messages,
+      { role: 'assistant', content: whole.content },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: nav.id, content: 'done' }]
       }
-    }
-
-    return null;
+    ]);
+    yield* pour(second, out);
+    logSpend((await second.finalMessage()).usage);
+    if (out.said && href) yield { route: href };
   } catch (error) {
     // No key, no balance, rate limit, network, a malformed request — all the
     // same from here: the keyword router answers instead and the person sees a
@@ -280,10 +334,14 @@ export async function askPodshar({
     // why the dog went stupid, and a silent downgrade is unfixable. This line
     // is the only place that distinction survives; on Vercel it lands in the
     // function log.
+    //
+    // A break *after* the first words have gone out is the one case this cannot
+    // paper over: those words are already on screen, so the reply simply stops
+    // where it stopped. Rare, and the alternative — a second answer appended
+    // underneath the half of one — is worse.
     console.warn(
       '[podshar] model call failed, falling back to the keyword table:',
       error instanceof Anthropic.APIError ? `${error.status} ${error.message}` : error
     );
-    return null;
   }
 }

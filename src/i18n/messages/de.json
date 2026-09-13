@@ -169,7 +169,8 @@
     "expand": "Assistent ausklappen",
     "undock": "fenster lösen",
     "dock": "wieder anklemmen",
-    "roleFree": "lose, zieh an der kopfzeile"
+    "roleFree": "lose, zieh an der kopfzeile",
+    "resize": "fenstergrösse ändern"
   },
   "guide": {
     "lost": "keine ahnung was das war. nenn einen bereich oder frag nach was du siehst",

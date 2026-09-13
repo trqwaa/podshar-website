@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion';
+import { flushSync } from 'react-dom';
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/routing';
 import { placeForPath } from '@/lib/navigation';
@@ -12,6 +13,26 @@ type Message = { id: string; role: 'assistant' | 'user'; text: string };
 
 /** How tall the message field may grow before it starts scrolling, in pixels. */
 const MAX_FIELD = 120;
+
+/** How often the typewriter puts more of an answer on screen, in ms. */
+const TYPE_MS = 28;
+/** Characters per tick while it is keeping up — around seventy a second. */
+const TYPE_CHARS = 2;
+/** How many characters of backlog buy one more character per tick. */
+const TYPE_CATCHUP = 40;
+
+/**
+ * The two bubbles.
+ *
+ * Written out here because the dog's is used twice — once for a finished turn
+ * and once for the one being typed — and the handover between them must not be
+ * visible. Two copies of a class list drift, and the day they drift the panel
+ * twitches at the end of every answer.
+ */
+const SAID =
+  'max-w-[88%] rounded-block rounded-bl-sm border-2 border-rule bg-sunk px-3.5 py-2.5 text-[0.9375rem] leading-relaxed text-ink';
+const ASKED =
+  'ml-auto max-w-[88%] rounded-block rounded-br-sm bg-accent px-3.5 py-2.5 text-[0.9375rem] font-medium leading-relaxed text-accent-ink';
 
 /** Where the panel sits and whether it has been unclipped, per browser. */
 const STORE_KEY = 'podshar:chat';
@@ -45,13 +66,103 @@ const SNAP = 96;
  */
 const TEAR = 92;
 /**
- * How much of that pull the panel actually gives, at most.
+ * How far the hand can travel before the panel is meaningfully behind it.
  *
- * The gap it opens is the whole tell: it is being held, and it is starting to
- * come away. Following the hand one-for-one would say the opposite — that it
- * was never attached to anything.
+ * The lag is the whole tell: it is being held, and it is starting to come away.
+ * Following the hand one-for-one would say the opposite — that it was never
+ * attached to anything. But the resistance has to *build*, not exist from the
+ * first pixel: the curve below leaves the panel under the hand for the first few
+ * millimetres and only then starts holding it, which is how a magnet behaves and
+ * how a browser tab comes out of its window.
+ *
+ * It also decides the size of the pop when the panel finally comes off, since
+ * that pop is exactly the distance the panel is behind at the moment it lets go.
+ * At the values here the hand is about 22px ahead by then — enough to read as a
+ * release, small enough that the panel is not seen to teleport. The earlier
+ * shape lagged by fifty-odd pixels and did teleport.
  */
-const GIVE = 46;
+const LAG = 160;
+
+/**
+ * What a loose window may be resized to.
+ *
+ * Limits rather than freedom, because both ends of the range break something
+ * real, and the floor is set by what was actually seen to break rather than by
+ * what looked small enough. At 260 square the panel stops being a chat: the
+ * dog's job title under his name wraps to three lines and eats the header, and
+ * what is left over for the conversation is shorter than one of his own
+ * answers, so the form ends up sitting on the last bubble. The numbers here
+ * leave the header at two lines and keep five or six lines of conversation,
+ * which is the least that is still worth having on screen.
+ *
+ * Too wide is the other failure: a panel meant to sit beside the page becomes
+ * the page, and once it is larger than the screen there is no header left to
+ * grab and no way back. `pullBack` rescues a window dragged off the edge; it
+ * cannot rescue one that no longer fits.
+ *
+ * The upper bounds also track the window itself, so shrinking the browser cannot
+ * strand a panel that was sized on a larger screen.
+ */
+const MIN_W = 300;
+const MIN_H = 360;
+const MAX_W = 560;
+/** Breathing room kept between the panel and the edges of the screen, in px. */
+const MARGIN = 32;
+
+/**
+ * Where an element would sit with its transform taken off.
+ *
+ * The tear places the panel by setting a transform, so it needs the box that
+ * transform is applied *to* — and every rectangle it can measure already has one
+ * applied. Subtracting it is not optional and the motion value is not a safe
+ * substitute: framer writes those to the DOM on its own frame, so the offset set
+ * three lines earlier in the same handler is not necessarily the one the browser
+ * has painted. Measuring against a stale transform left the panel nine pixels
+ * off the hand on every tear — constant, so it followed the cursor perfectly
+ * from there, which is exactly what makes that kind of mistake read as
+ * sloppiness rather than as a bug worth looking for.
+ */
+function restingBox(el: HTMLElement): { left: number; top: number } {
+  const rect = el.getBoundingClientRect();
+  const applied = getComputedStyle(el).transform;
+  if (!applied || applied === 'none') return { left: rect.left, top: rect.top };
+  const shift = new DOMMatrixReadOnly(applied);
+  return { left: rect.left - shift.e, top: rect.top - shift.f };
+}
+
+function fitSize(w: number, h: number): { w: number; h: number } {
+  return {
+    w: Math.round(Math.min(Math.max(w, MIN_W), Math.min(MAX_W, window.innerWidth - MARGIN))),
+    h: Math.round(Math.min(Math.max(h, MIN_H), window.innerHeight - MARGIN))
+  };
+}
+
+/**
+ * Follow a pointer on the window until it is let go.
+ *
+ * Both gestures here need this and for the same reason: the thing under the hand
+ * moves out from under it almost immediately, and an element listener stops
+ * hearing anything the moment the cursor is no longer over it — the drag then
+ * dies four pixels in, which is exactly what it used to do. Pointer capture
+ * ought to cover that and did not survive the re-renders a drag itself causes,
+ * so the listeners go somewhere that cannot move.
+ *
+ * Added and removed by the identical closures. However many renders happen in
+ * between, nothing is left behind on the window to quietly drag the panel during
+ * some later, unrelated click.
+ */
+function holdPointer(move: (e: PointerEvent) => void, letGo: () => void) {
+  const onMove = (e: PointerEvent) => move(e);
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    letGo();
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+}
 
 /**
  * Podshar, the resident assistant.
@@ -99,6 +210,19 @@ export function RightAIChat() {
   /** True while the panel is being pulled but has not yet come off the edge. */
   const [peeling, setPeeling] = useState(false);
   /**
+   * How big the loose window has been made, if it has been touched at all.
+   *
+   * `null` means "whatever the stylesheet says", which is the right default and
+   * also the right thing to keep saying: a size in pixels frozen at first render
+   * would stop answering `vh` and `vw` the moment the browser changed shape.
+   * Only a deliberate resize replaces it. Docked, it is ignored entirely — the
+   * clipped panel is the full height of the edge it is clipped to — but it is
+   * remembered, so unclipping gives back the window you had.
+   */
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  /** True while the corner is being dragged. */
+  const [sizing, setSizing] = useState(false);
+  /**
    * The same fact as `willSnap`, for the code rather than the screen.
    *
    * The pointer handlers are registered once, at the start of a gesture, and a
@@ -139,18 +263,47 @@ export function RightAIChat() {
     grabY: number;
     torn: boolean;
     moved: boolean;
+    /** Whether the panel has been clear of the edge at any point in this drag. */
+    escaped: boolean;
   } | null>(null);
 
   // Read after mount, never during render: the server has no idea where this
   // browser last left the panel, and disagreeing about it is a hydration error
   // on every load.
+  /**
+   * The same size, for code that cannot wait for a render.
+   *
+   * The corner drag writes a size on every pointer move and reads it back on
+   * pointer up to store it. Reading it out of state there would save whatever
+   * the last committed render happened to be holding, which is not necessarily
+   * where the hand stopped.
+   */
+  const sizeRef = useRef<{ w: number; h: number } | null>(null);
+  const applySize = (next: { w: number; h: number } | null) => {
+    sizeRef.current = next;
+    setSize(next);
+  };
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORE_KEY);
       if (!raw) return;
-      const v = JSON.parse(raw) as { free?: boolean; x?: number; y?: number };
+      const v = JSON.parse(raw) as {
+        free?: boolean;
+        x?: number;
+        y?: number;
+        w?: number;
+        h?: number;
+      };
       if (typeof v.x === 'number') x.set(v.x);
       if (typeof v.y === 'number') y.set(v.y);
+      // Put back through the limits rather than trusted: the window it was
+      // measured in may have been a different size, or a different screen.
+      if (typeof v.w === 'number' && typeof v.h === 'number') {
+        const fitted = fitSize(v.w, v.h);
+        sizeRef.current = fitted;
+        setSize(fitted);
+      }
       setFree(Boolean(v.free));
     } catch {
       // Blocked storage, or something else under our key. The default corner is
@@ -162,7 +315,14 @@ export function RightAIChat() {
     try {
       window.localStorage.setItem(
         STORE_KEY,
-        JSON.stringify({ free, x: x.get(), y: y.get(), ...next })
+        JSON.stringify({
+          free,
+          x: x.get(),
+          y: y.get(),
+          w: sizeRef.current?.w,
+          h: sizeRef.current?.h,
+          ...next
+        })
       );
     } catch {
       // It still works for this session.
@@ -186,6 +346,17 @@ export function RightAIChat() {
     const el = wrapRef.current;
     const clamp = () => {
       if (!el) return;
+      // Size first: a panel sized on a wide screen and reopened on a narrow one
+      // has to be brought back inside the limits before there is any point
+      // asking whether it is still reachable.
+      const held = sizeRef.current;
+      if (held) {
+        const fitted = fitSize(held.w, held.h);
+        if (fitted.w !== held.w || fitted.h !== held.h) {
+          sizeRef.current = fitted;
+          setSize(fitted);
+        }
+      }
       const { dx, dy } = pullBack(el.getBoundingClientRect());
       if (dx) x.set(x.get() + dx);
       if (dy) y.set(y.get() + dy);
@@ -239,6 +410,68 @@ export function RightAIChat() {
   };
 
   /**
+   * The corner, and why it is that corner.
+   *
+   * The window is pinned by its top-right — `right-4 top-20` plus the drag
+   * offset — so the grip in the opposite corner is the one that needs no
+   * arithmetic and no explaining: pulling it left widens the panel into the page
+   * and pulling it down lengthens it, with the anchor never moving. A grip on
+   * the bottom right would have to shift the anchor by exactly as much as it
+   * changed the width, and it would grow the panel towards the screen edge it is
+   * already sitting against, which is the direction with no room in it.
+   */
+  const sizeFrom = useRef<{ px: number; py: number; w: number; h: number } | null>(null);
+  const sizeMoveRef = useRef<(e: PointerEvent) => void>(() => {});
+  const sizeUpRef = useRef<() => void>(() => {});
+
+  const onCornerGrab = (e: React.PointerEvent) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    // Stops the press selecting the conversation behind it as the hand travels.
+    e.preventDefault();
+    const r = el.getBoundingClientRect();
+    sizeFrom.current = { px: e.clientX, py: e.clientY, w: r.width, h: r.height };
+    setSizing(true);
+    holdPointer(
+      (ev) => sizeMoveRef.current(ev),
+      () => sizeUpRef.current()
+    );
+  };
+
+  const onCornerMove = (e: PointerEvent) => {
+    const from = sizeFrom.current;
+    if (!from) return;
+    applySize(fitSize(from.w + (from.px - e.clientX), from.h + (e.clientY - from.py)));
+  };
+
+  const onCornerLetGo = () => {
+    sizeFrom.current = null;
+    setSizing(false);
+    persist({});
+  };
+
+  sizeMoveRef.current = onCornerMove;
+  sizeUpRef.current = onCornerLetGo;
+
+  /** The same by keyboard: a handle only a mouse can reach is not a control. */
+  const onCornerKey = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 48 : 16;
+    const by: Record<string, [number, number]> = {
+      ArrowLeft: [step, 0],
+      ArrowRight: [-step, 0],
+      ArrowDown: [0, step],
+      ArrowUp: [0, -step]
+    };
+    const nudge = by[e.key];
+    const el = wrapRef.current;
+    if (!nudge || !el) return;
+    e.preventDefault();
+    const r = el.getBoundingClientRect();
+    applySize(fitSize(r.width + nudge[0], r.height + nudge[1]));
+    persist({});
+  };
+
+  /**
    * Press, drag, tear off, shove back.
    *
    * One gesture on the header does all of it. Pressed and let go, it toggles —
@@ -266,29 +499,17 @@ export function RightAIChat() {
       grabX: e.clientX - header.left,
       grabY: e.clientY - header.top,
       torn: free,
-      moved: false
+      moved: false,
+      escaped: false
     };
 
-    // On the window, not on the handle, and not on pointer capture either.
-    //
-    // The panel moves out from under the hand almost immediately — that is the
-    // whole gesture — and the moment the cursor is no longer over the header,
-    // an element listener stops hearing anything. The drag then dies four
-    // pixels in, which is exactly what it did. Capture ought to cover that and
-    // did not survive the re-renders the drag itself causes, so the listeners
-    // go somewhere that cannot move: the window.
-    // Added and removed by the same two closures, which delegate through refs.
-    // However many renders happen in between, nothing is left on the window.
-    const move = (ev: PointerEvent) => moveRef.current(ev);
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-      upRef.current();
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
+    // The live handlers are reached through refs, for the reason set out on
+    // `holdPointer`: this gesture re-renders the component many times, and each
+    // render builds new closures.
+    holdPointer(
+      (ev) => moveRef.current(ev),
+      () => upRef.current()
+    );
   };
 
   const onDragMove = (e: PointerEvent) => {
@@ -317,51 +538,73 @@ export function RightAIChat() {
         return;
       }
       setPeeling(true);
-      const give = GIVE * (1 - Math.exp(-pull / (TEAR * 0.55)));
+      // Exponential with the same length constant top and bottom: the slope at
+      // the very start is exactly one, so the panel leaves with the hand and
+      // falls behind gradually instead of refusing the first centimetre.
+      const give = LAG * (1 - Math.exp(-pull / LAG));
       x.set(-give);
       y.set(dy * 0.1);
       if (pull < TEAR) return;
 
       // Past the threshold it comes off. The panel changes size and anchor at
       // this moment, so rather than let it jump somewhere of its own choosing
-      // it is placed under the hand that pulled it — measured after the layout
-      // has actually changed, because before that the new rectangle does not
-      // exist to measure.
+      // it is placed under the hand that pulled it.
+      //
+      // `flushSync`, and this is the part that took a while to see. Both halves
+      // of the handover need the *new* rectangle: it cannot be measured before
+      // React has written the new geometry, and it must not be measured a frame
+      // later, because a frame later is a frame of the panel sitting in the
+      // wrong place with the hand already gone. Deferring it to the next frame
+      // is what the previous version did, and it lost the race in two ways —
+      // a pointer move landing first would drag from a stale origin, and the
+      // easing spring that followed kept writing to `x` for a third of a second
+      // while the hand was already moving. The panel looked stuck to the edge
+      // and then flung itself, and had to be caught and grabbed a second time.
+      // Nothing eases here: from this instant the hand is the animation.
       g.torn = true;
-      setPeeling(false);
-      setFree(true);
-      const px = e.clientX;
-      const py = e.clientY;
-      requestAnimationFrame(() => {
-        const el = wrapRef.current;
-        if (!el) return;
-        const r = el.getBoundingClientRect();
-        const nx = x.get() + (px - g.grabX - r.left);
-        const ny = y.get() + (py - g.grabY - r.top);
-        // A hand's width past where it was pulled to, then back: the recoil of
-        // something that was being held and is suddenly not. Set, then eased,
-        // so the drag that follows starts from the settled position and not
-        // from the overshoot.
-        x.set(nx - 14);
+      flushSync(() => {
+        setPeeling(false);
+        setFree(true);
+      });
+
+      const el = wrapRef.current;
+      if (el) {
+        // The offset that puts the point the hand took hold of back under the
+        // hand, measured against the panel's untransformed box — see
+        // `restingBox` for why the current offset cannot be read off `x`.
+        const rest = restingBox(el);
+        const nx = e.clientX - g.grabX - rest.left;
+        const ny = e.clientY - g.grabY - rest.top;
+        x.set(nx);
         y.set(ny);
-        animate(x, nx, { type: 'spring', stiffness: 520, damping: 26 });
         g.baseX = nx;
         g.baseY = ny;
-        g.startX = px;
-        g.startY = py;
-      });
+        g.startX = e.clientX;
+        g.startY = e.clientY;
+      }
       return;
     }
 
     x.set(g.baseX + dx);
     y.set(g.baseY + dy);
 
+    // The magnet only works on a panel that has been brought back to the edge,
+    // never on one that has not left it yet.
+    //
+    // Without that condition it is armed from the first pixel of every drag,
+    // because a panel torn off the right edge is by definition still next to the
+    // right edge. Tear it loose, let go a moment too early, and it flies back to
+    // where it came from — which reads as the site refusing the gesture rather
+    // than as a feature, and it is the whole of "the magnet always works".
+    // Arming it on the way out means the snap zone appears when you steer
+    // towards the edge, which is the only time anybody wants it.
     const el = wrapRef.current;
     if (el) {
       const r = el.getBoundingClientRect();
       const near = r.right > window.innerWidth - SNAP;
-      snapRef.current = near;
-      setWillSnap(near);
+      if (!near) g.escaped = true;
+      snapRef.current = g.escaped && near;
+      setWillSnap(snapRef.current);
     }
   };
 
@@ -441,7 +684,10 @@ export function RightAIChat() {
 
       <motion.div
         ref={wrapRef}
-        style={{ x, y }}
+        // A measured size only applies to the loose window, and only once
+        // somebody has asked for one. Docked, the classes below own the
+        // geometry; inline pixels there would fight the edge it is clipped to.
+        style={{ x, y, ...(free && size ? { width: size.w, height: size.h } : null) }}
         // `overflow-clip`. Docked and shut, the panel waits a whole panel's
         // width past the right edge of the screen. Chrome ignores anything
         // parked there; Safari on a phone let the page be dragged sideways
@@ -450,7 +696,9 @@ export function RightAIChat() {
         // `clip` rather than `hidden`: `hidden` makes a scroll container, and
         // focusing the field mid-slide would then scroll the panel inside it.
         className={`pointer-events-none fixed z-50 overflow-clip ${
-          dragging ? '' : 'transition-[top,right,width,height] duration-drape ease-drape'
+          dragging || sizing
+            ? ''
+            : 'transition-[top,right,width,height] duration-drape ease-drape'
         } ${
           free
             ? 'right-4 top-20 h-[min(34rem,72vh)] w-[min(23rem,92vw)]'
@@ -463,7 +711,7 @@ export function RightAIChat() {
           // Off-screen content stays in the DOM, so without `inert` a keyboard
           // user tabs into a conversation nobody can see.
           inert={!open}
-          className={`flex h-full flex-col border-2 bg-surface transition-[transform,opacity,border-color] duration-drape ease-drape ${
+          className={`relative flex h-full flex-col border-2 bg-surface transition-[transform,opacity,border-color] duration-drape ease-drape ${
             landed ? 'border-ink' : 'border-rule'
           } ${
             free || peeling ? 'rounded-block' : 'rounded-l-block border-r-0'
@@ -480,6 +728,8 @@ export function RightAIChat() {
             free={free}
             dragging={dragging}
             onGrab={onGrab}
+            onCornerGrab={onCornerGrab}
+            onCornerKey={onCornerKey}
           />
         </aside>
       </motion.div>
@@ -495,25 +745,92 @@ function ChatBody({
   onClose,
   free,
   dragging,
-  onGrab
+  onGrab,
+  onCornerGrab,
+  onCornerKey
 }: {
   onClose: () => void;
   /** True while the panel is off the edge and can be moved. */
   free: boolean;
   dragging: boolean;
   onGrab: (e: React.PointerEvent) => void;
+  onCornerGrab: (e: React.PointerEvent) => void;
+  onCornerKey: (e: React.KeyboardEvent) => void;
 }) {
   const t = useTranslations('assistant');
   const tGuide = useTranslations('guide');
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
 
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  /**
+   * The reply being written, or `null` if there is nothing on the way.
+   *
+   * Kept out of `messages` until it is finished. A half-written sentence is not
+   * a turn in the conversation — it cannot be quoted back to the model, it must
+   * not be announced to a screen reader on every keystroke, and if the line
+   * drops halfway it should not look like the dog chose to stop there.
+   */
+  const [draft, setDraft] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /** Received from the server but not yet on screen. */
+  const waiting = useRef('');
+  /** On screen. The same string as `draft`, reachable without a render. */
+  const shown = useRef('');
+  /** True once the server has said everything it is going to say. */
+  const ended = useRef(false);
+  const ticker = useRef<number | null>(null);
+
+  const stopTyping = () => {
+    if (ticker.current !== null) window.clearInterval(ticker.current);
+    ticker.current = null;
+  };
+  // A panel closed mid-answer takes its typewriter with it.
+  useEffect(() => stopTyping, []);
+
+  /**
+   * Put the answer on screen at a pace a person can read, wherever it came from.
+   *
+   * This is the part that makes it look like writing, and it is deliberately not
+   * the network. The model's own deltas arrive in gusts — a comma, then nine
+   * words at once, then a pause — and rendering them as they land looks like a
+   * page loading, not like somebody typing. Everything received goes into a
+   * queue instead, and the queue is drained at a steady rate.
+   *
+   * The rate rises with the backlog, so the typewriter is never the reason an
+   * answer is slow: a couple of characters a tick while it is keeping up, more
+   * as soon as it is behind. That is also what lets the keyword fallback — which
+   * arrives complete, in a single beat — come out typed at the same cadence
+   * rather than appearing all at once. Nobody should be able to tell from the
+   * outside which half of the dog answered, and the timing was the last thing
+   * that would have given it away.
+   *
+   * Reduced motion empties the queue whole on the first tick. The answer still
+   * arrives; it simply does not perform.
+   */
+  const typeOut = () =>
+    new Promise<void>((resolve) => {
+      ticker.current = window.setInterval(() => {
+        const left = waiting.current;
+        if (!left) {
+          if (ended.current) {
+            stopTyping();
+            resolve();
+          }
+          return;
+        }
+        const take = reduceMotion ? left.length : TYPE_CHARS + Math.ceil(left.length / TYPE_CATCHUP);
+        waiting.current = left.slice(take);
+        shown.current += left.slice(0, take);
+        setDraft(shown.current);
+      }, TYPE_MS);
+    });
 
   // A guide opens by saying where you are standing, not with a menu. The
   // fallback covers a page the map does not describe, which today cannot
@@ -532,9 +849,33 @@ function ChatBody({
   }, [opening]);
 
   // Keep the newest turn in view.
+  //
+  // Smoothly for a whole turn arriving, but not while one is being typed: there
+  // the log grows a few pixels at a time, and a smooth scroll restarted thirty
+  // times a second never reaches the bottom it is heading for. Jumping reads as
+  // the text pushing the view along, which is exactly what is happening.
   useEffect(() => {
-    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+    logRef.current?.scrollTo({
+      top: logRef.current.scrollHeight,
+      behavior: draft === null ? 'smooth' : 'auto'
+    });
+  }, [messages, draft]);
+
+  // And again whenever the panel itself changes shape. Resizing the window does
+  // not add a message, so nothing above fires — the log simply keeps the scroll
+  // position it had, which after a shrink leaves the last thing said sitting
+  // half under the field. That reads as the panel being broken rather than
+  // merely smaller. Setting `scrollTop` cannot resize anything, so this cannot
+  // feed itself.
+  useEffect(() => {
+    const log = logRef.current;
+    if (!log) return;
+    const watch = new ResizeObserver(() => {
+      log.scrollTop = log.scrollHeight;
+    });
+    watch.observe(log);
+    return () => watch.disconnect();
+  }, []);
 
   // Grow the field down as the text wraps, instead of scrolling the beginning of
   // a sentence out of sight in a one-line box. Height is set from the content's
@@ -589,6 +930,18 @@ function ChatBody({
     setInput('');
     setBusy(true);
 
+    waiting.current = '';
+    shown.current = '';
+    ended.current = false;
+    setDraft(null);
+
+    // Started before the request, so the dots are already up and the first
+    // characters go on screen the moment they exist rather than on the tick
+    // after the interval happens to have been created.
+    const typed = typeOut();
+    let route: string | undefined;
+    let broke = false;
+
     try {
       // `messages` is the log as it stood before this turn — the state update
       // above has not landed in this closure — so it is exactly the history,
@@ -608,26 +961,52 @@ function ChatBody({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ message: text, locale, path: pathname, history })
       });
-      if (!res.ok) throw new Error(`assistant responded ${res.status}`);
+      if (!res.ok || !res.body) throw new Error(`assistant responded ${res.status}`);
 
-      const data: { reply: string; route?: string } = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: 'assistant', text: data.reply }
-      ]);
-
-      if (data.route) {
-        // Give the reply a beat to land before the page changes underneath.
-        const target = data.route;
-        setTimeout(() => router.push(target), 600);
+      // One line of JSON per beat. A chunk off the wire almost never ends on a
+      // line boundary, so whatever follows the last newline is half a beat and
+      // waits here for the rest of itself.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let carry = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        carry += decoder.decode(value, { stream: true });
+        const lines = carry.split('\n');
+        carry = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const beat = JSON.parse(line) as { text?: string; route?: string };
+          if (typeof beat.text === 'string') waiting.current += beat.text;
+          if (typeof beat.route === 'string') route = beat.route;
+        }
       }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: 'assistant', text: t('offline') }
-      ]);
-    } finally {
-      setBusy(false);
+      broke = true;
+    }
+
+    // Whatever happened up there, the queue has everything it is going to get.
+    ended.current = true;
+    await typed;
+
+    // The draft becomes a turn and the panel goes quiet in one commit, so there
+    // is no frame in which the bubble has been taken away and not yet put back.
+    const said = shown.current.trim();
+    setDraft(null);
+    setBusy(false);
+    setMessages((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), role: 'assistant', text: said || t('offline') }
+    ]);
+
+    // A line that dropped halfway keeps what was said — the words were his, and
+    // replacing them with an apology would throw away the answer. Only a reply
+    // that never started at all becomes one.
+    if (route && !broke) {
+      // Give the reply a beat to land before the page changes underneath.
+      const target = route;
+      setTimeout(() => router.push(target), 600);
     }
   }
 
@@ -684,22 +1063,35 @@ function ChatBody({
 
       <div
         ref={logRef}
-        aria-live="polite"
         className="flex-1 space-y-2 overflow-y-auto border-t border-rule-soft px-5 py-5"
       >
-        {messages.map((m) => (
-          <p
-            key={m.id}
-            className={`max-w-[88%] px-3.5 py-2.5 text-[0.9375rem] leading-relaxed ${
-              m.role === 'assistant'
-                ? 'rounded-block rounded-bl-sm border-2 border-rule bg-sunk text-ink'
-                : 'ml-auto rounded-block rounded-br-sm bg-accent font-medium text-accent-ink'
-            }`}
-          >
-            {m.text}
+        {/* Only finished turns are announced. A live region that followed the
+            typing would read the same sentence to a screen reader a dozen times
+            as it grew; this way it is spoken once, whole, when it lands. */}
+        <div aria-live="polite" className="space-y-2">
+          {messages.map((m) => (
+            <p key={m.id} className={m.role === 'assistant' ? SAID : ASKED}>
+              {m.text}
+            </p>
+          ))}
+        </div>
+
+        {/* The answer on its way: the same bubble, first holding the dots and
+            then filling with words. One element for both states so the moment
+            he starts speaking is a change of contents, not a change of shape —
+            no second bubble appearing under the first, nothing jumping. */}
+        {busy ? (
+          <p aria-hidden="true" className={SAID}>
+            {draft === null ? (
+              <Dots />
+            ) : (
+              <>
+                {draft}
+                <Caret />
+              </>
+            )}
           </p>
-        ))}
-        {busy ? <p className="ps-label animate-pulse">• • •</p> : null}
+        ) : null}
       </div>
 
       {/* `items-end` so the button stays on the last line as the field grows,
@@ -735,7 +1127,15 @@ function ChatBody({
           // zooms the whole page in the moment the field is tapped and leaves
           // it zoomed — after which the page drags sideways. The one-row height
           // above is measured from the live line-height, so it follows along.
-          className="min-w-0 flex-1 resize-none overflow-y-auto rounded border-2 border-rule bg-canvas px-3 py-2.5 text-[1rem] leading-relaxed text-ink outline-none transition-colors focus:border-ink placeholder:text-ink-faint sm:text-[0.9375rem]"
+          //
+          // The placeholder is held to one line and cut with an ellipsis rather
+          // than allowed to wrap. An empty field is exactly one row tall by
+          // design, so a placeholder that wraps to two does not make the box
+          // taller — it gets sliced through the middle of the second line, which
+          // looks like a rendering fault. It showed up as soon as the window
+          // could be made narrow, and a longer translation would have found it
+          // eventually anyway.
+          className="min-w-0 flex-1 resize-none overflow-y-auto rounded border-2 border-rule bg-canvas px-3 py-2.5 text-[1rem] leading-relaxed text-ink outline-none transition-colors focus:border-ink placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap placeholder:text-ink-faint sm:text-[0.9375rem]"
         />
         <button
           type="submit"
@@ -745,6 +1145,74 @@ function ChatBody({
           {t('send')}
         </button>
       </form>
+
+      {/* The size handle, on the loose window only — a clipped panel is as tall
+          as the edge it is clipped to, and there is nothing there to resize.
+
+          Not offered on a phone, where the panel is already almost the width of
+          the screen and there is nothing to gain: a 24px target sitting on the
+          corner of the text field would be a trap for a thumb, and this site
+          holds itself to 44px for anything a thumb is meant to hit. */}
+      {free ? (
+        <button
+          type="button"
+          aria-label={t('resize')}
+          onPointerDown={onCornerGrab}
+          onKeyDown={onCornerKey}
+          className="absolute bottom-0 left-0 z-10 hidden h-6 w-6 cursor-nesw-resize touch-none place-items-center text-ink-faint transition-colors duration-drape hover:text-ink focus-visible:text-ink sm:grid"
+        >
+          <svg
+            viewBox="0 0 10 10"
+            aria-hidden="true"
+            className="h-2.5 w-2.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          >
+            <path d="M1 3.5 6.5 9" />
+            <path d="M1 7.5 2.5 9" />
+          </svg>
+        </button>
+      ) : null}
     </>
+  );
+}
+
+/**
+ * He is thinking.
+ *
+ * Three dots that lift in turn, rather than the whole line pulsing together as
+ * it did. A pulse is a loading indicator — a thing waiting on a machine. A
+ * stagger reads as somebody about to speak, which is what is actually happening,
+ * and it is the shape every chat has used for the same reason. Slow enough to be
+ * calm; the panel is at the edge of the eye, and something flickering there is
+ * an irritation rather than a signal.
+ *
+ * The global reduced-motion rule stops these where they stand, leaving three
+ * dots — still the right sign, minus the fidget.
+ */
+function Dots() {
+  return (
+    <span className="flex h-[1.4em] items-center gap-1.5">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          style={{ animationDelay: `${i * 0.16}s` }}
+          className="h-1.5 w-1.5 animate-dot-hop rounded-full bg-ink"
+        />
+      ))}
+    </span>
+  );
+}
+
+/** The bar at the end of what has been written so far. It is the one thing that
+ *  says the sentence is not finished, and its absence is how you know it is. */
+function Caret() {
+  return (
+    <span
+      aria-hidden="true"
+      className="ms-0.5 inline-block h-[0.95em] w-[2px] translate-y-[0.15em] animate-caret-blink bg-ink/70"
+    />
   );
 }

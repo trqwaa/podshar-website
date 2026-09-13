@@ -116,13 +116,29 @@ const config: Config = {
         'sun-turn': {
           from: { transform: 'rotate(0deg)' },
           to: { transform: 'rotate(360deg)' }
+        },
+        // The dog gathering himself before he speaks. Each dot spends most of
+        // the cycle down and dim and only briefly comes up, so what travels
+        // along the row is a highlight rather than a wave — three dots bobbing
+        // in unison would just be a pulse with extra steps.
+        'dot-hop': {
+          '0%, 70%, 100%': { transform: 'translateY(0)', opacity: '0.3' },
+          '35%': { transform: 'translateY(-4px)', opacity: '0.85' }
+        },
+        // On and off, never in between: a caret that fades is a caret that looks
+        // like it is being animated. This one looks like a cursor.
+        'caret-blink': {
+          '0%, 45%': { opacity: '1' },
+          '55%, 100%': { opacity: '0' }
         }
       },
       animation: {
         'wisp-drift': 'wisp-drift 6s ease-in-out infinite',
         'rise-in': 'rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
         breathe: 'breathe 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite',
-        'sun-turn': 'sun-turn 48s linear infinite'
+        'sun-turn': 'sun-turn 48s linear infinite',
+        'dot-hop': 'dot-hop 1.15s cubic-bezier(0.45, 0, 0.55, 1) infinite',
+        'caret-blink': 'caret-blink 1.05s steps(1, end) infinite'
       }
     }
   },

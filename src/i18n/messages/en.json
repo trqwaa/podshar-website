@@ -169,7 +169,8 @@
     "expand": "Expand assistant",
     "undock": "unclip the panel",
     "dock": "clip it back",
-    "roleFree": "loose, drag by the header"
+    "roleFree": "loose, drag by the header",
+    "resize": "resize the window"
   },
   "guide": {
     "lost": "no idea what that was. name a section, or ask about what you see",

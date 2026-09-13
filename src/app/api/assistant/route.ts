@@ -6,7 +6,7 @@ import { guestModeAllowed } from '@/lib/auth/config';
 import { readSession } from '@/lib/auth/session';
 import { buildBrief } from '@/lib/assistant/brief';
 import { answerWithoutModel } from '@/lib/assistant/fallback';
-import { askPodshar, modelConfigured, type Turn } from '@/lib/assistant/model';
+import { modelConfigured, streamPodshar, type Turn } from '@/lib/assistant/model';
 import { withinDailyLimit } from '@/lib/assistant/quota';
 
 export const runtime = 'nodejs';
@@ -71,15 +71,69 @@ export async function POST(request: Request) {
   const found = placeForPath(path);
   const here = found?.status === 'live' ? found : HOME;
 
-  if (modelConfigured() && withinDailyLimit(who)) {
-    const brief = await buildBrief({ locale, member, here });
-    const answer = await askPodshar({
-      brief,
-      history: history as Turn[],
-      message
-    });
-    if (answer) return NextResponse.json(answer);
-  }
+  // One line of JSON per beat, newline-delimited, for as long as he is writing.
+  //
+  // Not server-sent events: this is a plain one-way body with no reconnection,
+  // no event names and no `id:` bookkeeping, and SSE's framing would be three
+  // lines of ceremony around each fragment for none of its features. A line of
+  // JSON is trivially split on the other end and survives a fragment arriving in
+  // two pieces, which a raw text stream would not.
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const beat = (piece: unknown) =>
+        controller.enqueue(encoder.encode(`${JSON.stringify(piece)}\n`));
 
-  return NextResponse.json(await answerWithoutModel({ locale, message, here }));
+      // Whether the model produced any words at all. The keyword table is the
+      // net under it, and a net that fires after the model has already spoken
+      // would staple a second answer to the bottom of the first.
+      let spoke = false;
+
+      try {
+        if (modelConfigured() && withinDailyLimit(who)) {
+          const brief = await buildBrief({ locale, member, here });
+          for await (const piece of streamPodshar({
+            brief,
+            history: history as Turn[],
+            message
+          })) {
+            if ('text' in piece) spoke = true;
+            beat(piece);
+          }
+        }
+
+        // The fallback arrives whole, in one beat. It is the browser that makes
+        // it look typed, at the same pace as the model's — which is the point:
+        // nobody should be able to tell from the outside which half answered.
+        if (!spoke) {
+          const answer = await answerWithoutModel({ locale, message, here });
+          beat({ text: answer.reply });
+          if (answer.route) beat({ route: answer.route });
+        }
+      } catch (error) {
+        // Closing quietly is the right end here. Whatever was said stays said,
+        // and the browser treats an early end as the end of the answer.
+        console.warn('[podshar] assistant stream broke:', error);
+      } finally {
+        // The controller is already closed if the reader went away mid-answer,
+        // which happens whenever someone shuts the panel or the page.
+        try {
+          controller.close();
+        } catch {
+          // Nothing to close. Nothing to do.
+        }
+      }
+    }
+  });
+
+  return new Response(body, {
+    headers: {
+      'content-type': 'application/x-ndjson; charset=utf-8',
+      'cache-control': 'no-store',
+      // Proxies in front of this hold a response until it is complete unless
+      // told otherwise — which would deliver the whole reply in one lump and
+      // undo the entire point of streaming it.
+      'x-accel-buffering': 'no'
+    }
+  });
 }
