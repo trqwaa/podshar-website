@@ -92,6 +92,8 @@ export type BrawlProfile = {
   highest: number;
   /** Название ранга, как его пишет игра. `null` — если в ranked не играл. */
   rank: string | null;
+  /** Тот же ранг числом, 1–22. По нему выбирается значок. */
+  rankTier: number | null;
   club: string | null;
   /** Последние бои, свежий первым. Пустой, если журнал не доехал. */
   recent: boolean[];

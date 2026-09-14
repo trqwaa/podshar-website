@@ -439,6 +439,7 @@ export async function brawlProfile(
       trophies: Number.isFinite(who?.trophies) ? Number(who.trophies) : 0,
       highest: Number.isFinite(who?.highestTrophies) ? Number(who.highestTrophies) : 0,
       rank: typeof who?.rankedRankName === 'string' ? who.rankedRankName : null,
+      rankTier: Number.isFinite(who?.rankedRank) ? Number(who.rankedRank) : null,
       club: typeof who?.club?.name === 'string' && who.club.name ? who.club.name : null,
       recent
     };
@@ -463,6 +464,7 @@ function fromBrawlSnapshot(payload: unknown): BrawlProfile | null {
     trophies: typeof p.trophies === 'number' ? p.trophies : 0,
     highest: typeof p.highest === 'number' ? p.highest : 0,
     rank: typeof p.rank === 'string' ? p.rank : null,
+    rankTier: typeof p.rankTier === 'number' ? p.rankTier : null,
     club: typeof p.club === 'string' ? p.club : null,
     recent: Array.isArray(p.recent) ? p.recent.filter((v) => typeof v === 'boolean') : []
   };

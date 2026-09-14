@@ -253,12 +253,18 @@ function DotaBody({ player, run }: { player: DotaProfile; run: number }) {
 }
 
 /**
- * Brawl Stars: кубки числом, под ними ранг и клуб.
+ * Brawl Stars: значок ранга, кубки числом, под ними ранг и клуб.
  *
- * Без картинки — в отличие от доты. Значки рангов Supercell наружу не отдаёт, а
- * тащить их с чужого CDN значит однажды получить пустое место вместо ранга по
- * причине, которой у нас не будет видно. Кубки тут и без картинки достаточно
- * крупная вещь, чтобы держать блок.
+ * Построено как плитка доты — значок слева, текст справа. Не из лени, а по тому
+ * же соображению: две плитки рядом, устроенные по-разному, читаются как поломка
+ * одной из них.
+ *
+ * Значки лежат у нас в `public/brawl`, а не тянутся с чужого сервера: путь там
+ * однажды сменят, и ранг пропадёт молча. Взяты из Brawlify/CDN на GitHub, у
+ * репозитория лицензия MIT и прямая надпись «free to use for everyone». Имя
+ * файла — номер ранга из API (`rankedRank`, 1–22); у них он закодирован как
+ * `58000000 + номер - 1`, и это переведено при скачивании, чтобы в коде не
+ * заводилась арифметика, объяснить которую потом будет некому.
  */
 function BrawlBody({ player, run }: { player: BrawlProfile; run: number }) {
   // Разряды пробелами: 68143 читается заметно хуже, чем 68 143, а число тут
@@ -267,13 +273,34 @@ function BrawlBody({ player, run }: { player: BrawlProfile; run: number }) {
   const under = [player.rank, player.club].filter(Boolean).join(' · ');
 
   return (
-    <div className="mt-2">
-      <p className="text-2xl font-semibold tabular-nums leading-tight text-ink">{trophies}</p>
-      {under ? (
-        // `normal-case`: MYTHIC III и название клуба — имена собственные.
-        <p className="mt-0.5 truncate text-sm normal-case text-ink-muted">{under}</p>
+    <div className="mt-2 flex items-center gap-3">
+      {player.rankTier ? (
+        <span
+          style={{ width: SIZE, height: SIZE }}
+          className="relative block shrink-0"
+          aria-hidden="true"
+        >
+          <Image
+            src={`/brawl/rank-${player.rankTier}.png`}
+            alt=""
+            width={SIZE * 2}
+            height={SIZE * 2}
+            // `object-contain`, а не растягивание по квадрату: значки разных
+            // рангов идут разной ширины — от 211 до 334 при высоте около 320,
+            // и каждый кривился бы по-своему.
+            className="h-full w-full object-contain"
+          />
+        </span>
       ) : null}
-      {player.recent.length ? <Streak results={player.recent} run={run} /> : null}
+
+      <div className="min-w-0 flex-1">
+        <p className="text-2xl font-semibold tabular-nums leading-tight text-ink">{trophies}</p>
+        {under ? (
+          // `normal-case`: MYTHIC III и название клуба — имена собственные.
+          <p className="mt-0.5 truncate text-sm normal-case text-ink-muted">{under}</p>
+        ) : null}
+        {player.recent.length ? <Streak results={player.recent} run={run} /> : null}
+      </div>
     </div>
   );
 }
