@@ -34,6 +34,9 @@ const config: Config = {
         accent: 'rgb(var(--accent) / <alpha-value>)',
         'accent-ink': 'rgb(var(--accent-ink) / <alpha-value>)',
         reactor: 'rgb(var(--reactor) / <alpha-value>)',
+        // Исход матча. Значение, а не оттенок палитры — см. globals.css.
+        win: 'rgb(var(--win) / <alpha-value>)',
+        loss: 'rgb(var(--loss) / <alpha-value>)',
         // Derived, never hand-typed at call sites.
         'ink-muted': 'rgb(var(--ink) / 0.62)',
         'ink-faint': 'rgb(var(--ink) / 0.34)',

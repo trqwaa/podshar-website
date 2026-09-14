@@ -125,6 +125,9 @@
     "unranked": "noch kein rang",
     "place": "platz {place}",
     "record": "{wins} / {losses}",
+    "win": "S",
+    "loss": "N",
+    "lastFive": "letzte spiele: {wins} gewonnen, {losses} verloren",
     "soon": "bald. warten auf einen schlüssel"
   },
   "patches": {

@@ -65,6 +65,9 @@ export const FORM_BUDGET_MS = 5000;
  */
 const FRESH_MS = 30 * 60 * 1000;
 
+/** Сколько последних матчей показывает полоска. Пять — просьба владельца. */
+const RECENT = 5;
+
 /** Гонка вместо `abort`: медленный ответ всё равно доедет и ляжет в кеш. */
 async function ask(url: string, revalidate: number, budget = TIMEOUT_MS) {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -170,10 +173,32 @@ export async function dotaProfile(
       // Медаль важнее счёта. Покажем её без цифр.
     }
 
+    // Последние пять — третьим запросом и той же необязательной попыткой.
+    // Победа считается так: слоты 0–127 — Radiant, 128 и выше — Dire. То есть
+    // «мой слот меньше 128» должно совпасть с «Radiant выиграли». Сверено на
+    // живых матчах, включая те, где человек был за Dire и Dire проиграли.
+    let recent: boolean[] = [];
+    try {
+      const games = await ask(
+        `https://api.opendota.com/api/players/${accountId}/matches?limit=${RECENT}`,
+        PLAYER_TTL,
+        Math.round(budget / 2)
+      ).then((r) => r.json());
+      if (Array.isArray(games)) {
+        recent = games
+          .filter((g) => Number.isFinite(g?.player_slot) && typeof g?.radiant_win === 'boolean')
+          .slice(0, RECENT)
+          .map((g) => (g.player_slot < 128) === g.radiant_win);
+      }
+    } catch {
+      // Полоски просто не будет. Медаль важнее.
+    }
+
     const tier = Number.isFinite(who?.rank_tier) ? Number(who.rank_tier) : null;
     const medal = tier ? Math.floor(tier / 10) : null;
 
     return {
+      recent,
       name: typeof who?.profile?.personaname === 'string' ? who.profile.personaname : null,
       medal: medal && medal >= 1 && medal <= 8 ? medal : null,
       // У Immortal единицы всегда ноль, так что отдельного случая не нужно.
@@ -206,7 +231,10 @@ function fromSnapshot(payload: unknown): DotaProfile | null {
     stars: typeof p.stars === 'number' ? p.stars : 0,
     leaderboard: typeof p.leaderboard === 'number' ? p.leaderboard : null,
     wins: typeof p.wins === 'number' ? p.wins : 0,
-    losses: typeof p.losses === 'number' ? p.losses : 0
+    losses: typeof p.losses === 'number' ? p.losses : 0,
+    // Снимки, снятые до появления полоски, этого поля не несут — пустой список
+    // честнее, чем выдуманный.
+    recent: Array.isArray(p.recent) ? p.recent.filter((v) => typeof v === 'boolean') : []
   };
 }
 

@@ -125,6 +125,9 @@
     "unranked": "no rank yet",
     "place": "rank {place}",
     "record": "{wins} / {losses}",
+    "win": "W",
+    "loss": "L",
+    "lastFive": "recent games: {wins} won, {losses} lost",
     "soon": "soon, waiting on a key"
   },
   "patches": {

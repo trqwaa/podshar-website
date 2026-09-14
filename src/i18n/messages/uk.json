@@ -125,6 +125,9 @@
     "unranked": "без рангу",
     "place": "місце {place}",
     "record": "{wins} / {losses}",
+    "win": "В",
+    "loss": "П",
+    "lastFive": "останні матчі: перемог {wins}, поразок {losses}",
     "soon": "скоро. чекаємо ключ"
   },
   "patches": {

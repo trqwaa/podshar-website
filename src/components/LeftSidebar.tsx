@@ -131,7 +131,7 @@ export function LeftSidebar({
                 рядом с названием ранга в половину ширины шторки не помещается. */}
             <p className="ps-label mb-3 mt-7">{t('stats')}</p>
             <div className="space-y-2">
-              <DotaBlock />
+              <DotaBlock open={open} />
               <StatBlock label={t('brawlCups')} value={stats.brawlCups} empty={tGames('soon')} />
             </div>
           </section>

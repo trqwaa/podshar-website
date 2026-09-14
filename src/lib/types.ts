@@ -36,6 +36,14 @@ export type DotaProfile = {
   leaderboard: number | null;
   wins: number;
   losses: number;
+  /**
+   * Последние матчи, свежий первым: `true` — выиграл.
+   *
+   * Массив, а не пара чисел, потому что смысл тут в порядке: «в в п в п»
+   * говорит, как идёт сегодня, а «338 / 339» — как шло всегда. Пустой, если
+   * список матчей не доехал; на экране тогда просто нет полоски.
+   */
+  recent: boolean[];
 };
 
 /** One person, as the "who is here" tile sees them. */
