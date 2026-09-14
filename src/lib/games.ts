@@ -6,11 +6,11 @@ import type { BrawlProfile, DotaProfile } from '@/lib/types';
 /**
  * Где кто в доте, и сколько у кого кубков.
  *
- * Пока только дота. OpenDota отвечает без ключа и без ограничений по адресу —
- * её можно спрашивать прямо отсюда. Brawl Stars ждёт ключа Supercell, и ключ там
- * привязан к IP-адресу, которого у Vercel нет: придётся идти через прокси
- * RoyaleAPI, у которого адрес постоянный. Проверено, что прокси отвечает; сам
- * ключ владелец ещё не завёл.
+ * Два источника, и обращаться с ними надо по-разному. OpenDota отвечает без
+ * ключа и без ограничений по адресу — её можно спрашивать прямо отсюда. Brawl
+ * Stars требует ключ Supercell, а ключ привязан к IP-адресу, которого у Vercel
+ * нет: поэтому туда мы ходим через прокси RoyaleAPI с постоянным адресом. См.
+ * `brawlProfile`.
  *
  * Здесь два забора, а не один, как у погоды и поездов, и второй появился после
  * замера. Первый: спрашивать OpenDota разрешено только из браузера, через
@@ -211,7 +211,11 @@ export async function dotaProfile(
 
     return {
       recent,
+      accountId,
       name: typeof who?.profile?.personaname === 'string' ? who.profile.personaname : null,
+      // Адрес, а не файл у себя: аватарка меняется вместе со стимовской, и
+      // копия у нас устарела бы в тот же день.
+      avatar: typeof who?.profile?.avatarfull === 'string' ? who.profile.avatarfull : null,
       medal: medal && medal >= 1 && medal <= 8 ? medal : null,
       // У Immortal единицы всегда ноль, так что отдельного случая не нужно.
       stars: tier ? tier % 10 : 0,
@@ -278,7 +282,9 @@ function fromSnapshot(payload: unknown): DotaProfile | null {
   const p = payload as Record<string, unknown>;
   if (!('stars' in p) || !('wins' in p)) return null;
   return {
+    accountId: typeof p.accountId === 'string' ? p.accountId : '',
     name: typeof p.name === 'string' ? p.name : null,
+    avatar: typeof p.avatar === 'string' ? p.avatar : null,
     medal: typeof p.medal === 'number' ? p.medal : null,
     stars: typeof p.stars === 'number' ? p.stars : 0,
     leaderboard: typeof p.leaderboard === 'number' ? p.leaderboard : null,
@@ -420,28 +426,34 @@ export async function brawlProfile(
     // Журнал боёв — отдельной попыткой и половиной срока, как счёт побед в доте.
     // Кубки важнее полоски.
     let recent: boolean[] = [];
+    let decided: boolean[] = [];
     try {
       const log = await ask(at('/battlelog'), PLAYER_TTL, Math.round(budget / 2), headers).then(
         (r) => r.json()
       );
       if (Array.isArray(log?.items)) {
-        recent = log.items
+        decided = log.items
           .map((x: { battle?: Record<string, unknown> }) => battleWon(x?.battle))
-          .filter((v: boolean | null): v is boolean => v !== null)
-          .slice(0, RECENT);
+          .filter((v: boolean | null): v is boolean => v !== null);
+        recent = decided.slice(0, RECENT);
       }
     } catch {
-      // Без полоски, но с кубками.
+      // Без полоски и без винрейта, но с кубками.
     }
 
     return {
+      tag,
       name: typeof who?.name === 'string' ? who.name : null,
       trophies: Number.isFinite(who?.trophies) ? Number(who.trophies) : 0,
       highest: Number.isFinite(who?.highestTrophies) ? Number(who.highestTrophies) : 0,
       rank: typeof who?.rankedRankName === 'string' ? who.rankedRankName : null,
       rankTier: Number.isFinite(who?.rankedRank) ? Number(who.rankedRank) : null,
       club: typeof who?.club?.name === 'string' && who.club.name ? who.club.name : null,
-      recent
+      recent,
+      // Весь журнал, а не только пятёрка из полоски: винрейт по пяти боям
+      // прыгает на двадцать процентов от одного матча и ничего не значит.
+      recentWins: decided.filter(Boolean).length,
+      recentPlayed: decided.length
     };
   } catch (error) {
     console.warn(
@@ -460,13 +472,16 @@ function fromBrawlSnapshot(payload: unknown): BrawlProfile | null {
   const p = payload as Record<string, unknown>;
   if (!('trophies' in p)) return null;
   return {
+    tag: typeof p.tag === 'string' ? p.tag : '',
     name: typeof p.name === 'string' ? p.name : null,
     trophies: typeof p.trophies === 'number' ? p.trophies : 0,
     highest: typeof p.highest === 'number' ? p.highest : 0,
     rank: typeof p.rank === 'string' ? p.rank : null,
     rankTier: typeof p.rankTier === 'number' ? p.rankTier : null,
     club: typeof p.club === 'string' ? p.club : null,
-    recent: Array.isArray(p.recent) ? p.recent.filter((v) => typeof v === 'boolean') : []
+    recent: Array.isArray(p.recent) ? p.recent.filter((v) => typeof v === 'boolean') : [],
+    recentWins: typeof p.recentWins === 'number' ? p.recentWins : 0,
+    recentPlayed: typeof p.recentPlayed === 'number' ? p.recentPlayed : 0
   };
 }
 

@@ -120,15 +120,17 @@
   },
   "games": {
     "dota": "dota",
-    "brawl": "brawl stars cups",
+    "brawl": "brawl stars",
     "link": "link your account",
     "quiet": "opendota is quiet",
     "unranked": "no rank yet",
     "place": "rank {place}",
-    "record": "{wins} / {losses}",
     "win": "W",
     "loss": "L",
-    "lastFive": "recent games: {wins} won, {losses} lost"
+    "lastFive": "recent games: {wins} won, {losses} lost",
+    "winrateOf": "{wins} of {played}",
+    "winrateRecent": "{wins} of the last {played} battles",
+    "openOn": "open on {where}"
   },
   "patches": {
     "title": "Patches",

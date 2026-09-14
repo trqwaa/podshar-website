@@ -120,15 +120,17 @@
   },
   "games": {
     "dota": "дота",
-    "brawl": "кубки brawl stars",
+    "brawl": "brawl stars",
     "link": "привязать аккаунт",
     "quiet": "opendota молчит",
     "unranked": "без ранга",
     "place": "место {place}",
-    "record": "{wins} / {losses}",
     "win": "В",
     "loss": "П",
-    "lastFive": "последние матчи: побед {wins}, поражений {losses}"
+    "lastFive": "последние матчи: побед {wins}, поражений {losses}",
+    "winrateOf": "{wins} из {played}",
+    "winrateRecent": "{wins} из {played} последних боёв",
+    "openOn": "открыть на {where}"
   },
   "patches": {
     "title": "Патчи",

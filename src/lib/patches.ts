@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.43',
+    date: '2026-09-14',
+    author: 'trqwaa',
+    note: 'в плитках игр ник с аватаркой, винрейт цветом и ссылка на stratz и brawlify'
+  },
+  {
     version: '0.42',
     date: '2026-09-14',
     author: 'trqwaa',

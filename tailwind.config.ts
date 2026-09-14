@@ -37,6 +37,7 @@ const config: Config = {
         // Исход матча. Значение, а не оттенок палитры — см. globals.css.
         win: 'rgb(var(--win) / <alpha-value>)',
         loss: 'rgb(var(--loss) / <alpha-value>)',
+        amber: 'rgb(var(--amber) / <alpha-value>)',
         // Derived, never hand-typed at call sites.
         'ink-muted': 'rgb(var(--ink) / 0.62)',
         'ink-faint': 'rgb(var(--ink) / 0.34)',

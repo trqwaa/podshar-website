@@ -120,15 +120,17 @@
   },
   "games": {
     "dota": "dota",
-    "brawl": "brawl-stars-pokale",
+    "brawl": "brawl stars",
     "link": "account verknüpfen",
     "quiet": "opendota schweigt",
     "unranked": "noch kein rang",
     "place": "platz {place}",
-    "record": "{wins} / {losses}",
     "win": "S",
     "loss": "N",
-    "lastFive": "letzte spiele: {wins} gewonnen, {losses} verloren"
+    "lastFive": "letzte spiele: {wins} gewonnen, {losses} verloren",
+    "winrateOf": "{wins} von {played}",
+    "winrateRecent": "{wins} der letzten {played} kämpfe",
+    "openOn": "auf {where} öffnen"
   },
   "patches": {
     "title": "Patches",
