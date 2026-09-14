@@ -334,10 +334,19 @@ export async function updateDotaAccount(
   const session = await readSession();
   if (!session) return { error: 'signedOut' };
 
-  const parsed = z.string().trim().max(200).safeParse(formData.get('dota') ?? '');
+  // Кнопка из списка под полем присылает готовый номер, и он важнее того, что
+  // набрано в поле: человек ткнул в конкретный аккаунт, а в поле при этом
+  // спокойно мог остаться предыдущий.
+  const picked = formData.get('pick');
+  const raw = typeof picked === 'string' && picked ? picked : (formData.get('dota') ?? '');
+
+  const parsed = z.string().trim().max(200).safeParse(raw);
   if (!parsed.success) return { error: 'invalid' };
   const query = parsed.data;
 
+  // Пустое поле забывает всё — и список тоже. Раз уж аккаунты копятся, «убрать
+  // один» и «убрать все» стали разными действиями; здесь второе, и подпись под
+  // заголовком говорит об этом прямо.
   if (!query) {
     await prisma.gameAccount.deleteMany({ where: { userId: session.userId, game: 'DOTA2' } });
     revalidatePath('/', 'layout');
@@ -358,7 +367,14 @@ export async function updateDotaAccount(
   const found = await dotaProfile(accountId, FORM_BUDGET_MS);
 
   const [, account] = await prisma.$transaction([
-    prisma.gameAccount.deleteMany({ where: { userId: session.userId, game: 'DOTA2' } }),
+    // Прошлые аккаунты не удаляются — они и есть тот список под полем, ради
+    // которого всё это. Снимается только отметка «вот этот сейчас показывается»:
+    // поле `isPrimary` схема несла с первого дня ровно под несколько аккаунтов
+    // у одного человека.
+    prisma.gameAccount.updateMany({
+      where: { userId: session.userId, game: 'DOTA2' },
+      data: { isPrimary: false }
+    }),
     // Номер аккаунта уникален на всю базу: одна дота — один владелец. Если он
     // уже за кем-то числится, привязка переезжает, а не падает с ошибкой про
     // нарушение уникальности, которую всё равно некому показать.
@@ -368,9 +384,10 @@ export async function updateDotaAccount(
         userId: session.userId,
         game: 'DOTA2',
         externalId: accountId,
-        tag: found?.name ?? null
+        tag: found?.name ?? null,
+        isPrimary: true
       },
-      update: { userId: session.userId, tag: found?.name ?? null }
+      update: { userId: session.userId, tag: found?.name ?? null, isPrimary: true }
     })
   ]);
 

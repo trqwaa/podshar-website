@@ -267,8 +267,11 @@ export async function rememberDota(accountId: string, player: DotaProfile) {
 export async function currentDota(
   userId: string
 ): Promise<{ player: DotaProfile | null; linked: boolean }> {
+  // Аккаунтов у человека может быть несколько — показывается отмеченный. Если
+  // отметки нет ни на одном (старая запись), берётся самый свежий.
   const account = await prisma.gameAccount.findFirst({
     where: { userId, game: 'DOTA2' },
+    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
     select: { id: true, externalId: true }
   });
   if (!account) return { player: null, linked: false };

@@ -60,11 +60,13 @@ export default async function ProfilePage({
       })
     : null;
 
-  // Ник, а не номер: в поле лежит ссылка, а показать в ответ надо то, по чему
-  // человек узнает свой аккаунт. Номер он всё равно не помнит.
-  const dota = await prisma.gameAccount.findFirst({
+  // Все аккаунты, отмеченный первым. Их может быть несколько — смурфы, старый
+  // аккаунт, чужой на посмотреть, — и список под полем избавляет от привычки
+  // держать ссылки на них где-то в заметках.
+  const dota = await prisma.gameAccount.findMany({
     where: { userId: user.id, game: 'DOTA2' },
-    select: { externalId: true, tag: true }
+    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
+    select: { externalId: true, tag: true, isPrimary: true }
   });
 
   return (
@@ -96,7 +98,7 @@ export default async function ProfilePage({
           нажавший «привязать аккаунт», пришёл за одним полем, и искать его
           самому среди пяти блоков — работа, которую он не просил. */}
       <div id="dota" className="animate-rise-in scroll-mt-20 [animation-delay:120ms]">
-        <DotaAccountForm current={dota?.externalId ?? null} linked={dota?.tag ?? null} />
+        <DotaAccountForm accounts={dota} />
       </div>
 
       <div className="animate-rise-in [animation-delay:150ms]">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 
@@ -71,7 +71,23 @@ export function DotaBlock({ open }: { open: boolean }) {
     if (open) setRun((n) => n + 1);
   }, [open]);
 
+  /**
+   * Спрашиваем при загрузке и заново при каждом открытии шторки.
+   *
+   * Иначе привязка аккаунта требовала перезагрузить сайт руками: форма в профиле
+   * сохраняла всё как надо, а плитка спрашивала цифры ровно один раз за жизнь
+   * страницы — и продолжала показывать то, что застала. Открытие шторки и есть
+   * тот момент, когда человек на неё смотрит, значит это же и момент спросить.
+   *
+   * Повторный заход почти всегда стоит одного запроса к своей базе: снимок ещё
+   * свежий, наружу никто не идёт. И состояние при этом не сбрасывается в
+   * «ждём» — иначе каждое открытие моргало бы заглушкой поверх готовых данных.
+   */
+  const first = useRef(true);
   useEffect(() => {
+    if (!open && !first.current) return;
+    first.current = false;
+
     let alive = true;
     // POST и `no-store` — и то и другое против одного и того же: браузер успел
     // запомнить ответ «аккаунт не привязан», полученный до привязки, и честно
@@ -91,7 +107,7 @@ export function DotaBlock({ open }: { open: boolean }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [open]);
 
   return (
     <div className="rounded border-2 border-rule bg-canvas p-3">

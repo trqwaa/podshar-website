@@ -366,18 +366,20 @@ export function HomeStationForm({ current }: { current: string | null }) {
  * только по имени.
  */
 export function DotaAccountForm({
-  current,
-  linked
+  accounts
 }: {
-  /** Номер аккаунта, а не ник: поле ждёт ссылку, и ник обратно в него не
-   *  разбирается. Поставленный сюда, он превращал повторное «сохранить» в
-   *  «не разобрал ссылку» на совершенно исправной привязке. */
-  current: string | null;
-  /** Ник, который за этим номером стоит. Только чтобы было видно, чей аккаунт. */
-  linked: string | null;
+  /**
+   * Все привязанные аккаунты, отмеченный первым.
+   *
+   * В поле идёт **номер**, а не ник: поле ждёт ссылку, и ник обратно в неё не
+   * разбирается. Поставленный туда, он превращал повторное «сохранить» в
+   * «не разобрал ссылку» на совершенно исправной привязке.
+   */
+  accounts: { externalId: string; tag: string | null; isPrimary: boolean }[];
 }) {
   const t = useTranslations('profile');
   const [state, action] = useActionState<DotaState, FormData>(updateDotaAccount, {});
+  const active = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
 
   return (
     <form action={action}>
@@ -385,10 +387,40 @@ export function DotaAccountForm({
         <Field
           name="dota"
           label={t('dota')}
-          defaultValue={current ?? ''}
+          defaultValue={active?.externalId ?? ''}
           autoComplete="off"
           required={false}
         />
+
+        {/* Список того, что уже привязывали. Каждый — кнопка отправки со своим
+            номером, так что выбор и есть сохранение: отдельного «применить» тут
+            не нужно, а ссылки на свои аккаунты больше не надо держать в
+            заметках. Действие предпочитает `pick` тексту в поле — см. его. */}
+        {accounts.length ? (
+          <div className="flex flex-col gap-2">
+            <span className="ps-label">{t('dotaList')}</span>
+            <div className="flex flex-wrap gap-2">
+              {accounts.map((a) => (
+                <button
+                  key={a.externalId}
+                  type="submit"
+                  name="pick"
+                  value={a.externalId}
+                  aria-current={a.isPrimary ? 'true' : undefined}
+                  // `normal-case`: ник — имя человека, и строчить его нельзя.
+                  className={`rounded border-2 px-3 py-2 text-sm normal-case transition-colors duration-drape ${
+                    a.isPrimary
+                      ? 'border-ink bg-sunk font-semibold text-ink'
+                      : 'border-rule text-ink-muted hover:border-ink hover:text-ink'
+                  }`}
+                >
+                  {a.tag ?? a.externalId}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <Footer
           state={{ error: state.error, ok: state.ok && !state.player && !state.pending }}
           label={t('save')}
@@ -397,11 +429,6 @@ export function DotaAccountForm({
           <p role="status" className="text-sm text-ink-muted">
             {state.player ? t('dotaSaved', { player: state.player }) : t('dotaPending')}
           </p>
-        ) : linked ? (
-          // Без этой строки на свежей странице в поле стоит голый номер, и чей
-          // он — сказать нечем. Имя и есть единственная проверка, что привязан
-          // свой аккаунт, а не чужой.
-          <p className="text-sm text-ink-muted">{t('dotaLinked', { player: linked })}</p>
         ) : null}
       </Section>
     </form>

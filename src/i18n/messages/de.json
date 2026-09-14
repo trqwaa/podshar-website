@@ -288,11 +288,11 @@
     "station": "station",
     "stationSaved": "gefunden: {station}",
     "dotaTitle": "dota",
-    "dotaHint": "ein link zu deinem steam-, dotabuff- oder opendota-profil. in den dota-einstellungen muss «Expose Public Match Data» an sein, sonst sieht den rang von aussen niemand. leer lassen zum entfernen",
+    "dotaHint": "ein link zu deinem steam-, dotabuff- oder opendota-profil. in den dota-einstellungen muss «Expose Public Match Data» an sein, sonst sieht den rang von aussen niemand. jedes verknüpfte konto bleibt unten in der liste; feld leeren und speichern vergisst alle",
     "dota": "profil-link",
+    "dotaList": "deine konten",
     "dotaSaved": "gefunden: {player}",
     "dotaPending": "verknüpft. opendota ist gerade lahm — der rang taucht gleich in der schublade auf",
-    "dotaLinked": "aktuell verknüpft: {player}",
     "errors": {
       "invalid": "hier stimmt etwas nicht.",
       "signedOut": "sitzung abgelaufen. melde dich neu an.",
