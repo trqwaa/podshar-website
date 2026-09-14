@@ -356,6 +356,36 @@ export async function updateDotaAccount(
   const accountId = await resolveSteam(query);
   if (!accountId) return { error: 'dotaNotFound' };
 
+  // Этот аккаунт у человека уже есть — значит его просто делают активным, и
+  // спрашивать о нём OpenDota незачем: имя лежит у нас, ранг покажет плитка.
+  //
+  // Не «заодно оптимизация», а починка. Выбор из списка гонял тот же запрос с
+  // пятисекундным сроком, тот не успевал, `tag` записывался пустым — и ник в
+  // списке пропадал ровно от нажатия на него. Имя стирается теперь только
+  // вместе с самим аккаунтом.
+  const known = await prisma.gameAccount.findFirst({
+    where: { userId: session.userId, game: 'DOTA2', externalId: accountId },
+    select: { id: true, tag: true }
+  });
+
+  if (known) {
+    // Ни одного похода наружу: переключение — это одна отметка в своей базе.
+    // Даже когда ника нет, добирать его здесь нельзя. Замер: OpenDota отвечала
+    // 9932, 11683 и 16438 мс подряд, а у формы пять секунд, и дождаться она не
+    // могла в принципе — каждое нажатие просто висело впустую. Имя доберёт
+    // `currentDota`, у которого полный срок и никто над душой.
+    await prisma.$transaction([
+      prisma.gameAccount.updateMany({
+        where: { userId: session.userId, game: 'DOTA2' },
+        data: { isPrimary: false }
+      }),
+      prisma.gameAccount.update({ where: { id: known.id }, data: { isPrimary: true } })
+    ]);
+
+    revalidatePath('/', 'layout');
+    return { ok: true };
+  }
+
   // Спрашиваем профиль сразу, чтобы назвать найденный ник: перепутать тут можно
   // только одним способом — привязать чужой аккаунт, — и видно это лишь по имени.
   //
@@ -387,7 +417,9 @@ export async function updateDotaAccount(
         tag: found?.name ?? null,
         isPrimary: true
       },
-      update: { userId: session.userId, tag: found?.name ?? null, isPrimary: true }
+      // Та же осторожность, что и выше: не узнали имя — оставляем прежнее.
+      // Здесь это случай «аккаунт числился за другим человеком и переезжает».
+      update: { userId: session.userId, isPrimary: true, ...(found?.name ? { tag: found.name } : {}) }
     })
   ]);
 

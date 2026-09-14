@@ -43,8 +43,15 @@ const VANITY_TTL = 86_400;
  * Ровно из-за этого разброса значения и лежат снимками в базе: ждать чужой
  * сервер разрешено один раз в полчаса и только в фоне, а не каждый раз, когда
  * кто-то открыл шторку.
+ *
+ * Девять, а не двенадцать и не двадцать, — потому что выше нас есть свой предел:
+ * функция на Vercel живёт считанные секунды и будет прибита вместе с нашим
+ * ожиданием. Лучше сдаться самим и сказать об этом в лог, чем быть убитыми на
+ * середине без объяснений. Промах при этом дёшев: `Promise.race` не отменяет
+ * запрос, ответ доезжает и ложится в кеш Next, так что следующий заход обычно
+ * получает его мгновенно.
  */
-const TIMEOUT_MS = 12_000;
+const TIMEOUT_MS = 9000;
 
 /**
  * Сколько ждёт форма привязки.
@@ -272,7 +279,7 @@ export async function currentDota(
   const account = await prisma.gameAccount.findFirst({
     where: { userId, game: 'DOTA2' },
     orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
-    select: { id: true, externalId: true }
+    select: { id: true, externalId: true, tag: true }
   });
   if (!account) return { player: null, linked: false };
 
@@ -295,5 +302,15 @@ export async function currentDota(
     // в руках, а не сохранилось — значит просто сходим за ним ещё раз позже.
     console.warn('[podshar] dota snapshot not saved:', error);
   });
+
+  // Ник заодно. Он нужен списку аккаунтов в профиле, а форме он не по карману:
+  // у неё пять секунд, а у этого сервиса бывает шестнадцать. Здесь ответ уже в
+  // руках, и записать имя стоит одного запроса к своей базе.
+  if (fresh.name && fresh.name !== account.tag) {
+    await prisma.gameAccount
+      .update({ where: { id: account.id }, data: { tag: fresh.name } })
+      .catch((error) => console.warn('[podshar] dota name not saved:', error));
+  }
+
   return { player: fresh, linked: true };
 }
