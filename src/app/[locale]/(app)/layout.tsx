@@ -4,7 +4,7 @@ import { PatchList } from '@/components/Patches';
 import { PresenceBeat } from '@/components/Presence';
 import { readSession } from '@/lib/auth/session';
 import { guestModeAllowed } from '@/lib/auth/config';
-import { getCurrentMember, getQuickStats } from '@/lib/session';
+import { getCurrentMember } from '@/lib/session';
 import { resolveLocale } from '@/lib/locale';
 
 /**
@@ -37,7 +37,7 @@ export default async function AppLayout({
     if (!session) redirect({ href: '/login', locale });
   }
 
-  const [profile, stats] = await Promise.all([getCurrentMember(), getQuickStats()]);
+  const profile = await getCurrentMember();
 
   return (
     <>
@@ -48,7 +48,6 @@ export default async function AppLayout({
           second request. */}
       <AppShell
         profile={profile}
-        stats={stats}
         patches={<PatchList locale={locale} />}
         telegram={telegramInvite()}
       >

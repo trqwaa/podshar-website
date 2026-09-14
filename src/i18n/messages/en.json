@@ -120,6 +120,7 @@
   },
   "games": {
     "dota": "dota",
+    "brawl": "brawl stars cups",
     "link": "link your account",
     "quiet": "opendota is quiet",
     "unranked": "no rank yet",
@@ -127,8 +128,7 @@
     "record": "{wins} / {losses}",
     "win": "W",
     "loss": "L",
-    "lastFive": "recent games: {wins} won, {losses} lost",
-    "soon": "soon, waiting on a key"
+    "lastFive": "recent games: {wins} won, {losses} lost"
   },
   "patches": {
     "title": "Patches",
@@ -137,7 +137,6 @@
   "sidebar": {
     "profile": "that's you",
     "stats": "numbers",
-    "brawlCups": "Brawl Stars cups",
     "navigation": "Navigation",
     "signOut": "Sign out",
     "editProfile": "Edit",
@@ -206,13 +205,14 @@
       "here": "every patch, by number. who did what and when"
     },
     "profile": {
-      "here": "your profile. name, handle, email, station, dota, password, mark",
+      "here": "your profile. name, handle, email, station, dota, brawl, password, mark",
       "identity": "the name is for us, the handle is for signing in",
       "avatar": "eight marks. no photos, nothing to upload either",
       "security": "password. change it and every other device drops",
       "invite": "adds a fourth person. owner only",
       "station": "your home station. the homepage finds your train from HB with it",
-      "dota": "dota account. paste a steam link, the drawer shows your medal"
+      "dota": "dota account. paste a steam link, the drawer shows your medal",
+      "brawl": "brawl stars account. paste your player tag, cups show up in the drawer"
     }
   },
   "quotes": {
@@ -290,9 +290,9 @@
     "dotaTitle": "dota",
     "dotaHint": "a link to your steam, dotabuff or opendota profile. \"Expose Public Match Data\" has to be on in dota's own settings, or nobody outside can see the rank. every account you link is kept below; empty the field and save to forget them all",
     "dota": "profile link",
-    "dotaList": "accounts you have linked",
-    "dotaSaved": "found: {player}",
-    "dotaPending": "linked. opendota is slow right now — the rank turns up in the drawer shortly",
+    "brawlTitle": "brawl stars",
+    "brawlHint": "your player tag from the game — tap your name, top left, it starts with #. every tag you link is kept below; empty the field and save to forget them all",
+    "brawl": "player tag",
     "errors": {
       "invalid": "something here is wrong.",
       "signedOut": "your session ended. sign in again.",
@@ -310,8 +310,12 @@
       "alreadyInvited": "that handle or email is already on the list.",
       "stationNotFound": "SBB doesn't know that station",
       "stationLookup": "SBB didn't answer, try again",
-      "dotaNotFound": "could not read that link. paste the one from the address bar of your profile."
-    }
+      "dotaNotFound": "could not read that link. paste the one from the address bar of your profile.",
+      "brawlNotFound": "that does not look like a player tag."
+    },
+    "gameSaved": "found: {player}",
+    "gamePending": "linked. opendota is slow right now — the rank turns up in the drawer shortly",
+    "gameList": "accounts you have linked"
   },
   "reset": {
     "title": "forgot your password",

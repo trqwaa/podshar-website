@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@/lib/db';
-import type { DotaProfile } from '@/lib/types';
+import type { BrawlProfile, DotaProfile } from '@/lib/types';
 
 /**
  * Где кто в доте, и сколько у кого кубков.
@@ -14,9 +14,9 @@ import type { DotaProfile } from '@/lib/types';
  *
  * Здесь два забора, а не один, как у погоды и поездов, и второй появился после
  * замера. Первый: спрашивать OpenDota разрешено только из браузера, через
- * `/api/games`, и никогда из рендера — `getQuickStats` ждёт **вся страница**
- * (он вызывается в `(app)/layout.tsx`), так что один медленный ответ подвесил
- * бы главную из-за плитки в закрытой шторке.
+ * `/api/games`, и никогда из рендера: всё, что вызывается в `(app)/layout.tsx`,
+ * ждёт **каждая страница сайта**, так что один медленный ответ подвесил бы
+ * главную из-за плитки в закрытой шторке.
  *
  * Второй забор — снимки в базе. OpenDota отвечает то за четверть секунды, то за
  * одиннадцать (см. `TIMEOUT_MS`), и ходить туда на каждый показ означало бы
@@ -76,7 +76,12 @@ const FRESH_MS = 30 * 60 * 1000;
 const RECENT = 5;
 
 /** Гонка вместо `abort`: медленный ответ всё равно доедет и ляжет в кеш. */
-async function ask(url: string, revalidate: number, budget = TIMEOUT_MS) {
+async function ask(
+  url: string,
+  revalidate: number,
+  budget = TIMEOUT_MS,
+  extra: Record<string, string> = {}
+) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const response = await Promise.race([
@@ -87,7 +92,7 @@ async function ask(url: string, revalidate: number, budget = TIMEOUT_MS) {
         // узнаваемы в их логах. Проверено, что Steam отдаёт одну и ту же
         // страницу с этим заголовком, с браузерным и вовсе без него: никакого
         // «сокращённого ответа для не-браузеров» тут нет.
-        headers: { 'user-agent': 'Mozilla/5.0 (compatible; podshar/1.0)' }
+        headers: { 'user-agent': 'Mozilla/5.0 (compatible; podshar/1.0)', ...extra }
       }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error(`нет ответа за ${budget}ms`)), budget);
@@ -221,6 +226,46 @@ export async function dotaProfile(
 }
 
 /**
+ * Аккаунт, который сейчас показывается.
+ *
+ * Их может быть несколько — берётся отмеченный, а если отметки нет ни на одном
+ * (запись из тех времён, когда аккаунт был один), то самый свежий.
+ */
+async function activeAccount(userId: string, game: 'DOTA2' | 'BRAWL_STARS') {
+  return prisma.gameAccount.findFirst({
+    where: { userId, game },
+    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
+    select: { id: true, externalId: true, tag: true }
+  });
+}
+
+/** Последний снимок и не пора ли за новым. */
+async function lastSnapshot(accountId: string) {
+  const newest = await prisma.gameStatSnapshot.findFirst({
+    where: { accountId },
+    orderBy: { capturedAt: 'desc' },
+    select: { capturedAt: true, payload: true }
+  });
+  return {
+    payload: newest?.payload ?? null,
+    fresh: Boolean(newest && Date.now() - newest.capturedAt.getTime() < FRESH_MS)
+  };
+}
+
+/**
+ * Запомнить ник, который узнали по дороге.
+ *
+ * Он нужен списку аккаунтов в профиле, а форме не по карману: у неё пять секунд,
+ * а у этих сервисов бывает шестнадцать. Здесь ответ уже в руках.
+ */
+async function rememberName(accountId: string, was: string | null, now: string | null) {
+  if (!now || now === was) return;
+  await prisma.gameAccount
+    .update({ where: { id: accountId }, data: { tag: now } })
+    .catch((error) => console.warn('[podshar] game name not saved:', error));
+}
+
+/**
  * Снимок обратно в профиль.
  *
  * Целиком лежит в `payload` — поля `mmr`/`cups` в таблице заводились под числа,
@@ -274,43 +319,164 @@ export async function rememberDota(accountId: string, player: DotaProfile) {
 export async function currentDota(
   userId: string
 ): Promise<{ player: DotaProfile | null; linked: boolean }> {
-  // Аккаунтов у человека может быть несколько — показывается отмеченный. Если
-  // отметки нет ни на одном (старая запись), берётся самый свежий.
-  const account = await prisma.gameAccount.findFirst({
-    where: { userId, game: 'DOTA2' },
-    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
-    select: { id: true, externalId: true, tag: true }
-  });
+  const account = await activeAccount(userId, 'DOTA2');
   if (!account) return { player: null, linked: false };
 
-  const newest = await prisma.gameStatSnapshot.findFirst({
-    where: { accountId: account.id },
-    orderBy: { capturedAt: 'desc' },
-    select: { capturedAt: true, payload: true }
-  });
-  const stored = newest ? fromSnapshot(newest.payload) : null;
+  const { payload, fresh } = await lastSnapshot(account.id);
+  const stored = fromSnapshot(payload);
+  if (stored && fresh) return { player: stored, linked: true };
 
-  if (stored && Date.now() - newest!.capturedAt.getTime() < FRESH_MS) {
-    return { player: stored, linked: true };
-  }
+  const found = await dotaProfile(account.externalId);
+  if (!found) return { player: stored, linked: true };
 
-  const fresh = await dotaProfile(account.externalId);
-  if (!fresh) return { player: stored, linked: true };
-
-  await rememberDota(account.id, fresh).catch((error) => {
+  await rememberDota(account.id, found).catch((error) => {
     // Не показать из-за незаписанного снимка было бы глупо: значение у нас уже
     // в руках, а не сохранилось — значит просто сходим за ним ещё раз позже.
     console.warn('[podshar] dota snapshot not saved:', error);
   });
+  await rememberName(account.id, account.tag, found.name);
+  return { player: found, linked: true };
+}
 
-  // Ник заодно. Он нужен списку аккаунтов в профиле, а форме он не по карману:
-  // у неё пять секунд, а у этого сервиса бывает шестнадцать. Здесь ответ уже в
-  // руках, и записать имя стоит одного запроса к своей базе.
-  if (fresh.name && fresh.name !== account.tag) {
-    await prisma.gameAccount
-      .update({ where: { id: account.id }, data: { tag: fresh.name } })
-      .catch((error) => console.warn('[podshar] dota name not saved:', error));
+/** То же для Brawl Stars: свежий снимок из базы, иначе один поход наружу. */
+export async function currentBrawl(
+  userId: string
+): Promise<{ player: BrawlProfile | null; linked: boolean }> {
+  const account = await activeAccount(userId, 'BRAWL_STARS');
+  if (!account) return { player: null, linked: false };
+
+  const { payload, fresh } = await lastSnapshot(account.id);
+  const stored = fromBrawlSnapshot(payload);
+  if (stored && fresh) return { player: stored, linked: true };
+
+  const found = await brawlProfile(account.externalId);
+  if (!found) return { player: stored, linked: true };
+
+  await rememberBrawl(account.id, found).catch((error) => {
+    console.warn('[podshar] brawl snapshot not saved:', error);
+  });
+  await rememberName(account.id, account.tag, found.name);
+  return { player: found, linked: true };
+}
+
+/**
+ * Brawl Stars — через прокси, и только через него.
+ *
+ * Ключ Supercell привязан к IP-адресу, а у Vercel постоянного адреса нет:
+ * функция каждый раз выезжает с нового. RoyaleAPI держит прокси с постоянным
+ * адресом ровно под этот случай, и в ключе разрешён именно он. Проверено обеими
+ * сторонами: через прокси приходит 200, напрямую — 403 `accessDenied.invalidIp`.
+ * То есть утёкший ключ работать откуда попало не будет, и это не предположение.
+ */
+const BRAWL = 'https://bsproxy.royaleapi.dev/v1';
+
+/** True, когда есть чем представиться. Без ключа плитка честно молчит. */
+export const brawlConfigured = () => Boolean(process.env.BRAWL_STARS_API_TOKEN);
+
+/**
+ * Тег игрока из того, что человек вставил.
+ *
+ * Решётку в игре показывают, а в адресе она значит другое, поэтому её тут и
+ * снимают, и ставят обратно уже при запросе. Регистр приводится к верхнему:
+ * теги пишутся заглавными, а копируют их как придётся.
+ */
+export function normalizeTag(input: string): string | null {
+  const tag = input.trim().replace(/^[#%23]+/, '').toUpperCase();
+  return /^[A-Z0-9]{3,15}$/.test(tag) ? tag : null;
+}
+
+/**
+ * Выиграл ли бой.
+ *
+ * В командных режимах игра прямо говорит `victory` или `defeat`. В «выживании»
+ * результата нет, есть место — и победой там считается попадание в верхнюю
+ * половину, ровно как игра начисляет за него кубки. Ничьи и всё непонятное
+ * выбрасываются: полоска должна отвечать «выиграл или нет», а не «было сложно».
+ */
+function battleWon(battle: Record<string, unknown> | undefined): boolean | null {
+  if (!battle) return null;
+  if (battle.result === 'victory') return true;
+  if (battle.result === 'defeat') return false;
+  if (typeof battle.rank === 'number') {
+    return battle.rank <= (battle.mode === 'duoShowdown' ? 2 : 4);
   }
+  return null;
+}
 
-  return { player: fresh, linked: true };
+/** Профиль и последние бои. `null` — если ключа нет или API не ответило. */
+export async function brawlProfile(
+  tag: string,
+  budget = TIMEOUT_MS
+): Promise<BrawlProfile | null> {
+  const token = process.env.BRAWL_STARS_API_TOKEN;
+  if (!token) return null;
+
+  const headers = { authorization: `Bearer ${token}` };
+  const at = (path: string) => `${BRAWL}/players/%23${encodeURIComponent(tag)}${path}`;
+
+  try {
+    const who = await ask(at(''), PLAYER_TTL, budget, headers).then((r) => r.json());
+
+    // Журнал боёв — отдельной попыткой и половиной срока, как счёт побед в доте.
+    // Кубки важнее полоски.
+    let recent: boolean[] = [];
+    try {
+      const log = await ask(at('/battlelog'), PLAYER_TTL, Math.round(budget / 2), headers).then(
+        (r) => r.json()
+      );
+      if (Array.isArray(log?.items)) {
+        recent = log.items
+          .map((x: { battle?: Record<string, unknown> }) => battleWon(x?.battle))
+          .filter((v: boolean | null): v is boolean => v !== null)
+          .slice(0, RECENT);
+      }
+    } catch {
+      // Без полоски, но с кубками.
+    }
+
+    return {
+      name: typeof who?.name === 'string' ? who.name : null,
+      trophies: Number.isFinite(who?.trophies) ? Number(who.trophies) : 0,
+      highest: Number.isFinite(who?.highestTrophies) ? Number(who.highestTrophies) : 0,
+      rank: typeof who?.rankedRankName === 'string' ? who.rankedRankName : null,
+      club: typeof who?.club?.name === 'string' && who.club.name ? who.club.name : null,
+      recent
+    };
+  } catch (error) {
+    console.warn(
+      '[podshar] brawl stars did not answer:',
+      error instanceof Error ? error.message : error
+    );
+    return null;
+  }
+}
+
+/** Снимок Brawl Stars обратно в профиль. Кубки продублированы колонкой: под них
+ *  в таблице заведено отдельное поле, и однажды по нему захочется построить
+ *  график, не разбирая JSON в каждой строке. */
+function fromBrawlSnapshot(payload: unknown): BrawlProfile | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const p = payload as Record<string, unknown>;
+  if (!('trophies' in p)) return null;
+  return {
+    name: typeof p.name === 'string' ? p.name : null,
+    trophies: typeof p.trophies === 'number' ? p.trophies : 0,
+    highest: typeof p.highest === 'number' ? p.highest : 0,
+    rank: typeof p.rank === 'string' ? p.rank : null,
+    club: typeof p.club === 'string' ? p.club : null,
+    recent: Array.isArray(p.recent) ? p.recent.filter((v) => typeof v === 'boolean') : []
+  };
+}
+
+export async function rememberBrawl(accountId: string, player: BrawlProfile) {
+  await prisma.gameStatSnapshot.create({
+    data: {
+      accountId,
+      game: 'BRAWL_STARS',
+      cups: player.trophies,
+      highestCups: player.highest,
+      rankTier: player.rank,
+      payload: { ...player }
+    }
+  });
 }

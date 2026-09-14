@@ -8,7 +8,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { Modal } from './Modal';
 import { RightAIChat } from './RightAIChat';
 import { PodsharWordmark } from './PodsharMark';
-import type { MemberProfile, QuickStats } from '@/lib/types';
+import type { MemberProfile } from '@/lib/types';
 
 /**
  * The shell: a drawer and a canvas.
@@ -32,13 +32,11 @@ import type { MemberProfile, QuickStats } from '@/lib/types';
  */
 export function AppShell({
   profile,
-  stats,
   children,
   patches,
   telegram
 }: {
   profile: MemberProfile;
-  stats: QuickStats;
   children: React.ReactNode;
   /**
    * The patch list, rendered on the server upstairs and shown here in a panel.
@@ -94,7 +92,6 @@ export function AppShell({
       <LeftSidebar
         open={navOpen}
         profile={profile}
-        stats={stats}
         onOpenPatches={patches ? () => setPatchesOpen(true) : undefined}
       />
 

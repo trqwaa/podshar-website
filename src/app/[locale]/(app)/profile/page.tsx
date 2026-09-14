@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import {
-  DotaAccountForm,
+  GameAccountForm,
   HomeStationForm,
   IdentityForm,
   InviteForm,
@@ -63,11 +63,13 @@ export default async function ProfilePage({
   // Все аккаунты, отмеченный первым. Их может быть несколько — смурфы, старый
   // аккаунт, чужой на посмотреть, — и список под полем избавляет от привычки
   // держать ссылки на них где-то в заметках.
-  const dota = await prisma.gameAccount.findMany({
-    where: { userId: user.id, game: 'DOTA2' },
+  const games = await prisma.gameAccount.findMany({
+    where: { userId: user.id },
     orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
-    select: { externalId: true, tag: true, isPrimary: true }
+    select: { game: true, externalId: true, tag: true, isPrimary: true }
   });
+  const dota = games.filter((g) => g.game === 'DOTA2');
+  const brawl = games.filter((g) => g.game === 'BRAWL_STARS');
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 p-3 sm:gap-4 sm:p-4">
@@ -98,7 +100,11 @@ export default async function ProfilePage({
           нажавший «привязать аккаунт», пришёл за одним полем, и искать его
           самому среди пяти блоков — работа, которую он не просил. */}
       <div id="dota" className="animate-rise-in scroll-mt-20 [animation-delay:120ms]">
-        <DotaAccountForm accounts={dota} />
+        <GameAccountForm game="dota" accounts={dota} />
+      </div>
+
+      <div id="brawl" className="animate-rise-in scroll-mt-20 [animation-delay:135ms]">
+        <GameAccountForm game="brawl" accounts={brawl} />
       </div>
 
       <div className="animate-rise-in [animation-delay:150ms]">

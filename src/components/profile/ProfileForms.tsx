@@ -8,10 +8,11 @@ import {
   changePassword,
   createInvite,
   revokeOtherSessions,
+  updateBrawlAccount,
   updateDotaAccount,
   updateHomeStation,
   updateIdentity,
-  type DotaState,
+  type GameState,
   type ProfileState,
   type StationState
 } from '@/lib/auth/profile';
@@ -355,50 +356,56 @@ export function HomeStationForm({ current }: { current: string | null }) {
 }
 
 /**
- * Аккаунт доты — по ссылке, какая под рукой.
+ * Игровой аккаунт — по тому, что под рукой.
  *
- * Поле принимает Steam, Dotabuff и OpenDota, и голый номер тоже. Просить
- * «номер аккаунта» было бы честнее по названию и хуже по делу: его никто не
- * знает наизусть, а ссылка на свой профиль открыта у каждого.
+ * Одна форма на доту и Brawl Stars: различаются они подписями и тем, какое
+ * действие вызвать. Поле принимает ссылку любого вида или тег, потому что люди
+ * вставляют то, что у них открыто, а не то, что удобно нам, — просить «номер
+ * аккаунта» значит оставить поле пустым.
  *
  * В ответ называется найденный ник — как и станция в форме выше. Ошибиться тут
  * можно ровно одним способом, привязав чужой аккаунт, и заметить это можно
  * только по имени.
  */
-export function DotaAccountForm({
+export function GameAccountForm({
+  game,
   accounts
 }: {
+  game: 'dota' | 'brawl';
   /**
    * Все привязанные аккаунты, отмеченный первым.
    *
-   * В поле идёт **номер**, а не ник: поле ждёт ссылку, и ник обратно в неё не
-   * разбирается. Поставленный туда, он превращал повторное «сохранить» в
-   * «не разобрал ссылку» на совершенно исправной привязке.
+   * В поле идёт **идентификатор**, а не ник: поле ждёт ссылку или тег, и ник
+   * обратно в них не разбирается. Поставленный туда, он превращал повторное
+   * «сохранить» в «не разобрал ссылку» на совершенно исправной привязке.
    */
   accounts: { externalId: string; tag: string | null; isPrimary: boolean }[];
 }) {
   const t = useTranslations('profile');
-  const [state, action] = useActionState<DotaState, FormData>(updateDotaAccount, {});
+  const [state, action] = useActionState<GameState, FormData>(
+    game === 'dota' ? updateDotaAccount : updateBrawlAccount,
+    {}
+  );
   const active = accounts.find((a) => a.isPrimary) ?? accounts[0] ?? null;
 
   return (
     <form action={action}>
-      <Section title={t('dotaTitle')} hint={t('dotaHint')}>
+      <Section title={t(`${game}Title`)} hint={t(`${game}Hint`)}>
         <Field
-          name="dota"
-          label={t('dota')}
+          name={game}
+          label={t(game)}
           defaultValue={active?.externalId ?? ''}
           autoComplete="off"
           required={false}
         />
 
         {/* Список того, что уже привязывали. Каждый — кнопка отправки со своим
-            номером, так что выбор и есть сохранение: отдельного «применить» тут
-            не нужно, а ссылки на свои аккаунты больше не надо держать в
-            заметках. Действие предпочитает `pick` тексту в поле — см. его. */}
+            идентификатором, так что выбор и есть сохранение: отдельного
+            «применить» тут не нужно, а ссылки на свои аккаунты больше не надо
+            держать в заметках. Действие предпочитает `pick` тексту в поле. */}
         {accounts.length ? (
           <div className="flex flex-col gap-2">
-            <span className="ps-label">{t('dotaList')}</span>
+            <span className="ps-label">{t('gameList')}</span>
             <div className="flex flex-wrap gap-2">
               {accounts.map((a) => (
                 <button
@@ -427,7 +434,7 @@ export function DotaAccountForm({
         />
         {state.player || state.pending ? (
           <p role="status" className="text-sm text-ink-muted">
-            {state.player ? t('dotaSaved', { player: state.player }) : t('dotaPending')}
+            {state.player ? t('gameSaved', { player: state.player }) : t('gamePending')}
           </p>
         ) : null}
       </Section>

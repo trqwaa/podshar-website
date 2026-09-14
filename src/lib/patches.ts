@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.42',
+    date: '2026-09-14',
+    author: 'trqwaa',
+    note: 'кубки brawl stars в шторке — впиши свой тег в профиле, рядом встанут ранг, клуб и последние бои'
+  },
+  {
     version: '0.41',
     date: '2026-09-14',
     author: 'trqwaa',

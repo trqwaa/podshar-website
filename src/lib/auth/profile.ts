@@ -11,7 +11,15 @@ import { readSession, destroySession } from '@/lib/auth/session';
 import { AVATAR_PRESETS } from '@/components/profile/MemberAvatar';
 import { routing } from '@/i18n/routing';
 import { findStation } from '@/lib/trains';
-import { dotaProfile, rememberDota, resolveSteam, FORM_BUDGET_MS } from '@/lib/games';
+import {
+  brawlProfile,
+  dotaProfile,
+  normalizeTag,
+  rememberBrawl,
+  rememberDota,
+  resolveSteam,
+  FORM_BUDGET_MS
+} from '@/lib/games';
 
 /**
  * Everything the profile page can do.
@@ -313,32 +321,44 @@ export async function updateHomeStation(
   return { ok: true, station: found.name };
 }
 
-export type DotaState = ProfileState & { player?: string; pending?: boolean };
+export type GameState = ProfileState & { player?: string; pending?: boolean };
 
 /**
- * Привязать аккаунт доты.
+ * Привязать игровой аккаунт. Общее для доты и Brawl Stars.
  *
- * Принимает любую ссылку, которую человек может держать открытой, — Steam,
- * Dotabuff, OpenDota, — и отвечает найденным ником. Ник здесь ровно за тем же,
- * зачем название станции в форме выше: единственная возможная ошибка — привязать
- * чужой аккаунт, и увидеть её можно только по имени.
- *
- * Пустое поле отвязывает. `deleteMany` по пользователю, а не по номеру: если
- * человек меняет аккаунт, старая привязка должна уйти, иначе у него их станет
- * два и «свежая запись» начнёт выбираться случайно.
+ * Различий у них ровно три: чем опознаётся аккаунт (ссылка на Steam против тега
+ * из игры), у кого спрашивать и что считать полным ответом. Всё остальное —
+ * список, отметка активного, осторожность с именем, поведение при молчащем
+ * сервисе — совпадает дословно, и разъезжаться этим двум формам незачем.
  */
-export async function updateDotaAccount(
-  _prev: DotaState,
-  formData: FormData
-): Promise<DotaState> {
+async function linkGameAccount<T extends { name: string | null }>(
+  formData: FormData,
+  how: {
+    game: 'DOTA2' | 'BRAWL_STARS';
+    /** Имя поля в форме. */
+    field: string;
+    /** Ключ ошибки, когда из введённого не вышло опознать аккаунт. */
+    unknown: string;
+    /** Что человек вставил — в опознанный идентификатор. */
+    resolve: (raw: string) => Promise<string | null> | string | null;
+    /** Спросить сервис игры. `null` — не ответил. */
+    lookup: (id: string) => Promise<T | null>;
+    /** Записать первый снимок. */
+    remember: (accountId: string, player: T) => Promise<void>;
+    /** Стоит ли этот ответ того, чтобы лечь снимком на полчаса. */
+    worth: (player: T) => boolean;
+  }
+): Promise<GameState> {
   const session = await readSession();
   if (!session) return { error: 'signedOut' };
+  const { userId } = session;
+  const { game } = how;
 
-  // Кнопка из списка под полем присылает готовый номер, и он важнее того, что
-  // набрано в поле: человек ткнул в конкретный аккаунт, а в поле при этом
-  // спокойно мог остаться предыдущий.
+  // Кнопка из списка под полем присылает готовый идентификатор, и он важнее
+  // того, что набрано в поле: человек ткнул в конкретный аккаунт, а в поле при
+  // этом спокойно мог остаться предыдущий.
   const picked = formData.get('pick');
-  const raw = typeof picked === 'string' && picked ? picked : (formData.get('dota') ?? '');
+  const raw = typeof picked === 'string' && picked ? picked : (formData.get(how.field) ?? '');
 
   const parsed = z.string().trim().max(200).safeParse(raw);
   if (!parsed.success) return { error: 'invalid' };
@@ -348,40 +368,33 @@ export async function updateDotaAccount(
   // один» и «убрать все» стали разными действиями; здесь второе, и подпись под
   // заголовком говорит об этом прямо.
   if (!query) {
-    await prisma.gameAccount.deleteMany({ where: { userId: session.userId, game: 'DOTA2' } });
+    await prisma.gameAccount.deleteMany({ where: { userId, game } });
     revalidatePath('/', 'layout');
     return { ok: true };
   }
 
-  const accountId = await resolveSteam(query);
-  if (!accountId) return { error: 'dotaNotFound' };
+  const externalId = await how.resolve(query);
+  if (!externalId) return { error: how.unknown };
 
   // Этот аккаунт у человека уже есть — значит его просто делают активным, и
-  // спрашивать о нём OpenDota незачем: имя лежит у нас, ранг покажет плитка.
+  // спрашивать о нём сервис игры незачем: имя лежит у нас, цифры покажет плитка.
   //
   // Не «заодно оптимизация», а починка. Выбор из списка гонял тот же запрос с
   // пятисекундным сроком, тот не успевал, `tag` записывался пустым — и ник в
-  // списке пропадал ровно от нажатия на него. Имя стирается теперь только
-  // вместе с самим аккаунтом.
+  // списке пропадал ровно от нажатия на него. Замер: OpenDota отвечала 9932,
+  // 11683 и 16438 мс подряд, то есть дождаться форма не могла в принципе.
+  // Недостающее имя доберут `currentDota` и `currentBrawl`, у которых полный
+  // срок и никто над душой. Имя стирается теперь только вместе с аккаунтом.
   const known = await prisma.gameAccount.findFirst({
-    where: { userId: session.userId, game: 'DOTA2', externalId: accountId },
-    select: { id: true, tag: true }
+    where: { userId, game, externalId },
+    select: { id: true }
   });
 
   if (known) {
-    // Ни одного похода наружу: переключение — это одна отметка в своей базе.
-    // Даже когда ника нет, добирать его здесь нельзя. Замер: OpenDota отвечала
-    // 9932, 11683 и 16438 мс подряд, а у формы пять секунд, и дождаться она не
-    // могла в принципе — каждое нажатие просто висело впустую. Имя доберёт
-    // `currentDota`, у которого полный срок и никто над душой.
     await prisma.$transaction([
-      prisma.gameAccount.updateMany({
-        where: { userId: session.userId, game: 'DOTA2' },
-        data: { isPrimary: false }
-      }),
+      prisma.gameAccount.updateMany({ where: { userId, game }, data: { isPrimary: false } }),
       prisma.gameAccount.update({ where: { id: known.id }, data: { isPrimary: true } })
     ]);
-
     revalidatePath('/', 'layout');
     return { ok: true };
   }
@@ -389,58 +402,75 @@ export async function updateDotaAccount(
   // Спрашиваем профиль сразу, чтобы назвать найденный ник: перепутать тут можно
   // только одним способом — привязать чужой аккаунт, — и видно это лишь по имени.
   //
-  // Но не ответила — не повод потерять работу. OpenDota отвечает то за четверть
-  // секунды, то за одиннадцать, и первая же живая проверка упёрлась именно в
-  // это: аккаунт настоящий, ссылка верная, а форма говорила «не ответила» и
-  // ничего не сохраняла. Теперь привязка сохраняется в любом случае, а ранг
-  // подтянет плитка, когда сама сходит за ним.
-  const found = await dotaProfile(accountId, FORM_BUDGET_MS);
+  // Но не ответил — не повод потерять работу. Первая же живая проверка упёрлась
+  // именно в это: аккаунт настоящий, ссылка верная, а форма говорила «не
+  // ответила» и ничего не сохраняла. Теперь привязка сохраняется в любом случае.
+  const found = await how.lookup(externalId);
 
   const [, account] = await prisma.$transaction([
     // Прошлые аккаунты не удаляются — они и есть тот список под полем, ради
     // которого всё это. Снимается только отметка «вот этот сейчас показывается»:
     // поле `isPrimary` схема несла с первого дня ровно под несколько аккаунтов
     // у одного человека.
-    prisma.gameAccount.updateMany({
-      where: { userId: session.userId, game: 'DOTA2' },
-      data: { isPrimary: false }
-    }),
-    // Номер аккаунта уникален на всю базу: одна дота — один владелец. Если он
-    // уже за кем-то числится, привязка переезжает, а не падает с ошибкой про
-    // нарушение уникальности, которую всё равно некому показать.
+    prisma.gameAccount.updateMany({ where: { userId, game }, data: { isPrimary: false } }),
+    // Идентификатор уникален на всю базу: один игровой аккаунт — один владелец.
+    // Если он уже за кем-то числится, привязка переезжает, а не падает с ошибкой
+    // про нарушение уникальности, которую всё равно некому показать.
     prisma.gameAccount.upsert({
-      where: { game_externalId: { game: 'DOTA2', externalId: accountId } },
-      create: {
-        userId: session.userId,
-        game: 'DOTA2',
-        externalId: accountId,
-        tag: found?.name ?? null,
-        isPrimary: true
-      },
-      // Та же осторожность, что и выше: не узнали имя — оставляем прежнее.
-      // Здесь это случай «аккаунт числился за другим человеком и переезжает».
-      update: { userId: session.userId, isPrimary: true, ...(found?.name ? { tag: found.name } : {}) }
+      where: { game_externalId: { game, externalId } },
+      create: { userId, game, externalId, tag: found?.name ?? null, isPrimary: true },
+      // Та же осторожность: не узнали имя — оставляем прежнее.
+      update: { userId, isPrimary: true, ...(found?.name ? { tag: found.name } : {}) }
     })
   ]);
 
   // Первый снимок — прямо сейчас, ответом, который уже в руках: иначе шторка,
   // открытая сразу после привязки, не найдёт ничего в базе и пойдёт спрашивать
-  // OpenDota заново, то есть человек подождёт её дважды подряд.
+  // сервис заново, то есть человек подождёт его дважды подряд.
   //
-  // Но только полный. У формы срок короткий, и счёт побед — который берётся
-  // вторым запросом и половиной этого срока — успевает не всегда. Записанный
-  // без него снимок считался бы свежим ещё полчаса, и всё это время в шторке
-  // вместо «338 / 339» стоял бы ник. Не успели — пусть лучше сходит плитка, у
-  // неё срок полный и никто её не ждёт.
-  if (found && found.wins + found.losses > 0) {
-    await rememberDota(account.id, found).catch((error) => {
-      console.warn('[podshar] first dota snapshot not saved:', error);
+  // Но только полный. У формы срок короткий, и вторая половина ответа — счёт
+  // побед, журнал боёв — успевает не всегда. Записанный без неё снимок считался
+  // бы свежим ещё полчаса, и всё это время в шторке стояла бы половина правды.
+  if (found && how.worth(found)) {
+    await how.remember(account.id, found).catch((error) => {
+      console.warn(`[podshar] first ${game} snapshot not saved:`, error);
     });
   }
 
   revalidatePath('/', 'layout');
   // Без ника сказать «нашёлся: …» нечего, поэтому и говорится другое: привязали,
-  // ранг будет позже. Молчаливое «сохранено» тут было бы хуже всего — человек
+  // цифры будут позже. Молчаливое «сохранено» тут было бы хуже всего — человек
   // решит, что проверка прошла.
   return found?.name ? { ok: true, player: found.name } : { ok: true, pending: true };
 }
+
+/** Дота: ссылка на Steam, Dotabuff или OpenDota. */
+export async function updateDotaAccount(_prev: GameState, formData: FormData) {
+  return linkGameAccount(formData, {
+    game: 'DOTA2',
+    field: 'dota',
+    unknown: 'dotaNotFound',
+    resolve: resolveSteam,
+    lookup: (id) => dotaProfile(id, FORM_BUDGET_MS),
+    remember: rememberDota,
+    // Полный ответ — это медаль вместе со счётом побед: без счёта в шторке на
+    // месте «338 / 339» встал бы ник.
+    worth: (p) => p.wins + p.losses > 0
+  });
+}
+
+/** Brawl Stars: тег из игры, с решёткой или без. */
+export async function updateBrawlAccount(_prev: GameState, formData: FormData) {
+  return linkGameAccount(formData, {
+    game: 'BRAWL_STARS',
+    field: 'brawl',
+    unknown: 'brawlNotFound',
+    resolve: normalizeTag,
+    lookup: (id) => brawlProfile(id, FORM_BUDGET_MS),
+    remember: rememberBrawl,
+    // Кубки есть у всех, кто вообще играл. Ноль — это либо совсем новый
+    // аккаунт, либо половина ответа; и то и другое лучше переспросить.
+    worth: (p) => p.trophies > 0
+  });
+}
+

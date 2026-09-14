@@ -120,6 +120,7 @@
   },
   "games": {
     "dota": "dota",
+    "brawl": "brawl-stars-pokale",
     "link": "account verknüpfen",
     "quiet": "opendota schweigt",
     "unranked": "noch kein rang",
@@ -127,8 +128,7 @@
     "record": "{wins} / {losses}",
     "win": "S",
     "loss": "N",
-    "lastFive": "letzte spiele: {wins} gewonnen, {losses} verloren",
-    "soon": "bald. warten auf einen schlüssel"
+    "lastFive": "letzte spiele: {wins} gewonnen, {losses} verloren"
   },
   "patches": {
     "title": "Patches",
@@ -137,7 +137,6 @@
   "sidebar": {
     "profile": "das bist du",
     "stats": "zahlen",
-    "brawlCups": "Brawl-Stars-Pokale",
     "navigation": "Navigation",
     "signOut": "Abmelden",
     "editProfile": "Bearbeiten",
@@ -206,13 +205,14 @@
       "here": "alle patches, nach nummer. wer was gemacht hat und wann"
     },
     "profile": {
-      "here": "dein profil. name, handle, mail, station, dota, passwort, zeichen",
+      "here": "dein profil. name, handle, mail, station, dota, brawl, passwort, zeichen",
       "identity": "der name ist für uns, mit dem handle meldest du dich an",
       "avatar": "acht zeichen. keine fotos, dafür nichts hochzuladen",
       "security": "passwort. änderst du es, fliegen alle anderen geräte raus",
       "invite": "holt eine vierte person. nur der besitzer",
       "station": "deine heimatstation. damit sucht die startseite deinen zug vom HB",
-      "dota": "dota-konto. steam-link rein, medaille steht in der schublade"
+      "dota": "dota-konto. steam-link rein, medaille steht in der schublade",
+      "brawl": "brawl-stars-konto. tag rein, pokale stehen in der schublade"
     }
   },
   "quotes": {
@@ -290,9 +290,9 @@
     "dotaTitle": "dota",
     "dotaHint": "ein link zu deinem steam-, dotabuff- oder opendota-profil. in den dota-einstellungen muss «Expose Public Match Data» an sein, sonst sieht den rang von aussen niemand. jedes verknüpfte konto bleibt unten in der liste; feld leeren und speichern vergisst alle",
     "dota": "profil-link",
-    "dotaList": "deine konten",
-    "dotaSaved": "gefunden: {player}",
-    "dotaPending": "verknüpft. opendota ist gerade lahm — der rang taucht gleich in der schublade auf",
+    "brawlTitle": "brawl stars",
+    "brawlHint": "dein spieler-tag aus dem spiel — tippe oben links auf deinen namen, er beginnt mit #. jeder verknüpfte tag bleibt unten in der liste; feld leeren und speichern vergisst alle",
+    "brawl": "spieler-tag",
     "errors": {
       "invalid": "hier stimmt etwas nicht.",
       "signedOut": "sitzung abgelaufen. melde dich neu an.",
@@ -310,8 +310,12 @@
       "alreadyInvited": "handle oder e-mail steht schon auf der liste.",
       "stationNotFound": "diese station kennt die SBB nicht",
       "stationLookup": "SBB antwortet nicht, nochmal versuchen",
-      "dotaNotFound": "diesen link verstehe ich nicht. nimm den aus der adresszeile deines profils."
-    }
+      "dotaNotFound": "diesen link verstehe ich nicht. nimm den aus der adresszeile deines profils.",
+      "brawlNotFound": "das sieht nicht nach einem spieler-tag aus."
+    },
+    "gameSaved": "gefunden: {player}",
+    "gamePending": "verknüpft. opendota ist gerade lahm — der rang taucht gleich in der schublade auf",
+    "gameList": "deine konten"
   },
   "reset": {
     "title": "passwort vergessen",

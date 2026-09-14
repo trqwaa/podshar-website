@@ -13,11 +13,6 @@ export type MemberProfile = {
   avatarPreset?: string | null;
 };
 
-export type QuickStats = {
-  dotaPts: number | null;
-  brawlCups: number | null;
-};
-
 /**
  * Где человек стоит в доте.
  *
@@ -81,4 +76,23 @@ export type TrainRow = {
   departures: Departure[];
   /** SBB was asked and did not answer. */
   failed: boolean;
+};
+
+/**
+ * Где человек в Brawl Stars.
+ *
+ * Кубки тут — это `trophies`, сумма по всем бравлерам; то самое число, которым
+ * меряются. Ранг (`MYTHIC III`) — из режима ranked, он ближе всего к медали в
+ * доте: не накапливается, а показывает, где ты сейчас.
+ */
+export type BrawlProfile = {
+  name: string | null;
+  trophies: number;
+  /** Личный рекорд по кубкам. Совпадает с текущими, пока не начнёшь падать. */
+  highest: number;
+  /** Название ранга, как его пишет игра. `null` — если в ranked не играл. */
+  rank: string | null;
+  club: string | null;
+  /** Последние бои, свежий первым. Пустой, если журнал не доехал. */
+  recent: boolean[];
 };

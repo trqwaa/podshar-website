@@ -5,15 +5,15 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 
 import { Link } from '@/i18n/routing';
-import type { DotaProfile } from '@/lib/types';
+import type { BrawlProfile, DotaProfile } from '@/lib/types';
 
 /**
- * Медаль в доте — та самая, что на Dotabuff.
+ * Медали доты — те самые, что на Dotabuff.
  *
- * Названия не переводятся. Никто из играющих не говорит «Крестоносец» — говорят
- * Crusader или «кресты», на всех четырёх языках сайта одинаково. Перевод был бы
- * вежливее и при этом менее понятен тем троим, ради кого всё это пишется. То же
- * исключение, что у списка патчей и у «HB».
+ * Названия не переводятся, как и ранги Brawl Stars ниже. Никто из играющих не
+ * говорит «Крестоносец» — говорят Crusader или «кресты», на всех четырёх языках
+ * сайта одинаково. Перевод был бы вежливее и при этом менее понятен тем троим,
+ * ради кого всё это пишется. То же исключение, что у списка патчей и у «HB».
  */
 const MEDALS = [
   'Herald',
@@ -38,28 +38,35 @@ const SIZE = 58;
 // `linked` обязателен: маршрут возвращает его из каждой ветки. Необязательное
 // поле тут означало бы, что «не привязан» и «не смогли посмотреть» приезжают
 // одним и тем же `undefined`, а это два разных ответа человеку.
-type Answer = { dota: DotaProfile | null; linked: boolean };
-type State = { kind: 'wait' } | { kind: 'none' } | { kind: 'off' } | (Answer & { kind: 'got' });
+type Answer = {
+  dota: DotaProfile | null;
+  dotaLinked: boolean;
+  brawl: BrawlProfile | null;
+  brawlLinked: boolean;
+};
+
+type State = { kind: 'wait' } | { kind: 'off' } | ({ kind: 'got' } & Answer);
 
 /**
- * Цифры из доты, которые шторка спрашивает сама, уже после загрузки страницы.
+ * Цифры из игр, которые шторка спрашивает сама, уже после загрузки страницы.
  *
  * Запрос идёт из браузера, а не из рендера, и это не лень, а единственный
- * возможный вариант: `getQuickStats` ждёт вся страница целиком (см.
- * `api/games/route.ts`), так что один медленный ответ OpenDota подвесил бы
+ * возможный вариант: то, что вызывается в `(app)/layout.tsx`, ждёт вся страница
+ * целиком (см. `api/games/route.ts`), так что один медленный ответ подвесил бы
  * главную из-за плитки, лежащей в закрытой шторке. Здесь ждёт только шторка — и
  * только тогда, когда её открыли.
+ *
+ * Обе игры одним компонентом и одним запросом. Открытие шторки — одно событие.
  *
  * Ни одно из состояний не молчит. «Не дозвонились» и «аккаунт не привязан» —
  * разные вещи, и человек, глядящий на пустой блок, должен понимать, чинить ему
  * что-то или нет.
  */
-export function DotaBlock({ open }: { open: boolean }) {
-  const t = useTranslations('games');
+export function GameStats({ open }: { open: boolean }) {
   const [state, setState] = useState<State>({ kind: 'wait' });
 
   /**
-   * Счётчик открытий шторки — он же ключ для полоски матчей.
+   * Счётчик открытий шторки — он же ключ для полосок матчей.
    *
    * Сам блок живёт в разметке всегда: закрытая шторка не снимается, у неё
    * нулевая ширина. Значит анимация появления отыгрывает при загрузке страницы,
@@ -95,11 +102,7 @@ export function DotaBlock({ open }: { open: boolean }) {
     // нельзя нигде.
     fetch('/api/games', { method: 'POST', cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((answer: Answer) => {
-        if (!alive) return;
-        if (answer.dota) setState({ kind: 'got', ...answer });
-        else setState({ kind: answer.linked ? 'off' : 'none' });
-      })
+      .then((answer: Answer) => alive && setState({ kind: 'got', ...answer }))
       .catch(() => alive && setState({ kind: 'off' }));
     // Отменяется не запрос, а то, что случится после его возвращения: панель
     // могли уже закрыть, а `setState` на снятом компоненте — ошибка в консоли
@@ -110,9 +113,59 @@ export function DotaBlock({ open }: { open: boolean }) {
   }, [open]);
 
   return (
+    <div className="space-y-2">
+      <Card
+        label="dota"
+        state={state}
+        player={state.kind === 'got' ? state.dota : null}
+        linked={state.kind === 'got' ? state.dotaLinked : false}
+        anchor="dota"
+      >
+        {(player) => <DotaBody player={player as DotaProfile} run={run} />}
+      </Card>
+
+      <Card
+        label="brawl"
+        state={state}
+        player={state.kind === 'got' ? state.brawl : null}
+        linked={state.kind === 'got' ? state.brawlLinked : false}
+        anchor="brawl"
+      >
+        {(player) => <BrawlBody player={player as BrawlProfile} run={run} />}
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * Общая рамка и общие четыре состояния: ждём, не привязан, не дозвонились, есть.
+ *
+ * Одинаковы у обеих игр до последнего пикселя, и это не совпадение: две плитки
+ * рядом, ведущие себя по-разному в одинаковой ситуации, читаются как поломка
+ * одной из них.
+ */
+function Card({
+  label,
+  state,
+  player,
+  linked,
+  anchor,
+  children
+}: {
+  label: 'dota' | 'brawl';
+  state: State;
+  player: DotaProfile | BrawlProfile | null;
+  linked: boolean;
+  /** Якорь на странице профиля, куда ведёт «привязать аккаунт». */
+  anchor: string;
+  children: (player: DotaProfile | BrawlProfile) => React.ReactNode;
+}) {
+  const t = useTranslations('games');
+
+  return (
     <div className="rounded border-2 border-rule bg-canvas p-3">
       <p className="text-[0.7rem] lowercase leading-tight tracking-label text-ink-muted">
-        {t('dota')}
+        {t(label)}
       </p>
 
       {state.kind === 'wait' ? (
@@ -123,32 +176,28 @@ export function DotaBlock({ open }: { open: boolean }) {
           />
           <span className="h-5 flex-1 animate-pulse rounded-sm bg-sunk" />
         </span>
-      ) : null}
-
-      {/* Не играет, или ещё не сказал где. Ссылка ведёт туда, где это чинится —
-          иначе строка сообщает о проблеме и бросает с ней наедине. */}
-      {state.kind === 'none' ? (
+      ) : player ? (
+        children(player)
+      ) : linked ? (
+        <p className="mt-2 text-sm text-ink-muted">{t('quiet')}</p>
+      ) : (
+        // Не играет, или ещё не сказал где. Ссылка ведёт прямо к нужному полю:
+        // человек нажал её ради одного поля, и искать его среди пяти блоков —
+        // работа, которую он не просил. Якоря стоят в `(app)/profile/page.tsx`.
         <p className="mt-2 text-sm text-ink-muted">
-          {/* Прямо к полю, а не на верх профиля: человек нажал «привязать
-              аккаунт» ради одного поля, и искать его среди пяти блоков — работа,
-              которую он не просил. Якорь стоит в `(app)/profile/page.tsx`. */}
           <Link
-            href="/profile#dota"
+            href={`/profile#${anchor}`}
             className="underline decoration-rule underline-offset-4 hover:text-ink"
           >
             {t('link')}
           </Link>
         </p>
-      ) : null}
-
-      {state.kind === 'off' ? <p className="mt-2 text-sm text-ink-muted">{t('quiet')}</p> : null}
-
-      {state.kind === 'got' && state.dota ? <Rank player={state.dota} run={run} /> : null}
+      )}
     </div>
   );
 }
 
-function Rank({ player, run }: { player: DotaProfile; run: number }) {
+function DotaBody({ player, run }: { player: DotaProfile; run: number }) {
   const t = useTranslations('games');
   const total = player.wins + player.losses;
 
@@ -199,6 +248,32 @@ function Rank({ player, run }: { player: DotaProfile; run: number }) {
         </p>
         {player.recent.length ? <Streak results={player.recent} run={run} /> : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Brawl Stars: кубки числом, под ними ранг и клуб.
+ *
+ * Без картинки — в отличие от доты. Значки рангов Supercell наружу не отдаёт, а
+ * тащить их с чужого CDN значит однажды получить пустое место вместо ранга по
+ * причине, которой у нас не будет видно. Кубки тут и без картинки достаточно
+ * крупная вещь, чтобы держать блок.
+ */
+function BrawlBody({ player, run }: { player: BrawlProfile; run: number }) {
+  // Разряды пробелами: 68143 читается заметно хуже, чем 68 143, а число тут
+  // главное на весь блок.
+  const trophies = player.trophies.toLocaleString('ru-RU').replace(/ /g, ' ');
+  const under = [player.rank, player.club].filter(Boolean).join(' · ');
+
+  return (
+    <div className="mt-2">
+      <p className="text-2xl font-semibold tabular-nums leading-tight text-ink">{trophies}</p>
+      {under ? (
+        // `normal-case`: MYTHIC III и название клуба — имена собственные.
+        <p className="mt-0.5 truncate text-sm normal-case text-ink-muted">{under}</p>
+      ) : null}
+      {player.recent.length ? <Streak results={player.recent} run={run} /> : null}
     </div>
   );
 }
