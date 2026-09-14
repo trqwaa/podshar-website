@@ -118,6 +118,15 @@
     "in": "{min} min",
     "now": "fährt ab"
   },
+  "games": {
+    "dota": "dota",
+    "link": "account verknüpfen",
+    "quiet": "opendota schweigt",
+    "unranked": "noch kein rang",
+    "place": "platz {place}",
+    "record": "{wins} / {losses}",
+    "soon": "bald. warten auf einen schlüssel"
+  },
   "patches": {
     "title": "Patches",
     "hint": "neueste zuerst. kleinkram steht auch drin"
@@ -125,7 +134,6 @@
   "sidebar": {
     "profile": "das bist du",
     "stats": "zahlen",
-    "dotaPts": "Dota 2 PTS",
     "brawlCups": "Brawl-Stars-Pokale",
     "navigation": "Navigation",
     "signOut": "Abmelden",
@@ -195,12 +203,13 @@
       "here": "alle patches, nach nummer. wer was gemacht hat und wann"
     },
     "profile": {
-      "here": "dein profil. name, handle, e-mail, station, passwort, ein zeichen",
+      "here": "dein profil. name, handle, mail, station, dota, passwort, zeichen",
       "identity": "der name ist für uns, mit dem handle meldest du dich an",
       "avatar": "acht zeichen. keine fotos, dafür nichts hochzuladen",
       "security": "passwort. änderst du es, fliegen alle anderen geräte raus",
       "invite": "holt eine vierte person. nur der besitzer",
-      "station": "deine heimatstation. damit sucht die startseite deinen zug vom HB"
+      "station": "deine heimatstation. damit sucht die startseite deinen zug vom HB",
+      "dota": "dota-konto. steam-link rein, medaille steht in der schublade"
     }
   },
   "quotes": {
@@ -275,6 +284,11 @@
     "stationHint": "wohin du vom Zürich HB fährst. die startseite zeigt den nächsten zug. leer lassen zum entfernen",
     "station": "station",
     "stationSaved": "gefunden: {station}",
+    "dotaTitle": "dota",
+    "dotaHint": "ein link zu deinem steam-, dotabuff- oder opendota-profil. in den dota-einstellungen muss «Expose Public Match Data» an sein, sonst sieht den rang von aussen niemand. leer lassen zum entfernen",
+    "dota": "profil-link",
+    "dotaSaved": "gefunden: {player}",
+    "dotaPending": "verknüpft. opendota ist gerade lahm — der rang taucht gleich in der schublade auf",
     "errors": {
       "invalid": "hier stimmt etwas nicht.",
       "signedOut": "sitzung abgelaufen. melde dich neu an.",
@@ -291,7 +305,8 @@
       "ownerOnly": "einladen darf nur der besitzer.",
       "alreadyInvited": "handle oder e-mail steht schon auf der liste.",
       "stationNotFound": "diese station kennt die SBB nicht",
-      "stationLookup": "SBB antwortet nicht, nochmal versuchen"
+      "stationLookup": "SBB antwortet nicht, nochmal versuchen",
+      "dotaNotFound": "diesen link verstehe ich nicht. nimm den aus der adresszeile deines profils."
     }
   },
   "reset": {

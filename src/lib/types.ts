@@ -18,6 +18,26 @@ export type QuickStats = {
   brawlCups: number | null;
 };
 
+/**
+ * Где человек стоит в доте.
+ *
+ * Числового MMR здесь нет и быть не может: Valve не отдаёт его наружу никому —
+ * ни нам, ни Dotabuff, ни OpenDota. Настоящие величины — медаль со звёздами и,
+ * только у Immortal, место в таблице.
+ */
+export type DotaProfile = {
+  /** Ник в Steam — чтобы было видно, что нашёлся тот человек. */
+  name: string | null;
+  /** 1–8: Herald … Immortal. `null` — ранга нет, аккаунт не откалиброван. */
+  medal: number | null;
+  /** 0–5. У Immortal звёзд не бывает. */
+  stars: number;
+  /** Место в таблице. Есть только у Immortal. */
+  leaderboard: number | null;
+  wins: number;
+  losses: number;
+};
+
 /** One person, as the "who is here" tile sees them. */
 export type PresenceEntry = {
   handle: string;

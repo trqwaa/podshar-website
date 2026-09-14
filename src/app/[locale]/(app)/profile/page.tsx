@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import {
+  DotaAccountForm,
   HomeStationForm,
   IdentityForm,
   InviteForm,
@@ -59,6 +60,13 @@ export default async function ProfilePage({
       })
     : null;
 
+  // Ник, а не номер: в поле лежит ссылка, а показать в ответ надо то, по чему
+  // человек узнает свой аккаунт. Номер он всё равно не помнит.
+  const dota = await prisma.gameAccount.findFirst({
+    where: { userId: user.id, game: 'DOTA2' },
+    select: { externalId: true, tag: true }
+  });
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 p-3 sm:gap-4 sm:p-4">
       <header className="block-card animate-rise-in flex flex-col gap-2 px-6 py-8 sm:px-8">
@@ -85,6 +93,10 @@ export default async function ProfilePage({
       </div>
 
       <div className="animate-rise-in [animation-delay:120ms]">
+        <DotaAccountForm current={dota?.tag ?? dota?.externalId ?? null} />
+      </div>
+
+      <div className="animate-rise-in [animation-delay:150ms]">
         <PasswordForm />
       </div>
 

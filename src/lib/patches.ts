@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.41',
+    date: '2026-09-14',
+    author: 'trqwaa',
+    note: 'в шторке медаль из доты — кинь в профиле ссылку на свой стим, и она появится'
+  },
+  {
     version: '0.40',
     date: '2026-09-13',
     author: 'trqwaa',

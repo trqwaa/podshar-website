@@ -11,6 +11,7 @@ import { readSession, destroySession } from '@/lib/auth/session';
 import { AVATAR_PRESETS } from '@/components/profile/MemberAvatar';
 import { routing } from '@/i18n/routing';
 import { findStation } from '@/lib/trains';
+import { dotaProfile, rememberDota, resolveSteam, FORM_BUDGET_MS } from '@/lib/games';
 
 /**
  * Everything the profile page can do.
@@ -310,4 +311,87 @@ export async function updateHomeStation(
 
   revalidatePath('/', 'layout');
   return { ok: true, station: found.name };
+}
+
+export type DotaState = ProfileState & { player?: string; pending?: boolean };
+
+/**
+ * Привязать аккаунт доты.
+ *
+ * Принимает любую ссылку, которую человек может держать открытой, — Steam,
+ * Dotabuff, OpenDota, — и отвечает найденным ником. Ник здесь ровно за тем же,
+ * зачем название станции в форме выше: единственная возможная ошибка — привязать
+ * чужой аккаунт, и увидеть её можно только по имени.
+ *
+ * Пустое поле отвязывает. `deleteMany` по пользователю, а не по номеру: если
+ * человек меняет аккаунт, старая привязка должна уйти, иначе у него их станет
+ * два и «свежая запись» начнёт выбираться случайно.
+ */
+export async function updateDotaAccount(
+  _prev: DotaState,
+  formData: FormData
+): Promise<DotaState> {
+  const session = await readSession();
+  if (!session) return { error: 'signedOut' };
+
+  const parsed = z.string().trim().max(200).safeParse(formData.get('dota') ?? '');
+  if (!parsed.success) return { error: 'invalid' };
+  const query = parsed.data;
+
+  if (!query) {
+    await prisma.gameAccount.deleteMany({ where: { userId: session.userId, game: 'DOTA2' } });
+    revalidatePath('/', 'layout');
+    return { ok: true };
+  }
+
+  const accountId = await resolveSteam(query);
+  if (!accountId) return { error: 'dotaNotFound' };
+
+  // Спрашиваем профиль сразу, чтобы назвать найденный ник: перепутать тут можно
+  // только одним способом — привязать чужой аккаунт, — и видно это лишь по имени.
+  //
+  // Но не ответила — не повод потерять работу. OpenDota отвечает то за четверть
+  // секунды, то за одиннадцать, и первая же живая проверка упёрлась именно в
+  // это: аккаунт настоящий, ссылка верная, а форма говорила «не ответила» и
+  // ничего не сохраняла. Теперь привязка сохраняется в любом случае, а ранг
+  // подтянет плитка, когда сама сходит за ним.
+  const found = await dotaProfile(accountId, FORM_BUDGET_MS);
+
+  const [, account] = await prisma.$transaction([
+    prisma.gameAccount.deleteMany({ where: { userId: session.userId, game: 'DOTA2' } }),
+    // Номер аккаунта уникален на всю базу: одна дота — один владелец. Если он
+    // уже за кем-то числится, привязка переезжает, а не падает с ошибкой про
+    // нарушение уникальности, которую всё равно некому показать.
+    prisma.gameAccount.upsert({
+      where: { game_externalId: { game: 'DOTA2', externalId: accountId } },
+      create: {
+        userId: session.userId,
+        game: 'DOTA2',
+        externalId: accountId,
+        tag: found?.name ?? null
+      },
+      update: { userId: session.userId, tag: found?.name ?? null }
+    })
+  ]);
+
+  // Первый снимок — прямо сейчас, ответом, который уже в руках: иначе шторка,
+  // открытая сразу после привязки, не найдёт ничего в базе и пойдёт спрашивать
+  // OpenDota заново, то есть человек подождёт её дважды подряд.
+  //
+  // Но только полный. У формы срок короткий, и счёт побед — который берётся
+  // вторым запросом и половиной этого срока — успевает не всегда. Записанный
+  // без него снимок считался бы свежим ещё полчаса, и всё это время в шторке
+  // вместо «338 / 339» стоял бы ник. Не успели — пусть лучше сходит плитка, у
+  // неё срок полный и никто её не ждёт.
+  if (found && found.wins + found.losses > 0) {
+    await rememberDota(account.id, found).catch((error) => {
+      console.warn('[podshar] first dota snapshot not saved:', error);
+    });
+  }
+
+  revalidatePath('/', 'layout');
+  // Без ника сказать «нашёлся: …» нечего, поэтому и говорится другое: привязали,
+  // ранг будет позже. Молчаливое «сохранено» тут было бы хуже всего — человек
+  // решит, что проверка прошла.
+  return found?.name ? { ok: true, player: found.name } : { ok: true, pending: true };
 }

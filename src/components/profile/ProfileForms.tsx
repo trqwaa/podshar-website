@@ -8,8 +8,10 @@ import {
   changePassword,
   createInvite,
   revokeOtherSessions,
+  updateDotaAccount,
   updateHomeStation,
   updateIdentity,
+  type DotaState,
   type ProfileState,
   type StationState
 } from '@/lib/auth/profile';
@@ -345,6 +347,45 @@ export function HomeStationForm({ current }: { current: string | null }) {
         {state.station ? (
           <p role="status" className="text-sm text-ink-muted">
             {t('stationSaved', { station: state.station })}
+          </p>
+        ) : null}
+      </Section>
+    </form>
+  );
+}
+
+/**
+ * Аккаунт доты — по ссылке, какая под рукой.
+ *
+ * Поле принимает Steam, Dotabuff и OpenDota, и голый номер тоже. Просить
+ * «номер аккаунта» было бы честнее по названию и хуже по делу: его никто не
+ * знает наизусть, а ссылка на свой профиль открыта у каждого.
+ *
+ * В ответ называется найденный ник — как и станция в форме выше. Ошибиться тут
+ * можно ровно одним способом, привязав чужой аккаунт, и заметить это можно
+ * только по имени.
+ */
+export function DotaAccountForm({ current }: { current: string | null }) {
+  const t = useTranslations('profile');
+  const [state, action] = useActionState<DotaState, FormData>(updateDotaAccount, {});
+
+  return (
+    <form action={action}>
+      <Section title={t('dotaTitle')} hint={t('dotaHint')}>
+        <Field
+          name="dota"
+          label={t('dota')}
+          defaultValue={current ?? ''}
+          autoComplete="off"
+          required={false}
+        />
+        <Footer
+          state={{ error: state.error, ok: state.ok && !state.player && !state.pending }}
+          label={t('save')}
+        />
+        {state.player || state.pending ? (
+          <p role="status" className="text-sm text-ink-muted">
+            {state.player ? t('dotaSaved', { player: state.player }) : t('dotaPending')}
           </p>
         ) : null}
       </Section>

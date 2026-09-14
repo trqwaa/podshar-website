@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { PRIMARY_NAV_SLOTS } from '@/lib/navigation';
 import { Link } from '@/i18n/routing';
+import { DotaBlock } from './DotaBlock';
 import { MemberAvatar } from './profile/MemberAvatar';
 import { PodsharWordmark } from './PodsharMark';
 import { LocaleSwitcher } from './LocaleSwitcher';
@@ -48,6 +49,7 @@ export function LeftSidebar({
   const t = useTranslations('sidebar');
   const tHome = useTranslations('home');
   const tNav = useTranslations('nav');
+  const tGames = useTranslations('games');
   const panelRef = useRef<HTMLElement | null>(null);
 
   // Focus moves into the panel itself rather than onto a control inside it.
@@ -125,11 +127,13 @@ export function LeftSidebar({
               <span className="ps-label shrink-0 text-ink-faint">{t('editProfile')}</span>
             </Link>
 
+            {/* Колонкой, а не парой квадратиков: у доты теперь медаль, а она
+                рядом с названием ранга в половину ширины шторки не помещается. */}
             <p className="ps-label mb-3 mt-7">{t('stats')}</p>
-            <dl className="grid grid-cols-2 gap-2">
-              <StatBlock label={t('dotaPts')} value={stats.dotaPts} />
-              <StatBlock label={t('brawlCups')} value={stats.brawlCups} />
-            </dl>
+            <div className="space-y-2">
+              <DotaBlock />
+              <StatBlock label={t('brawlCups')} value={stats.brawlCups} empty={tGames('soon')} />
+            </div>
           </section>
 
           {/* Five reserved rows. Names and destinations are not decided yet, so
@@ -169,19 +173,29 @@ export function LeftSidebar({
   );
 }
 
-function StatBlock({ label, value }: { label: string; value: number | null }) {
+// `p` вместо `dt`/`dd`: список определений держался, пока обе цифры были
+// однородными парами «подпись — число». Теперь у доты медаль и две строки, а
+// `dt` с `dd` вне `dl` — уже не разметка, а просто неверные теги.
+// Пустое значение говорит словами, а не пульсирует. Пульс обещает, что цифра
+// сейчас появится, — а у кубков она не появится, пока нет ключа Supercell.
+// Рядом с настоящей медалью вечная «загрузка» читается как сломанный сайт.
+function StatBlock({
+  label,
+  value,
+  empty
+}: {
+  label: string;
+  value: number | null;
+  empty: string;
+}) {
   return (
     <div className="rounded border-2 border-rule bg-canvas p-3">
-      <dt className="text-[0.7rem] lowercase leading-tight tracking-label text-ink-muted">
-        {label}
-      </dt>
-      <dd className="mt-2 text-2xl font-semibold tabular-nums text-ink">
-        {value === null ? (
-          <span className="inline-block h-6 w-12 animate-pulse rounded-sm bg-sunk align-middle" />
-        ) : (
-          value.toLocaleString()
-        )}
-      </dd>
+      <p className="text-[0.7rem] lowercase leading-tight tracking-label text-ink-muted">{label}</p>
+      {value === null ? (
+        <p className="mt-2 text-sm text-ink-faint">{empty}</p>
+      ) : (
+        <p className="mt-2 text-2xl font-semibold tabular-nums text-ink">{value.toLocaleString()}</p>
+      )}
     </div>
   );
 }
