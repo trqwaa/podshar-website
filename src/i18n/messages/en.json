@@ -289,6 +289,7 @@
     "dota": "profile link",
     "dotaSaved": "found: {player}",
     "dotaPending": "linked. opendota is slow right now — the rank turns up in the drawer shortly",
+    "dotaLinked": "linked now: {player}",
     "errors": {
       "invalid": "something here is wrong.",
       "signedOut": "your session ended. sign in again.",

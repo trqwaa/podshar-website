@@ -29,7 +29,10 @@ const MEDALS = [
 /** Сколько пикселей занимает медаль в шторке. */
 const SIZE = 52;
 
-type Answer = { dota: DotaProfile | null; linked?: boolean };
+// `linked` обязателен: маршрут возвращает его из каждой ветки. Необязательное
+// поле тут означало бы, что «не привязан» и «не смогли посмотреть» приезжают
+// одним и тем же `undefined`, а это два разных ответа человеку.
+type Answer = { dota: DotaProfile | null; linked: boolean };
 type State = { kind: 'wait' } | { kind: 'none' } | { kind: 'off' } | (Answer & { kind: 'got' });
 
 /**
@@ -51,7 +54,11 @@ export function DotaBlock() {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/games')
+    // POST и `no-store` — и то и другое против одного и того же: браузер успел
+    // запомнить ответ «аккаунт не привязан», полученный до привязки, и честно
+    // показывал его дальше. Ответ тут свой у каждого и меняется, держать его
+    // нельзя нигде.
+    fetch('/api/games', { method: 'POST', cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((answer: Answer) => {
         if (!alive) return;
@@ -59,8 +66,9 @@ export function DotaBlock() {
         else setState({ kind: answer.linked ? 'off' : 'none' });
       })
       .catch(() => alive && setState({ kind: 'off' }));
-    // Отменяем не запрос, а то, что случится после: ответ всё равно ляжет в
-    // кеш браузера и достанется следующему открытию бесплатно.
+    // Отменяется не запрос, а то, что случится после его возвращения: панель
+    // могли уже закрыть, а `setState` на снятом компоненте — ошибка в консоли
+    // на ровном месте.
     return () => {
       alive = false;
     };
@@ -86,8 +94,11 @@ export function DotaBlock() {
           иначе строка сообщает о проблеме и бросает с ней наедине. */}
       {state.kind === 'none' ? (
         <p className="mt-2 text-sm text-ink-muted">
+          {/* Прямо к полю, а не на верх профиля: человек нажал «привязать
+              аккаунт» ради одного поля, и искать его среди пяти блоков — работа,
+              которую он не просил. Якорь стоит в `(app)/profile/page.tsx`. */}
           <Link
-            href="/profile"
+            href="/profile#dota"
             className="underline decoration-rule underline-offset-4 hover:text-ink"
           >
             {t('link')}

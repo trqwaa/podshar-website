@@ -365,7 +365,17 @@ export function HomeStationForm({ current }: { current: string | null }) {
  * можно ровно одним способом, привязав чужой аккаунт, и заметить это можно
  * только по имени.
  */
-export function DotaAccountForm({ current }: { current: string | null }) {
+export function DotaAccountForm({
+  current,
+  linked
+}: {
+  /** Номер аккаунта, а не ник: поле ждёт ссылку, и ник обратно в него не
+   *  разбирается. Поставленный сюда, он превращал повторное «сохранить» в
+   *  «не разобрал ссылку» на совершенно исправной привязке. */
+  current: string | null;
+  /** Ник, который за этим номером стоит. Только чтобы было видно, чей аккаунт. */
+  linked: string | null;
+}) {
   const t = useTranslations('profile');
   const [state, action] = useActionState<DotaState, FormData>(updateDotaAccount, {});
 
@@ -387,6 +397,11 @@ export function DotaAccountForm({ current }: { current: string | null }) {
           <p role="status" className="text-sm text-ink-muted">
             {state.player ? t('dotaSaved', { player: state.player }) : t('dotaPending')}
           </p>
+        ) : linked ? (
+          // Без этой строки на свежей странице в поле стоит голый номер, и чей
+          // он — сказать нечем. Имя и есть единственная проверка, что привязан
+          // свой аккаунт, а не чужой.
+          <p className="text-sm text-ink-muted">{t('dotaLinked', { player: linked })}</p>
         ) : null}
       </Section>
     </form>

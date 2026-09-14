@@ -92,8 +92,11 @@ export default async function ProfilePage({
         <HomeStationForm current={home?.label ?? null} />
       </div>
 
-      <div className="animate-rise-in [animation-delay:120ms]">
-        <DotaAccountForm current={dota?.tag ?? dota?.externalId ?? null} />
+      {/* Якорь: плитка в шторке ведёт сюда, а не на верх страницы. Человек,
+          нажавший «привязать аккаунт», пришёл за одним полем, и искать его
+          самому среди пяти блоков — работа, которую он не просил. */}
+      <div id="dota" className="animate-rise-in scroll-mt-20 [animation-delay:120ms]">
+        <DotaAccountForm current={dota?.externalId ?? null} linked={dota?.tag ?? null} />
       </div>
 
       <div className="animate-rise-in [animation-delay:150ms]">

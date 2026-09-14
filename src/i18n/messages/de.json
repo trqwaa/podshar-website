@@ -289,6 +289,7 @@
     "dota": "profil-link",
     "dotaSaved": "gefunden: {player}",
     "dotaPending": "verknüpft. opendota ist gerade lahm — der rang taucht gleich in der schublade auf",
+    "dotaLinked": "aktuell verknüpft: {player}",
     "errors": {
       "invalid": "hier stimmt etwas nicht.",
       "signedOut": "sitzung abgelaufen. melde dich neu an.",
