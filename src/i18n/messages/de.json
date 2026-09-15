@@ -248,10 +248,12 @@
       "here": "alle patches, nach nummer. wer was gemacht hat und wann"
     },
     "calendar": {
-      "here": "der gemeinsame kalender. was einer einträgt, sehen alle drei",
-      "grid": "das monatsraster. punkte und titel heissen, der tag ist belegt",
-      "day": "der gewählte tag. was drin ist und wer es eingetragen hat",
-      "add": "der hinzufügen-knopf. name, tag, uhrzeit — der rest ist optional"
+      "here": "der gemeinsame kalender zu dritt. was einer einträgt, sehen alle, und kein google schleppt hier was rein",
+      "grid": "das raster. monat und jahr zeigen belegte tage — tipp auf eine zahl, unten geht sie auf",
+      "scale": "vier knöpfe rechts: tag, woche, monat, jahr. wie outlook, nur weniger deprimierend",
+      "now": "die rote linie quer durch den tag ist jetzt. nur in tag und woche, ein monat hat keine stunden",
+      "day": "der gewählte tag unter dem raster. was drin ist, um wie viel uhr und wer es eingetragen hat",
+      "add": "der hinzufügen-knopf. name und tag, der rest nach lust. das datumsfeld ist unseres, nicht das vom browser"
     },
     "profile": {
       "here": "dein profil. name, handle, mail, station, dota, brawl, passwort, zeichen",

@@ -196,9 +196,11 @@ export const NAV_GROUPS: NavGroup[] = [
           'планы на', 'плани на'
         ],
         elements: [
-          { id: 'grid', terms: ['сетк', 'месяц', 'місяц', 'month', 'monat', 'grid'] },
+          { id: 'grid', terms: ['сетк', 'сітк', 'месяц', 'місяц', 'month', 'monat', 'grid', 'год', 'рік', 'year', 'jahr'] },
+          { id: 'scale', terms: ['масштаб', 'вид', 'недел', 'тижд', 'week', 'woche', 'переключ', 'перемк', 'switch'] },
+          { id: 'now', terms: ['линия', 'лінія', 'сейчас', 'зараз', 'текущ', 'поточн', 'line', 'now', 'linie', 'jetzt'] },
           { id: 'day', terms: ['день', 'сегодня', 'сьогодні', 'today', 'tag', 'heute'] },
-          { id: 'add', terms: ['добав', 'додат', 'создат', 'створит', 'add', 'new', 'hinzu'] }
+          { id: 'add', terms: ['добав', 'додат', 'создат', 'створит', 'add', 'new', 'hinzu', 'дата', 'дату', 'datum'] }
         ]
       },
       {

@@ -8,6 +8,7 @@ import { useRouter } from '@/i18n/routing';
 import type { Locale } from '@/i18n/routing';
 import { SCALES, yearGrids, type Scale } from '@/lib/calendar/scales';
 import { DayPanel, type DayEvent } from './DayPanel';
+import { TimeGrid } from './TimeGrid';
 
 const ZONE = 'Europe/Zurich';
 
@@ -111,7 +112,8 @@ export function Calendar({
               <Step onClick={() => step(1)} label={t('next')} glyph="›" />
             </div>
 
-            <div className="flex items-center gap-1 lg:ms-2">
+            {/* Отступ заметный: это две разные вещи — куда смотрим и чем меряем. */}
+              <div className="flex items-center gap-1 ms-3 lg:ms-6">
               {SCALES.map((option) => (
                 <button
                   key={option}
@@ -131,7 +133,15 @@ export function Calendar({
           </div>
         </header>
 
-        {scale !== 'day' ? (
+        {scale === 'day' || scale === 'week' ? (
+          <TimeGrid
+            days={days}
+            byDay={byDay}
+            today={today}
+            selected={selected}
+            onPick={pick}
+          />
+        ) : (
           <LayoutGroup id="calendar">
             {scale === 'year' ? (
               <YearGrid
@@ -155,7 +165,7 @@ export function Calendar({
               />
             )}
           </LayoutGroup>
-        ) : null}
+        )}
       </section>
 
       <DayPanel day={selected} events={byDay[selected] ?? []} canEdit={canEdit} />
@@ -219,16 +229,20 @@ function DaysGrid({
               aria-current={key === selected ? 'date' : undefined}
               className={`relative flex flex-col gap-1 rounded p-1 text-left transition-colors sm:p-2 ${
                 scale === 'week' ? 'min-h-[8rem] sm:min-h-[14rem]' : 'min-h-[3rem] sm:min-h-[5.5rem]'
-              } ${key === selected ? 'bg-sunk' : 'hover:bg-sunk'} ${outside ? 'opacity-40' : ''}`}
+              } ${key === selected ? '' : 'hover:bg-sunk'} ${outside ? 'opacity-40' : ''}`}
             >
               {/* Курсор — один элемент на всю сетку, переезжающий между клетками.
                   Так выбор читается как движение, а не как «погасло тут, зажглось
-                  там». При `prefers-reduced-motion` он просто появляется на месте. */}
+                  там». При `prefers-reduced-motion` он просто появляется на месте.
+
+                  Заливка живёт на нём же, а не на клетке: иначе ехала бы одна
+                  рамка, а фон моргал на месте. Это пробный вариант — смотрим,
+                  не слишком ли он тяжёлый в движении. */}
               {key === selected ? (
                 <motion.span
                   layoutId="calendar-cursor"
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 rounded border-2 border-ink"
+                  className="pointer-events-none absolute inset-0 rounded border-2 border-ink bg-sunk"
                   transition={
                     still ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 40 }
                   }

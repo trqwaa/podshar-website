@@ -248,10 +248,12 @@
       "here": "every patch, by number. who did what and when"
     },
     "calendar": {
-      "here": "the shared calendar. whatever one of you adds, all three see",
-      "grid": "the month grid. dots and titles mean the day is taken, poke a number",
-      "day": "the day you picked. what is on it and who put it there",
-      "add": "the add button. name, day, time — the rest is optional"
+      "here": "the shared calendar, three of you. whatever one adds the others see, and no google drags anything in here",
+      "grid": "the grid. month and year show which days are taken — poke a number and it opens below",
+      "scale": "four buttons on the right: day, week, month, year. like outlook, only less depressing",
+      "now": "the red line across the day is now. day and week only; a month has no hours to put it on",
+      "day": "the day you picked, under the grid. what is on it, at what time, and who put it there",
+      "add": "the add button. a name and a day, the rest if you feel like it. the date picker is ours, not the browser's"
     },
     "profile": {
       "here": "your profile. name, handle, email, station, dota, brawl, password, mark",
