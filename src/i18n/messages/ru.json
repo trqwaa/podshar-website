@@ -130,7 +130,8 @@
     "lastFive": "последние матчи: побед {wins}, поражений {losses}",
     "winrateOf": "{wins} из {played}",
     "winrateRecent": "{wins} из {played} последних боёв",
-    "openOn": "открыть на {where}"
+    "openOn": "открыть на {where}",
+    "peak": "рекорд: {peak}"
   },
   "patches": {
     "title": "Патчи",

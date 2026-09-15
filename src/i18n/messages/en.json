@@ -130,7 +130,8 @@
     "lastFive": "recent games: {wins} won, {losses} lost",
     "winrateOf": "{wins} of {played}",
     "winrateRecent": "{wins} of the last {played} battles",
-    "openOn": "open on {where}"
+    "openOn": "open on {where}",
+    "peak": "personal best: {peak}"
   },
   "patches": {
     "title": "Patches",

@@ -382,9 +382,22 @@ function BrawlBody({ player, run }: { player: BrawlProfile; run: number }) {
         ) : null}
 
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-2xl font-semibold tabular-nums leading-tight text-ink">
+          <p className="flex items-baseline gap-1.5 text-2xl font-semibold tabular-nums leading-tight text-ink">
             <Trophy />
             {trophies}
+            {/* Рекорд — только когда до него не дотягиваешь. Пока стоишь на
+                своём пике (а это обычное состояние) числа совпадают, и второе
+                из них ничего не сообщает, только занимает место в плитке
+                шириной с ладонь. Появляется ровно тогда, когда значит «ты
+                просел», и тогда же объясняет себя подсказкой. */}
+            {player.highest > player.trophies ? (
+              <span
+                className="text-sm font-medium text-ink-faint"
+                title={t('peak', { peak: player.highest })}
+              >
+                {player.highest.toLocaleString('ru-RU').replace(/\s/g, ' ')}
+              </span>
+            ) : null}
           </p>
           {under ? (
             // `normal-case`: MYTHIC III и название клуба — имена собственные.
