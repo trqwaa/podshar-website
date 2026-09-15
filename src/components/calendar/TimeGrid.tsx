@@ -148,16 +148,14 @@ export function TimeGrid({
   );
   const hasAllDay = allDay.some((list) => list.length > 0);
 
+  const template = { gridTemplateColumns: `3rem repeat(${days.length}, 1fr)` };
+
   return (
     <div className="flex flex-col">
       {/* Шапка дней нужна только неделе: там она и подписывает колонки, и выбирает
           день для панели снизу. В дневном масштабе дата уже стоит заголовком над
           сеткой, и повторять её третий раз незачем. */}
-      <div
-        hidden={days.length === 1}
-        className="grid gap-1"
-        style={{ gridTemplateColumns: `3rem repeat(${days.length}, 1fr)` }}
-      >
+      <div hidden={days.length === 1} className="grid" style={template}>
         <span />
         {days.map((day) => (
           <button
@@ -165,7 +163,7 @@ export function TimeGrid({
             type="button"
             onClick={() => onPick(day)}
             aria-current={day === selected ? 'date' : undefined}
-            className={`flex flex-col items-center rounded py-1 transition-colors hover:bg-sunk ${
+            className={`flex flex-col items-center border-s border-rule-soft py-1 transition-colors hover:bg-sunk ${
               day === selected ? 'bg-sunk' : ''
             }`}
           >
@@ -182,13 +180,13 @@ export function TimeGrid({
       </div>
 
       {hasAllDay ? (
-        <div
-          className="mt-1 grid gap-1 border-t border-rule-soft pt-1"
-          style={{ gridTemplateColumns: `3rem repeat(${days.length}, 1fr)` }}
-        >
-          <span className="ps-label self-center text-end pe-1">24h</span>
+        <div className="grid border-t border-rule-soft" style={template}>
+          <span className="ps-label self-center pe-1 text-end">24h</span>
           {allDay.map((list, index) => (
-            <span key={days[index]} className="flex min-w-0 flex-col gap-0.5">
+            <span
+              key={days[index]}
+              className="flex min-w-0 flex-col gap-0.5 border-s border-rule-soft p-0.5"
+            >
               {list.map((event) => (
                 <span
                   key={event.id}
@@ -202,26 +200,14 @@ export function TimeGrid({
         </div>
       ) : null}
 
-      <div
-        ref={scroller}
-        className="scroll-quiet mt-1 max-h-[26rem] overflow-y-auto border-t border-rule-soft"
-      >
-        <div
-          className="relative grid gap-1"
-          style={{ gridTemplateColumns: `3rem repeat(${days.length}, 1fr)`, height: 24 * HOUR }}
-        >
-          {/* Часовые засечки — одним слоем на всю ширину, чтобы линии шли сквозь
-              все колонки и не ломались на границах между ними. */}
-          <div className="pointer-events-none absolute inset-0 ms-12">
-            {Array.from({ length: 24 }, (_, hour) => (
-              <span
-                key={hour}
-                className="absolute inset-x-0 border-t border-rule-soft"
-                style={{ top: hour * HOUR }}
-              />
-            ))}
-          </div>
-
+      {/* Потолок высоты обязателен: без него прокручивается страница, а не сетка,
+          и подкрутка к текущему часу ставит scrollTop элементу, который не
+          прокручивается — неделя открывалась на полуночи. */}
+      <div ref={scroller} className="scroll-quiet max-h-[26rem] overflow-y-auto border-t border-rule-soft">
+        {/* Дни разделены по-настоящему: у каждого свой столбец с собственными
+            часовыми линиями и границей слева. Пока засечки шли одним слоем на всю
+            ширину, неделя читалась как один сплошной лист, а не как семь дней. */}
+        <div className="grid" style={{ ...template, height: 24 * HOUR }}>
           <div className="relative">
             {Array.from({ length: 24 }, (_, hour) => (
               <span
@@ -235,7 +221,17 @@ export function TimeGrid({
           </div>
 
           {days.map((day) => (
-            <div key={day} className="relative">
+            <div key={day} className="relative border-s border-rule-soft">
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0">
+                {Array.from({ length: 24 }, (_, hour) => (
+                  <span
+                    key={hour}
+                    className="absolute inset-x-0 border-t border-rule-soft"
+                    style={{ top: hour * HOUR }}
+                  />
+                ))}
+              </span>
+
               {place(byDay[day] ?? []).map(({ event, top, height, column, columns }) => (
                 <button
                   key={event.id}
@@ -256,14 +252,18 @@ export function TimeGrid({
                 </button>
               ))}
 
-              {/* Линия «сейчас» — только в колонке сегодняшнего дня. */}
+              {/* Линия «сейчас» — только в колонке сегодняшнего дня.
+
+                  Сама линия — блок в два пикселя, а не рамка сверху: у рамки
+                  верх блока и середина штриха не совпадают, и точка вставала на
+                  пиксель выше линии. Теперь обе центруются по одному и тому же. */}
               {day === today && now !== null ? (
                 <span
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-reactor"
+                  className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-reactor"
                   style={{ top: (now / 60) * HOUR }}
                 >
-                  <span className="absolute -start-1 -top-1 block h-2 w-2 rounded-full bg-reactor" />
+                  <span className="absolute -start-1 top-1/2 block h-2 w-2 -translate-y-1/2 rounded-full bg-reactor" />
                 </span>
               ) : null}
             </div>
