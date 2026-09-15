@@ -137,6 +137,38 @@
     "title": "Patches",
     "hint": "neueste zuerst. kleinkram steht auch drin"
   },
+  "calendar": {
+    "title": "Kalender",
+    "hint": "gemeinsam zu dritt. was einer einträgt, sehen alle",
+    "today": "heute",
+    "prevMonth": "Vorheriger Monat",
+    "nextMonth": "Nächster Monat",
+    "add": "hinzufügen",
+    "save": "speichern",
+    "cancel": "abbrechen",
+    "edit": "ändern",
+    "remove": "entfernen",
+    "empty": "an diesem tag nichts",
+    "allDay": "ganztägig",
+    "what": "was",
+    "when": "wann",
+    "at": "um",
+    "untilDay": "bis",
+    "untilTime": "bis",
+    "where": "wo",
+    "details": "details",
+    "errors": {
+      "noTitle": "ohne namen weiss keiner, was das ist",
+      "badDay": "das datum stimmt nicht",
+      "badTime": "die uhrzeit stimmt nicht",
+      "endsBeforeStart": "es endet vor dem anfang",
+      "gone": "das hat schon jemand entfernt",
+      "signedOut": "du wurdest wohl abgemeldet",
+      "invalid": "irgendwas im formular passt nicht"
+    },
+    "more": "{count} weitere",
+    "moreFields": "mehr"
+  },
   "sidebar": {
     "profile": "das bist du",
     "stats": "zahlen",
@@ -206,6 +238,12 @@
     },
     "patches": {
       "here": "alle patches, nach nummer. wer was gemacht hat und wann"
+    },
+    "calendar": {
+      "here": "der gemeinsame kalender. was einer einträgt, sehen alle drei",
+      "grid": "das monatsraster. punkte und titel heissen, der tag ist belegt",
+      "day": "der gewählte tag. was drin ist und wer es eingetragen hat",
+      "add": "der hinzufügen-knopf. name, tag, uhrzeit — der rest ist optional"
     },
     "profile": {
       "here": "dein profil. name, handle, mail, station, dota, brawl, passwort, zeichen",

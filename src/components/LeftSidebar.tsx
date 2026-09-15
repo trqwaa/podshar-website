@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { PRIMARY_NAV_SLOTS } from '@/lib/navigation';
+import { ALL_PLACES, BOOKMARKS, PRIMARY_NAV_SLOTS } from '@/lib/navigation';
 import { Link } from '@/i18n/routing';
 import { GameStats } from './GameStats';
 import { MemberAvatar } from './profile/MemberAvatar';
@@ -48,6 +48,13 @@ export function LeftSidebar({
   const tHome = useTranslations('home');
   const tNav = useTranslations('nav');
   const panelRef = useRef<HTMLElement | null>(null);
+
+  // Живые места из BOOKMARKS, в порядке списка. Планируемое сюда не попадёт,
+  // даже если его туда впишут: ссылка в 404 — ровно то, ради чего заглушки и
+  // существуют.
+  const bookmarks = BOOKMARKS.map((id) =>
+    ALL_PLACES.find((place) => place.id === id && place.status === 'live')
+  ).filter((place): place is (typeof ALL_PLACES)[number] => Boolean(place));
 
   // Focus moves into the panel itself rather than onto a control inside it.
   // There is no close cross here any more — the top bar's switch is the only
@@ -130,22 +137,44 @@ export function LeftSidebar({
             <GameStats open={open} />
           </section>
 
-          {/* Five reserved rows. Names and destinations are not decided yet, so
-              they say so rather than pretending to be links — see
-              PRIMARY_NAV_SLOTS in src/lib/navigation.ts. */}
+          {/* Закладки, а следом — остаток зарезервированных строк.
+
+              Заглушки не убраны вместе с появлением первой настоящей ссылки, и
+              это осознанно: они показывают, что мест ровно пять и часть ещё
+              свободна, то есть объясняют, куда денется следующий раздел. Шторка
+              с одной ссылкой и пустотой под ней этого не говорит. Список —
+              BOOKMARKS в src/lib/navigation.ts, туда же приедет настройка под
+              человека. */}
           <nav className="border-t border-rule-soft px-5 pb-6 pt-8">
             <p className="ps-label mb-4">{t('navHeading')}</p>
             <ul className="space-y-2">
-              {Array.from({ length: PRIMARY_NAV_SLOTS }, (_, i) => (
-                <li key={i}>
-                  <span className="flex cursor-not-allowed items-center justify-between rounded border-2 border-dashed border-rule-soft px-3 py-3 text-base text-ink-faint">
-                    {tNav('wip')}
-                    <span aria-hidden="true" className="text-sm">
-                      &#8943;
+              {bookmarks.map((place) => (
+                <li key={place.id}>
+                  <Link
+                    href={place.href}
+                    className="flex items-center justify-between rounded border-2 border-rule px-3 py-3 text-base text-ink transition-colors duration-drape ease-drape hover:bg-sunk"
+                  >
+                    {tNav(place.labelKey)}
+                    <span aria-hidden="true" className="text-sm text-ink-faint">
+                      &rarr;
                     </span>
-                  </span>
+                  </Link>
                 </li>
               ))}
+
+              {Array.from(
+                { length: Math.max(0, PRIMARY_NAV_SLOTS - bookmarks.length) },
+                (_, i) => (
+                  <li key={i}>
+                    <span className="flex cursor-not-allowed items-center justify-between rounded border-2 border-dashed border-rule-soft px-3 py-3 text-base text-ink-faint">
+                      {tNav('wip')}
+                      <span aria-hidden="true" className="text-sm">
+                        &#8943;
+                      </span>
+                    </span>
+                  </li>
+                )
+              )}
             </ul>
           </nav>
         </div>

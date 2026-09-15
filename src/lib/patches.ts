@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.44',
+    date: '2026-09-15',
+    author: 'nellet',
+    note: 'общий календарь: сетка месяца, день с событиями и закладка в шторке'
+  },
+  {
     version: '0.43',
     date: '2026-09-14',
     author: 'trqwaa',

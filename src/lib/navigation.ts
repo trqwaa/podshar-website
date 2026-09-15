@@ -52,6 +52,20 @@ export type NavGroup = { titleKey: string; items: Place[] };
 export const PRIMARY_NAV_SLOTS = 5;
 
 /**
+ * Закладки в шторке: разделы, до которых хочется дотянуться из любого места.
+ *
+ * Список, а не «все живые места»: шторка — это не оглавление. Главная достижима
+ * по логотипу, профиль лежит в своём блоке над ним, патчи — строкой под ним. В
+ * закладки идёт то, за чем иначе пришлось бы идти через весь хаб.
+ *
+ * Пока задан руками, и это временно по замыслу: каждый должен собирать свой
+ * набор сам, добавляя и убирая блоки. Когда до этого дойдут руки, порядок
+ * переедет в базу на человека, а этот массив останется тем, что видит новичок.
+ * Остаток до `PRIMARY_NAV_SLOTS` шторка добивает честными заглушками.
+ */
+export const BOOKMARKS: string[] = ['calendar'];
+
+/**
  * The homepage. Not part of `NAV_GROUPS` because it is not a nav destination —
  * nobody needs a menu row for the page the wordmark already returns to — but it
  * is very much a place, and right now it is the only one that exists.
@@ -174,9 +188,18 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         id: 'calendar',
         href: '/calendar',
-        status: 'planned',
+        status: 'live',
         labelKey: 'calendar',
-        terms: ['календар', 'calendar', 'kalender']
+        terms: [
+          'календар', 'calendar', 'kalender', 'встреч', 'зустріч', 'termin',
+          'событи', 'поді', 'расписани', 'розклад', 'когда мы', 'коли ми',
+          'планы на', 'плани на'
+        ],
+        elements: [
+          { id: 'grid', terms: ['сетк', 'месяц', 'місяц', 'month', 'monat', 'grid'] },
+          { id: 'day', terms: ['день', 'сегодня', 'сьогодні', 'today', 'tag', 'heute'] },
+          { id: 'add', terms: ['добав', 'додат', 'создат', 'створит', 'add', 'new', 'hinzu'] }
+        ]
       },
       {
         id: 'todos',

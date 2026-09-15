@@ -137,6 +137,38 @@
     "title": "Patches",
     "hint": "newest first. the small stuff is in here too"
   },
+  "calendar": {
+    "title": "Calendar",
+    "hint": "shared between the three of you. add something, everyone sees it",
+    "today": "today",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "add": "add",
+    "save": "save",
+    "cancel": "cancel",
+    "edit": "edit",
+    "remove": "remove",
+    "empty": "nothing on this day",
+    "allDay": "all day",
+    "what": "what",
+    "when": "when",
+    "at": "at",
+    "untilDay": "until",
+    "untilTime": "till",
+    "where": "where",
+    "details": "details",
+    "errors": {
+      "noTitle": "without a name nobody knows what it is",
+      "badDay": "that date looks wrong",
+      "badTime": "that time looks wrong",
+      "endsBeforeStart": "it ends before it starts",
+      "gone": "somebody removed it already",
+      "signedOut": "looks like you were signed out",
+      "invalid": "something in the form is off"
+    },
+    "more": "{count} more",
+    "moreFields": "more"
+  },
   "sidebar": {
     "profile": "that's you",
     "stats": "numbers",
@@ -206,6 +238,12 @@
     },
     "patches": {
       "here": "every patch, by number. who did what and when"
+    },
+    "calendar": {
+      "here": "the shared calendar. whatever one of you adds, all three see",
+      "grid": "the month grid. dots and titles mean the day is taken, poke a number",
+      "day": "the day you picked. what is on it and who put it there",
+      "add": "the add button. name, day, time — the rest is optional"
     },
     "profile": {
       "here": "your profile. name, handle, email, station, dota, brawl, password, mark",
