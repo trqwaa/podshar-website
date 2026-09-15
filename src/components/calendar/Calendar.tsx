@@ -237,16 +237,19 @@ function DaysGrid({
 
                   Заливка живёт на нём же, а не на клетке: иначе ехала бы одна
                   рамка, а фон моргал на месте. Это пробный вариант — смотрим,
-                  не слишком ли он тяжёлый в движении. Демпфирование опущено с
-                  сорока до двадцати восьми — курсор заметно перелетает и
-                  возвращается, но не качается. */}
+                  не слишком ли он тяжёлый в движении.
+
+                  Пружина задана длительностью и упругостью, а не жёсткостью с
+                  демпфированием: `duration` и `bounce` — это то, что видно
+                  глазом, и крутить их можно не считая в уме. 0.55 с и умеренный
+                  перелёт: движение читается как перемещение, а не как щелчок. */}
               {key === selected ? (
                 <motion.span
                   layoutId="calendar-cursor"
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 rounded border-2 border-ink bg-sunk"
                   transition={
-                    still ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 28 }
+                    still ? { duration: 0 } : { type: 'spring', duration: 0.55, bounce: 0.28 }
                   }
                 />
               ) : null}
