@@ -141,8 +141,14 @@
     "title": "Calendar",
     "hint": "shared between the three of you. add something, everyone sees it",
     "today": "today",
-    "prevMonth": "Previous month",
-    "nextMonth": "Next month",
+    "prev": "Back",
+    "next": "Forward",
+    "scales": {
+      "day": "day",
+      "week": "week",
+      "month": "month",
+      "year": "year"
+    },
     "add": "add",
     "save": "save",
     "cancel": "cancel",
@@ -167,7 +173,9 @@
       "invalid": "something in the form is off"
     },
     "more": "{count} more",
-    "moreFields": "more"
+    "moreFields": "more",
+    "noDate": "pick a date",
+    "clear": "Clear the date"
   },
   "sidebar": {
     "profile": "that's you",

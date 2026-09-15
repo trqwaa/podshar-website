@@ -141,8 +141,14 @@
     "title": "Kalender",
     "hint": "gemeinsam zu dritt. was einer einträgt, sehen alle",
     "today": "heute",
-    "prevMonth": "Vorheriger Monat",
-    "nextMonth": "Nächster Monat",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "scales": {
+      "day": "tag",
+      "week": "woche",
+      "month": "monat",
+      "year": "jahr"
+    },
     "add": "hinzufügen",
     "save": "speichern",
     "cancel": "abbrechen",
@@ -167,7 +173,9 @@
       "invalid": "irgendwas im formular passt nicht"
     },
     "more": "{count} weitere",
-    "moreFields": "mehr"
+    "moreFields": "mehr",
+    "noDate": "datum wählen",
+    "clear": "Datum entfernen"
   },
   "sidebar": {
     "profile": "das bist du",

@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { saveEvent, deleteEvent, type CalendarState } from '@/lib/calendar/actions';
 import type { Locale } from '@/i18n/routing';
+import { DayField } from './DayField';
 
 const ZONE = 'Europe/Zurich';
 
@@ -102,7 +103,9 @@ export function DayPanel({
                   index > 0 ? 'ps-rule' : ''
                 }`}
               >
-                <span className="ps-label w-14 shrink-0 tabular-nums">
+                {/* Ширины под «19:30» не хватает на «весь день», и он переносился
+                    на две строки. Колонка считается по длинному из двух. */}
+                <span className="ps-label w-20 shrink-0 tabular-nums">
                   {event.allDay ? t('allDay') : clock.format(new Date(event.startsAt))}
                 </span>
 
@@ -231,15 +234,7 @@ function EventForm({
       </Field>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t('when')}>
-          <input
-            type="date"
-            name="day"
-            defaultValue={event ? isoDay(event.startsAt) : day}
-            required
-            className="w-full rounded border-2 border-rule bg-canvas px-3 py-2.5 text-base text-ink outline-none transition-colors focus:border-ink"
-          />
-        </Field>
+        <DayField name="day" label={t('when')} value={event ? isoDay(event.startsAt) : day} />
         <Field label={t('at')}>
           <input
             type="time"
@@ -253,14 +248,12 @@ function EventForm({
       {more ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t('untilDay')}>
-              <input
-                type="date"
-                name="endDay"
-                defaultValue={isoDay(event?.endsAt ?? null)}
-                className="w-full rounded border-2 border-rule bg-canvas px-3 py-2.5 text-base text-ink outline-none transition-colors focus:border-ink"
-              />
-            </Field>
+            <DayField
+              name="endDay"
+              label={t('untilDay')}
+              value={isoDay(event?.endsAt ?? null)}
+              clearable
+            />
             <Field label={t('untilTime')}>
               <input
                 type="time"
