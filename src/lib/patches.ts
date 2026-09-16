@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.45',
+    date: '2026-09-16',
+    author: 'nellet',
+    note: 'доска задач: листочки на булавках, общая на троих и своя личная'
+  },
+  {
     version: '0.44',
     date: '2026-09-15',
     author: 'nellet',

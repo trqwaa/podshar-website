@@ -177,6 +177,38 @@
     "noDate": "pick a date",
     "clear": "Clear the date"
   },
+  "todos": {
+    "title": "Tasks",
+    "hintShared": "one board, three of you. whatever one pins up, everyone sees",
+    "hintMine": "your board. nobody else can see it",
+    "shared": "shared",
+    "mine": "mine",
+    "whichList": "Which list",
+    "newNote": "what needs doing",
+    "add": "pin it up",
+    "empty": "the board is empty",
+    "pickNote": "poke a note to recolour it or take it down",
+    "saving": "saving",
+    "saved": "saved",
+    "done": "done",
+    "undo": "undo",
+    "remove": "take down",
+    "pro": "PRO · soon",
+    "colors": {
+      "yellow": "Yellow",
+      "pink": "Pink",
+      "mint": "Mint",
+      "sky": "Sky",
+      "peach": "Peach",
+      "plain": "White"
+    },
+    "pins": {
+      "pin": "Pin",
+      "tape": "Tape",
+      "magnet": "Magnet",
+      "clip": "Clip"
+    }
+  },
   "sidebar": {
     "profile": "that's you",
     "stats": "numbers",
@@ -264,6 +296,13 @@
       "station": "your home station. the homepage finds your train from HB with it",
       "dota": "dota account. paste a steam link, the drawer shows your medal",
       "brawl": "brawl stars account. paste your player tag, cups show up in the drawer"
+    },
+    "todos": {
+      "here": "the task board. two lists — one shared between the three of you and your own, switch on top",
+      "board": "the board itself. drag notes by the pin, edit the text right on them",
+      "lists": "the shared one all three see, the private one only you. it lives in your account, not the browser",
+      "style": "pick a note and the colours and fasteners show up below",
+      "pro": "the extended mode. does not exist yet, do not ask"
     }
   },
   "quotes": {

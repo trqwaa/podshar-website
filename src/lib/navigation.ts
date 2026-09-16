@@ -63,7 +63,7 @@ export const PRIMARY_NAV_SLOTS = 5;
  * переедет в базу на человека, а этот массив останется тем, что видит новичок.
  * Остаток до `PRIMARY_NAV_SLOTS` шторка добивает честными заглушками.
  */
-export const BOOKMARKS: string[] = ['calendar'];
+export const BOOKMARKS: string[] = ['calendar', 'todos'];
 
 /**
  * The homepage. Not part of `NAV_GROUPS` because it is not a nav destination —
@@ -206,9 +206,19 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         id: 'todos',
         href: '/todos',
-        status: 'planned',
+        status: 'live',
         labelKey: 'todos',
-        terms: ['todo', 'task', 'задач', 'завданн', 'aufgabe', 'дела']
+        terms: [
+          'todo', 'task', 'задач', 'завданн', 'aufgabe', 'дела', 'справ',
+          'список дел', 'список справ', 'доск', 'дошк', 'board', 'brett',
+          'записк', 'нагада', 'стикер', 'sticker', 'zettel'
+        ],
+        elements: [
+          { id: 'board', terms: ['доск', 'дошк', 'board', 'brett', 'листоч', 'записк', 'стикер'] },
+          { id: 'lists', terms: ['личн', 'особист', 'общий', 'спільн', 'мой', 'мій', 'shared', 'private', 'eigen', 'gemeinsam'] },
+          { id: 'style', terms: ['цвет', 'колір', 'булавк', 'скотч', 'магнит', 'магніт', 'скрепк', 'color', 'pin', 'tape', 'farbe'] },
+          { id: 'pro', terms: ['про', 'pro', 'расширен', 'розширен', 'подробн', 'докладн'] }
+        ]
       },
       {
         id: 'gym',

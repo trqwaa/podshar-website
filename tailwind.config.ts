@@ -38,6 +38,13 @@ const config: Config = {
         win: 'rgb(var(--win) / <alpha-value>)',
         loss: 'rgb(var(--loss) / <alpha-value>)',
         amber: 'rgb(var(--amber) / <alpha-value>)',
+        // Бумага листочков на доске задач — общая для всех палитр.
+        'note-yellow': 'rgb(var(--note-yellow) / <alpha-value>)',
+        'note-pink': 'rgb(var(--note-pink) / <alpha-value>)',
+        'note-mint': 'rgb(var(--note-mint) / <alpha-value>)',
+        'note-sky': 'rgb(var(--note-sky) / <alpha-value>)',
+        'note-peach': 'rgb(var(--note-peach) / <alpha-value>)',
+        'note-plain': 'rgb(var(--note-plain) / <alpha-value>)',
         // Derived, never hand-typed at call sites.
         'ink-muted': 'rgb(var(--ink) / 0.62)',
         'ink-faint': 'rgb(var(--ink) / 0.34)',

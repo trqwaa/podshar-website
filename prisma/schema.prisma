@@ -1051,6 +1051,17 @@ model TodoItem {
   dueAt       DateTime?
   /// Fractional index, so drag-and-drop reordering touches one row.
   position    Float
+  /// Shared with the other two, or only its author's. The board has one switch
+  /// for this, and it is the whole difference between the two lists.
+  shared      Boolean   @default(true)
+  /// Where the note sits on the board, as fractions of its width and height —
+  /// not pixels, so a note keeps its place when the board changes size.
+  x           Float?
+  y           Float?
+  /// Colour of the paper and what holds it up. Both are sets of allowed values
+  /// kept in code, like `avatarPreset`: the database stores the name only.
+  color       String?
+  pin         String?
   createdById String
   assigneeId  String?
   createdAt   DateTime  @default(now())
@@ -1061,6 +1072,7 @@ model TodoItem {
 
   @@index([done, position])
   @@index([assigneeId])
+  @@index([shared, createdById])
   @@map("todo_items")
 }
 

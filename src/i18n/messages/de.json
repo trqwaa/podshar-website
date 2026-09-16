@@ -177,6 +177,38 @@
     "noDate": "datum wählen",
     "clear": "Datum entfernen"
   },
+  "todos": {
+    "title": "Aufgaben",
+    "hintShared": "ein brett, ihr drei. was einer aufhängt, sehen alle",
+    "hintMine": "dein brett. niemand sonst sieht es",
+    "shared": "gemeinsam",
+    "mine": "meins",
+    "whichList": "Welche liste",
+    "newNote": "was zu tun ist",
+    "add": "aufhängen",
+    "empty": "das brett ist leer",
+    "pickNote": "tipp auf einen zettel, um ihn umzufärben oder abzunehmen",
+    "saving": "speichere",
+    "saved": "gespeichert",
+    "done": "erledigt",
+    "undo": "zurück",
+    "remove": "abnehmen",
+    "pro": "PRO · bald",
+    "colors": {
+      "yellow": "Gelb",
+      "pink": "Rosa",
+      "mint": "Mint",
+      "sky": "Himmelblau",
+      "peach": "Pfirsich",
+      "plain": "Weiss"
+    },
+    "pins": {
+      "pin": "Nadel",
+      "tape": "Klebeband",
+      "magnet": "Magnet",
+      "clip": "Klammer"
+    }
+  },
   "sidebar": {
     "profile": "das bist du",
     "stats": "zahlen",
@@ -264,6 +296,13 @@
       "station": "deine heimatstation. damit sucht die startseite deinen zug vom HB",
       "dota": "dota-konto. steam-link rein, medaille steht in der schublade",
       "brawl": "brawl-stars-konto. tag rein, pokale stehen in der schublade"
+    },
+    "todos": {
+      "here": "das aufgabenbrett. zwei listen — eine gemeinsame und deine eigene, schalter oben",
+      "board": "das brett selbst. zettel zieht man an der nadel, text ändert man direkt drauf",
+      "lists": "die gemeinsame sehen alle drei, die eigene nur du. sie liegt im konto, nicht im browser",
+      "style": "nimm einen zettel, dann erscheinen unten farben und befestigungen",
+      "pro": "der erweiterte modus. gibt es noch nicht, frag nicht"
     }
   },
   "quotes": {
