@@ -70,7 +70,7 @@ export function DayPanel({
   return (
     <section className="block-card animate-rise-in flex flex-col gap-5 p-6 [animation-delay:60ms] sm:px-8">
       <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <h2 className="text-xl font-semibold leading-tight text-ink first-letter:uppercase">{heading}</h2>
+        <h2 className="text-xl font-semibold leading-tight text-ink">{heading}</h2>
         {canEdit && !adding && !editing ? (
           <button
             type="button"

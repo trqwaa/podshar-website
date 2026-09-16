@@ -117,7 +117,7 @@ export function DayField({
       {open ? (
         <div className="mt-1 rounded-block border-2 border-rule bg-surface p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-base font-semibold text-ink first-letter:uppercase">
+            <p className="text-base font-semibold text-ink">
               {monthName.format(noon(month))}
             </p>
             <span className="flex gap-1">

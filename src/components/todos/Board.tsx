@@ -9,10 +9,10 @@ import {
   DEFAULT_COLOR,
   DEFAULT_PIN,
   NOTE_COLORS,
-  NOTE_H,
   NOTE_PINS,
-  NOTE_W,
   PAPER,
+  clampH,
+  clampW,
   freeSpot,
   type NoteColor,
   type NotePin
@@ -27,6 +27,8 @@ export type BoardNote = {
   done: boolean;
   x: number;
   y: number;
+  w: number;
+  h: number;
   color: NoteColor;
   pin: NotePin;
   author: string;
@@ -62,6 +64,10 @@ export function Board({
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   const [draft, setDraft] = useState('');
+  // Кто сверху. Обычный счётчик в ref, а не состояние: поднимать листочек
+  // приходится ровно в тот момент, когда начинается перетаскивание, и лишняя
+  // перерисовка там роняет жест — об это уже спотыкались с выбором записки.
+  const layer = useRef(1);
 
   // Пришли другие данные с сервера — берём их. Своё состояние тут не источник
   // правды, а опережение: оно живёт ровно до следующего ответа.
@@ -94,7 +100,7 @@ export function Board({
   const add = () => {
     const title = draft.trim();
     if (!title) return;
-    const spot = freeSpot(local.map(({ x, y }) => ({ x, y })));
+    const spot = freeSpot(local.map(({ x, y, w, h }) => ({ x, y, w, h })));
     setDraft('');
     send(addNote, {
       title,
@@ -159,9 +165,14 @@ export function Board({
             canEdit={canEdit}
             selected={note.id === selected}
             onSelect={() => setSelected(note.id)}
+            layer={layer}
             onMove={(x, y) => {
               patch(note.id, { x, y });
               send(styleNote, { id: note.id, x: String(x), y: String(y) });
+            }}
+            onResize={(w, h) => {
+              patch(note.id, { w, h });
+              send(styleNote, { id: note.id, w: String(w), h: String(h) });
             }}
             onText={(title) => {
               patch(note.id, { title });
@@ -265,8 +276,10 @@ function Note({
   narrow,
   canEdit,
   selected,
+  layer,
   onSelect,
   onMove,
+  onResize,
   onText
 }: {
   note: BoardNote;
@@ -274,15 +287,24 @@ function Note({
   narrow: boolean;
   canEdit: boolean;
   selected: boolean;
+  layer: React.MutableRefObject<number>;
   onSelect: () => void;
   onMove: (x: number, y: number) => void;
+  onResize: (w: number, h: number) => void;
   onText: (title: string) => void;
 }) {
   const controls = useDragControls();
   const self = useRef<HTMLDivElement | null>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const w = useMotionValue(0);
+  const h = useMotionValue(0);
+  // Слой — тоже motion value. Тронутый листочек обязан оказаться поверх того,
+  // на который его тянут, а не как ляжет порядок в разметке.
+  const z = useMotionValue(0);
   const [text, setText] = useState(note.title);
+
+  const toFront = () => z.set((layer.current += 1));
 
   useEffect(() => setText(note.title), [note.title]);
 
@@ -292,18 +314,52 @@ function Note({
     if (size.w === 0) return;
     x.set(note.x * size.w);
     y.set(note.y * size.h);
-  }, [note.x, note.y, size.w, size.h, x, y]);
+    w.set(note.w * size.w);
+    h.set(note.h * size.h);
+  }, [note.x, note.y, note.w, note.h, size.w, size.h, x, y, w, h]);
 
   const drop = () => {
     const box = self.current?.parentElement?.getBoundingClientRect();
     const mine = self.current?.getBoundingClientRect();
     if (!box || !mine) return;
     // Прижимаем к доске: отпущенный за краем листочек иначе было бы не достать.
-    const nx = Math.min(Math.max((mine.left - box.left) / box.width, 0), 1 - NOTE_W);
-    const ny = Math.min(Math.max((mine.top - box.top) / box.height, 0), 1 - NOTE_H);
+    const nx = Math.min(Math.max((mine.left - box.left) / box.width, 0), 1 - note.w);
+    const ny = Math.min(Math.max((mine.top - box.top) / box.height, 0), 1 - note.h);
     x.set(nx * box.width);
     y.set(ny * box.height);
     onMove(nx, ny);
+  };
+
+  /**
+   * Тянем за угол — меняем размер.
+   *
+   * Слушатели вешаются на окно, а не на сам угол: угол уезжает из-под пальца на
+   * первом же пикселе, и элемент перестаёт слышать движение. Та же причина, по
+   * которой так сделано окно мопса.
+   */
+  const startResize = (event: React.PointerEvent) => {
+    event.stopPropagation();
+    if (!canEdit || narrow || size.w === 0) return;
+    toFront();
+
+    const fromX = event.clientX;
+    const fromY = event.clientY;
+    const wasW = w.get();
+    const wasH = h.get();
+
+    const move = (e: PointerEvent) => {
+      w.set(clampW((wasW + (e.clientX - fromX)) / size.w) * size.w);
+      h.set(clampH((wasH + (e.clientY - fromY)) / size.h) * size.h);
+    };
+    const letGo = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', letGo);
+      window.removeEventListener('pointercancel', letGo);
+      onResize(w.get() / size.w, h.get() / size.h);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', letGo);
+    window.addEventListener('pointercancel', letGo);
   };
 
   return (
@@ -314,14 +370,14 @@ function Note({
       dragListener={false}
       dragMomentum={false}
       onDragEnd={drop}
-      style={narrow ? undefined : { x, y, width: `${NOTE_W * 100}%` }}
+      style={narrow ? undefined : { x, y, width: w, height: h, zIndex: z }}
       // Выбор по клику, а не по нажатию. Нажатие — начало перетаскивания, а
       // смена состояния в этот же момент перерисовывает записку и роняет
       // только что начатый жест. Тот же урок, что у окна мопса.
       onClick={onSelect}
-      className={`${narrow ? 'relative mb-2 w-full' : 'absolute left-0 top-0'} ${
+      className={`${narrow ? 'relative mb-2 w-full' : 'absolute left-0 top-0 will-change-transform'} ${
         PAPER[note.color]
-      } rounded-sm p-2 pt-4 shadow-[0_2px_6px_rgb(0_0_0/0.12)] ${
+      } flex flex-col rounded-sm p-2 pt-4 ${
         selected ? 'outline outline-2 outline-ink' : ''
       } ${note.done ? 'opacity-55' : ''}`}
     >
@@ -331,7 +387,9 @@ function Note({
           были бы честной целью только для мыши и очень твёрдой руки. */}
       <span
         onPointerDown={(e) => {
-          if (canEdit && !narrow) controls.start(e);
+          if (!canEdit || narrow) return;
+          toFront();
+          controls.start(e);
         }}
         className={`absolute -top-2 left-0 flex h-6 w-full items-center justify-center ${
           canEdit && !narrow ? 'cursor-grab active:cursor-grabbing' : ''
@@ -347,8 +405,7 @@ function Note({
         onBlur={() => {
           if (text.trim() !== note.title) onText(text.trim());
         }}
-        rows={3}
-        className={`w-full resize-none bg-transparent text-[0.8125rem] leading-snug text-ink outline-none ${
+        className={`min-h-0 w-full flex-1 resize-none bg-transparent text-[0.8125rem] leading-snug text-ink outline-none ${
           note.done ? 'line-through' : ''
         }`}
       />
@@ -356,6 +413,18 @@ function Note({
       <span className="ps-label block truncate text-ink/50">
         <span className="normal-case">{note.author}</span>
       </span>
+
+      {/* Угол для размера. Две косые чёрточки — этого хватает, чтобы его нашли,
+          и не хватает, чтобы он спорил с текстом за внимание. */}
+      {canEdit && !narrow ? (
+        <span
+          onPointerDown={startResize}
+          aria-hidden="true"
+          className="absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize"
+        >
+          <span className="absolute bottom-1 right-1 h-2 w-2 border-b border-r border-ink/35" />
+        </span>
+      ) : null}
     </motion.div>
   );
 }

@@ -134,11 +134,11 @@
     "peak": "bestwert: {peak}"
   },
   "patches": {
-    "title": "Patches",
+    "title": "patches",
     "hint": "neueste zuerst. kleinkram steht auch drin"
   },
   "calendar": {
-    "title": "Kalender",
+    "title": "kalender",
     "hint": "gemeinsam zu dritt. was einer einträgt, sehen alle",
     "today": "heute",
     "prev": "Zurück",
@@ -178,7 +178,7 @@
     "clear": "Datum entfernen"
   },
   "todos": {
-    "title": "Aufgaben",
+    "title": "aufgaben",
     "hintShared": "ein brett, ihr drei. was einer aufhängt, sehen alle",
     "hintMine": "dein brett. niemand sonst sieht es",
     "shared": "gemeinsam",
@@ -218,27 +218,27 @@
     "navHeading": "irgendwohin"
   },
   "nav": {
-    "wip": "In Arbeit",
-    "daily": "Täglich",
-    "culture": "Kultur",
-    "world": "Welt",
-    "play": "Spielen",
-    "calendar": "Kalender",
-    "todos": "Aufgaben",
-    "gym": "Gym",
-    "wallOfShame": "Wall of Shame",
-    "memes": "Meme-Feed",
-    "gallery": "Galerie",
-    "radar": "Mode & Duft",
-    "music": "Musik",
+    "wip": "in Arbeit",
+    "daily": "täglich",
+    "culture": "kultur",
+    "world": "welt",
+    "play": "spielen",
+    "calendar": "kalender",
+    "todos": "aufgaben",
+    "gym": "gym",
+    "wallOfShame": "wall of Shame",
+    "memes": "meme-Feed",
+    "gallery": "galerie",
+    "radar": "mode & Duft",
+    "music": "musik",
     "ballick": "Ballick",
-    "traphouse": "Trap House",
-    "geopolitics": "Karte",
-    "games": "Spiele",
-    "gameStats": "Spielstatistiken",
-    "home": "Startseite",
+    "traphouse": "trap House",
+    "geopolitics": "karte",
+    "games": "spiele",
+    "gameStats": "spielstatistiken",
+    "home": "startseite",
     "profile": "profil",
-    "patches": "Patches"
+    "patches": "patches"
   },
   "assistant": {
     "name": "Podshar",

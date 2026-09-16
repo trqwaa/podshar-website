@@ -92,7 +92,7 @@ export function Calendar({
     <>
       <section className="block-card animate-rise-in flex flex-col gap-4 p-4 sm:p-6">
         <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <h2 className="text-xl font-semibold leading-tight text-ink first-letter:uppercase sm:text-2xl">
+          <h2 className="text-xl font-semibold leading-tight text-ink sm:text-2xl">
             {heading}
           </h2>
 
@@ -323,7 +323,7 @@ function YearGrid({
 
         return (
           <div key={own} className="flex flex-col gap-1">
-            <p className="ps-label first-letter:uppercase">
+            <p className="ps-label">
               {name.format(noon(`${own}-15`))}
             </p>
             <div className="grid grid-cols-7 gap-px">

@@ -89,7 +89,7 @@ export default async function HomePage({
             <p className="text-3xl font-semibold leading-tight text-ink">
               {fmt({ day: '2-digit', month: 'long' })}
             </p>
-            <p className="mt-1 text-base font-medium capitalize text-ink-muted">
+            <p className="mt-1 text-base font-medium text-ink-muted">
               {fmt({ weekday: 'long' })} &middot; {fmt({ year: 'numeric' })}
             </p>
           </div>

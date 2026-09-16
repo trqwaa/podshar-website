@@ -1054,10 +1054,13 @@ model TodoItem {
   /// Shared with the other two, or only its author's. The board has one switch
   /// for this, and it is the whole difference between the two lists.
   shared      Boolean   @default(true)
-  /// Where the note sits on the board, as fractions of its width and height —
-  /// not pixels, so a note keeps its place when the board changes size.
+  /// Where the note sits on the board, and how big it is — all four as fractions
+  /// of the board's width and height, not pixels, so a note keeps its place and
+  /// its proportions when the board changes size.
   x           Float?
   y           Float?
+  w           Float?
+  h           Float?
   /// Colour of the paper and what holds it up. Both are sets of allowed values
   /// kept in code, like `avatarPreset`: the database stores the name only.
   color       String?

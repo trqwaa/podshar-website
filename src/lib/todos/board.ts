@@ -2,7 +2,16 @@ import 'server-only';
 
 import { prisma } from '@/lib/db';
 import { authConfigured } from '@/lib/auth/config';
-import { DEFAULT_COLOR, DEFAULT_PIN, isColor, isPin, type NoteColor, type NotePin } from './notes';
+import {
+  DEFAULT_COLOR,
+  DEFAULT_PIN,
+  NOTE_H,
+  NOTE_W,
+  isColor,
+  isPin,
+  type NoteColor,
+  type NotePin
+} from './notes';
 
 /**
  * Доска задач: что читает страница.
@@ -21,6 +30,8 @@ export type Note = {
   shared: boolean;
   x: number;
   y: number;
+  w: number;
+  h: number;
   color: NoteColor;
   pin: NotePin;
   author: string;
@@ -50,6 +61,8 @@ export async function boardNotes(userId: string, shared: boolean): Promise<Note[
     // одинаковым у всех троих, поэтому берётся индекс, который уже есть.
     x: row.x ?? FALLBACK.x,
     y: row.y ?? FALLBACK.y,
+    w: row.w ?? NOTE_W,
+    h: row.h ?? NOTE_H,
     color: isColor(row.color) ? row.color : DEFAULT_COLOR,
     pin: isPin(row.pin) ? row.pin : DEFAULT_PIN,
     author: row.createdBy.displayName,

@@ -113,6 +113,8 @@ export async function styleNote(_prev: BoardState, formData: FormData): Promise<
       id: Id,
       x: Fraction.optional(),
       y: Fraction.optional(),
+      w: Fraction.optional(),
+      h: Fraction.optional(),
       color: z.enum(NOTE_COLORS).optional(),
       pin: z.enum(NOTE_PINS).optional(),
       done: z.enum(['true', 'false']).optional()

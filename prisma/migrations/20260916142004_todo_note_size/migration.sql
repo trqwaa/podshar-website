@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "todo_items" ADD COLUMN     "h" DOUBLE PRECISION,
+ADD COLUMN     "w" DOUBLE PRECISION;
