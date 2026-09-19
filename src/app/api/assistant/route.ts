@@ -95,7 +95,11 @@ export async function POST(request: Request) {
           for await (const piece of streamPodshar({
             brief,
             history: history as Turn[],
-            message
+            message,
+            // The same identity the quota is counted against, and the only one
+            // a private-board lookup will read. In guest mode it is 'dev',
+            // which owns nothing and therefore sees nothing.
+            userId: who
           })) {
             if ('text' in piece) spoke = true;
             beat(piece);

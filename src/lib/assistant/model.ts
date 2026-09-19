@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import { ALL_PLACES } from '@/lib/navigation';
+import { LOOKUP_TOOLS, isLookup, runLookup } from '@/lib/assistant/lookup';
 
 /**
  * Which model answers as Podshar.
@@ -98,8 +99,14 @@ function logSpend(usage: Anthropic.Beta.BetaUsage) {
       usage.output_tokens * price.output) /
     1_000_000;
 
+  // The cache write is printed because it is the only thing that explains a
+  // line costing seven times the one above it: `in 82 (+0 cached) ~$0.0108`
+  // reads as a mystery, `(+0 cached, wrote 4096)` reads as the brief having
+  // changed. Which it does on a deploy, on a locale switch, and every time the
+  // cache goes cold.
+  const cache = written > 0 ? `+${cached} cached, wrote ${written}` : `+${cached} cached`;
   console.log(
-    `[podshar] ${MODEL} · in ${usage.input_tokens} (+${cached} cached) · ` +
+    `[podshar] ${MODEL} · in ${usage.input_tokens} (${cache}) · ` +
       `out ${usage.output_tokens} · ~$${dollars.toFixed(4)}`
   );
 }
@@ -184,7 +191,15 @@ const hasWords = (text: string) => /\p{L}/u.test(text);
  */
 async function* pour(
   stream: AsyncIterable<Anthropic.Beta.BetaRawMessageStreamEvent>,
-  out: { said: string }
+  out: { said: string },
+  /**
+   * Whether words have already gone out earlier in this answer.
+   *
+   * Only matters once a turn can take more than one round trip. Each stream is
+   * trimmed at its own start, so "смотрю" followed by "у тебя два дела" arrives
+   * as one run-together word unless the join is put back here.
+   */
+  continued = false
 ): AsyncGenerator<Beat> {
   let raw = '';
   let sent = '';
@@ -204,20 +219,31 @@ async function* pour(
     if (norm.length <= sent.length) continue;
 
     const piece = norm.slice(sent.length);
+    const first = sent.length === 0;
     sent = norm;
-    yield { text: piece };
+    yield { text: continued && first ? ` ${piece}` : piece };
   }
 
   out.said = sent.trim();
   if (!opened && raw.trim()) console.warn(`[podshar] wordless reply discarded: ${raw.trim()}`);
 }
 
-function navigationIn(content: Anthropic.Beta.BetaContentBlock[]) {
-  return content.find(
-    (block): block is Anthropic.Beta.BetaToolUseBlock =>
-      block.type === 'tool_use' && block.name === 'navigate'
+function toolCallsIn(content: Anthropic.Beta.BetaContentBlock[]) {
+  return content.filter(
+    (block): block is Anthropic.Beta.BetaToolUseBlock => block.type === 'tool_use'
   );
 }
+
+/**
+ * How many times the model may be called for one message.
+ *
+ * Two is the ordinary ceiling once he can look things up: one call to decide he
+ * needs the calendar, one to answer with it in hand. Four leaves room for him to
+ * check the board as well, and is a wall rather than a budget — it exists so
+ * that a model which keeps asking for the same list cannot bill for it in a
+ * loop. Hitting it means whatever he said last is what gets said.
+ */
+const MAX_STEPS = 4;
 
 /**
  * Ask Podshar, and hand back the answer as it is written.
@@ -243,11 +269,20 @@ function navigationIn(content: Anthropic.Beta.BetaContentBlock[]) {
 export async function* streamPodshar({
   brief,
   history,
-  message
+  message,
+  userId
 }: {
   brief: string;
   history: Turn[];
   message: string;
+  /**
+   * Whose private board a `board` lookup is allowed to read.
+   *
+   * Comes from the session on the route and never from anything the model
+   * wrote. The lookup tool has no argument for naming a person, so there is
+   * nothing for it to ask for but its own.
+   */
+  userId: string;
 }): AsyncGenerator<Beat> {
   if (!modelConfigured()) return;
 
@@ -285,7 +320,12 @@ export async function* streamPodshar({
       system: [{ type: 'text', text: brief, cache_control: { type: 'ephemeral' } }],
       thinking: { type: 'adaptive' },
       output_config: { effort: 'low' },
-      tools: [NAVIGATE],
+      // Tools sit in front of the system block, so the cache breakpoint on the
+      // brief covers them too: adding one costs a single cache write, not a
+      // charge on every turn. What the tools *return* is another matter — that
+      // goes in `messages`, past the breakpoint, which is the whole reason the
+      // lookups exist instead of the data being pasted into the brief.
+      tools: [NAVIGATE, ...LOOKUP_TOOLS],
       messages: turns
     });
 
@@ -295,38 +335,56 @@ export async function* streamPodshar({
   const out = { said: '' };
 
   try {
-    const first = ask(messages);
-    yield* pour(first, out);
+    let turns = messages;
+    let spoke = false;
+    let href: string | undefined;
 
-    // Available only once the stream has ended: the tool call, the stop reason
-    // and the bill all belong to the assembled message, not to any one delta.
-    const whole = await first.finalMessage();
-    logSpend(whole.usage);
-    if (whole.stop_reason === 'refusal') return;
+    for (let step = 0; step < MAX_STEPS; step += 1) {
+      const stream = ask(turns);
+      yield* pour(stream, out, spoke);
 
-    const nav = navigationIn(whole.content);
-    const href = nav ? String((nav.input as { href: string }).href) : undefined;
+      // Available only once the stream has ended: the tool calls, the stop
+      // reason and the bill all belong to the assembled message, not to any one
+      // delta.
+      const whole = await stream.finalMessage();
+      logSpend(whole.usage);
+      if (whole.stop_reason === 'refusal') return;
+      if (out.said) spoke = true;
 
-    // Usually he says something *and* calls the tool, which is one round trip.
-    if (out.said) {
-      if (href) yield { route: href };
-      return;
+      const calls = toolCallsIn(whole.content);
+      const nav = calls.find((call) => call.name === 'navigate');
+      if (nav) href = String((nav.input as { href: string }).href);
+
+      // He is done talking and wants nothing.
+      if (calls.length === 0) break;
+
+      // Everything he asked for was a move, and he has already said his piece.
+      // Nothing left to hand him — going round again would only cost money.
+      if (spoke && !calls.some((call) => isLookup(call.name))) break;
+
+      // Answer every call in one user turn. The API requires a result for each
+      // one, in the same message: leaving a single block unanswered is a 400,
+      // which from the outside is the dog going quiet for no visible reason.
+      const results = await Promise.all(
+        calls.map(async (call) => ({
+          type: 'tool_result' as const,
+          tool_use_id: call.id,
+          // `navigate` has no answer — the browser does the moving, and by the
+          // time anything comes back the page has already changed. It is told
+          // the move happened so the turn is well-formed and he can add a line
+          // to it: arriving somewhere in silence reads like the site glitched.
+          content: isLookup(call.name) ? await runLookup(call.name, call.input, userId) : 'done'
+        }))
+      );
+
+      turns = [
+        ...turns,
+        { role: 'assistant', content: whole.content },
+        { role: 'user', content: results }
+      ];
     }
 
-    // He only moved. Hand the tool its result so he can also say something —
-    // arriving somewhere in silence reads like the site glitched.
-    if (!nav) return;
-    const second = ask([
-      ...messages,
-      { role: 'assistant', content: whole.content },
-      {
-        role: 'user',
-        content: [{ type: 'tool_result', tool_use_id: nav.id, content: 'done' }]
-      }
-    ]);
-    yield* pour(second, out);
-    logSpend((await second.finalMessage()).usage);
-    if (out.said && href) yield { route: href };
+    if (spoke && href) yield { route: href };
   } catch (error) {
     // No key, no balance, rate limit, network, a malformed request — all the
     // same from here: the keyword router answers instead and the person sees a
