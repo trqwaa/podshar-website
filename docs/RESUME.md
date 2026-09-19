@@ -48,11 +48,22 @@ npx prisma generate
 установлены, а Safari не умеет CDP. Ставится отдельно и мимо `package.json`:
 
 ```sh
-npx @puppeteer/browsers install chrome-headless-shell@stable
+npx @puppeteer/browsers install chrome-headless-shell@latest
 ```
 
+`@stable` тут больше не работает — канал перестал резолвиться, команда падает с
+«unable to resolve». Ставится в папку проекта, а не в `~/.cache/puppeteer`, и
+путь до бинаря печатает последней строкой: его и надо подставлять в скрипт.
+**После проверки папку `chrome-headless-shell/` из проекта убрать** — она не в
+`.gitignore` и иначе висит в `git status`.
+
 Без базы `npm run dev` всё равно работает — в разработке сайт открыт как Guest,
-и приветствие, мопс и главная проверяются полностью.
+и приветствие, мопс и главная проверяются полностью. Но доска, календарь и всё
+остальное за входом требуют базы. Поднять свою, не трогая настоящую:
+`npm i -D embedded-postgres`, затем `prisma migrate deploy` на неё и засеять
+участников с паролем через `hashPassword`. Prisma требует **обе** переменные —
+`DATABASE_URL` и `DATABASE_URL_UNPOOLED`, — иначе `migrate` падает на валидации
+ещё до подключения.
 
 ## 3. Посмотреть, что в базе
 
