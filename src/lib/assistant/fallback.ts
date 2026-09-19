@@ -43,17 +43,23 @@ export async function answerWithoutModel({
   ]);
 
   const target = matchPlace(message);
-  if (target) {
-    if (target.id === here.id) return { reply: guide(`${here.id}.here`) };
+
+  // Названо другое место — ведём туда или признаёмся, что его нет.
+  if (target && target.id !== here.id) {
     if (target.status === 'planned') {
       return { reply: guide('soon', { place: nav(target.labelKey) }) };
     }
     return { reply: guide('going', { place: nav(target.labelKey) }), route: target.href };
   }
 
+  // Названо место, на котором уже стоим, — не повод пересказывать раздел
+  // целиком. Сначала ищем конкретный элемент: «какой цвет у листочка», стоя на
+  // доске, должно отвечать про цвета, а не про то, что такое доска. Без этого
+  // шага сильные слова нельзя было бы держать и в месте, и в элементе разом.
   const element = matchElement(here, message);
   if (element) return { reply: guide(`${here.id}.${element.id}`) };
 
+  if (target) return { reply: guide(`${here.id}.here`) };
   if (asksWhereAmI(message)) return { reply: guide(`${here.id}.here`) };
   if (isGreeting(message)) return { reply: guide('hello') };
 

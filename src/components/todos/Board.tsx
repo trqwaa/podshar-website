@@ -293,6 +293,7 @@ function Note({
   onResize: (w: number, h: number) => void;
   onText: (title: string) => void;
 }) {
+  const t = useTranslations('todos');
   const controls = useDragControls();
   const self = useRef<HTMLDivElement | null>(null);
   const x = useMotionValue(0);
@@ -405,7 +406,14 @@ function Note({
         onBlur={() => {
           if (text.trim() !== note.title) onText(text.trim());
         }}
-        className={`min-h-0 w-full flex-1 resize-none bg-transparent text-[0.8125rem] leading-snug text-ink outline-none ${
+        // Пустой заголовок снимает листочек с доски — стирание и есть способ
+        // его убрать. Подсказка появляется ровно тогда, когда текста уже нет, и
+        // предупреждает до того, как уйдёт фокус, а не после.
+        placeholder={canEdit ? t('emptyRemoves') : undefined}
+        // 16px до `sm`: ниже шестнадцати iOS зумит всю страницу при фокусе, и с
+        // доски уезжает всё остальное. Ниже 560px доска и так показывается
+        // списком в полную ширину, так что крупному тексту есть где стоять.
+        className={`min-h-0 w-full flex-1 resize-none bg-transparent text-[1rem] leading-snug text-ink outline-none placeholder:text-ink/35 sm:text-[0.8125rem] ${
           note.done ? 'line-through' : ''
         }`}
       />
@@ -464,7 +472,10 @@ function Fastener({ pin, small = false }: { pin: NotePin; small?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="block rounded-full bg-ink/70 shadow-[0_1px_2px_rgb(0_0_0/0.35)]"
+      // Была тень, чтобы булавка казалась выпуклой. На сайте ничего не
+      // отбрасывает тень, и цвет в ней был сырым rgb мимо токенов. Объём
+      // теперь даёт ободок тем же токеном, что и у остальных креплений.
+      className="block rounded-full border border-ink/25 bg-ink/70"
       style={{ width: px(11), height: px(11) }}
     />
   );
