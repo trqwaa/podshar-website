@@ -1,8 +1,9 @@
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 
 import { WeatherPanel } from '@/components/WeatherPanel';
 import { ZONE } from '@/lib/calendar/scales';
 import { getWeather, type Condition, type DayForecast } from '@/lib/weather';
+import type { Locale } from '@/i18n/routing';
 
 /**
  * The sky over Zurich, in the same shape as the date tile beside it: a big
@@ -14,7 +15,21 @@ import { getWeather, type Condition, type DayForecast } from '@/lib/weather';
  * allowed near a page render at all — and how it is fenced — is in
  * `lib/weather.ts`.
  */
-export async function WeatherTile({ className = '' }: { className?: string }) {
+export async function WeatherTile({
+  locale,
+  className = ''
+}: {
+  /**
+   * Handed down, never asked for.
+   *
+   * `PatchList` takes it the same way, and for the same reason: the page
+   * already resolved it out of its own params, and a component that calls
+   * `getLocale()` instead reaches for request state from inside a tree that is
+   * meant to be renderable without one.
+   */
+  locale: Locale;
+  className?: string;
+}) {
   const [t, tHome, weather] = await Promise.all([
     getTranslations('weather'),
     getTranslations('home'),
@@ -42,7 +57,7 @@ export async function WeatherTile({ className = '' }: { className?: string }) {
       title={t('weekTitle')}
       hint={t('weekHint')}
       close={tHome('close')}
-      week={<Week days={weather.days} />}
+      week={<Week days={weather.days} locale={locale} />}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -77,8 +92,8 @@ export async function WeatherTile({ className = '' }: { className?: string }) {
  * night" — that distinction only means something to the tile, which is showing
  * this minute.
  */
-async function Week({ days }: { days: DayForecast[] }) {
-  const [t, locale] = await Promise.all([getTranslations('weather'), getLocale()]);
+async function Week({ days, locale }: { days: DayForecast[]; locale: Locale }) {
+  const t = await getTranslations('weather');
   if (days.length === 0) return <p className="text-base text-ink-muted">{t('unavailable')}</p>;
 
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: ZONE });

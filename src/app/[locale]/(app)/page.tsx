@@ -109,7 +109,7 @@ export default async function HomePage({
           />
         }
       >
-        <WeatherTile className="md:col-span-2" />
+        <WeatherTile locale={locale} className="md:col-span-2" />
       </Suspense>
 
       {/* Identity */}
