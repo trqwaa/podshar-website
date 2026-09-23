@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.48',
+    date: '2026-09-23',
+    author: 'nellet',
+    note: 'приветствий и цитат стало в пятнадцать раз больше — теперь их не застать за неделю'
+  },
+  {
     version: '0.47',
     date: '2026-09-23',
     author: 'nellet',

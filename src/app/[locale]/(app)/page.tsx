@@ -14,8 +14,14 @@ import { listPresence } from '@/lib/presence';
 import { sharedDayIndex } from '@/lib/day';
 import { resolveLocale } from '@/lib/locale';
 
-/** How many quotes each catalogue carries. Keep in step with `quotes` in the JSON. */
-const QUOTE_COUNT = 8;
+/**
+ * How many quotes each catalogue carries. Keep in step with `quotes` in the JSON.
+ *
+ * A hundred and twenty: one a day, so a line comes back round in four months
+ * rather than in a week. Eight was small enough that all three of them had read
+ * the lot twice over, which is the one way a thought for the day can fail.
+ */
+const QUOTE_COUNT = 120;
 
 /**
  * The homepage as a bento grid.

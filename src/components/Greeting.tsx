@@ -11,8 +11,18 @@ const SLOTS: Slot[] = ['night', 'morning', 'afternoon', 'evening'];
  * How many lines each slot carries, in every catalogue. Keep in step with the
  * `greeting` block in the JSON — a mismatch resolves to a key that does not
  * exist, and a missing message throws at render.
+ *
+ * Thirty-one, because eight meant the three of them had seen every line inside
+ * a fortnight, and a joke stops being one on the third telling.
+ *
+ * Thirty-one rather than a round thirty, and the odd number is the point: the
+ * same day index also picks the quote, and 30 divides 120 exactly, so every
+ * greeting would have come back paired with a quote it had already been paired
+ * with. 31 and 120 share no factor, so the *page* — this line plus the thought
+ * under it — does not repeat as a pair for a little over ten years, while a
+ * single line comes round monthly.
  */
-const VARIANTS = 8;
+const VARIANTS = 31;
 
 function slotFor(date: Date): Slot {
   const h = date.getHours();
