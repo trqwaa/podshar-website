@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { readSession } from '@/lib/auth/session';
-import { NOTE_COLORS, NOTE_PINS } from './notes';
+import { NOTE_COLORS, NOTE_PINS, clampH, clampW } from './notes';
 
 /**
  * Всё, что доска задач может менять.
@@ -113,8 +113,12 @@ export async function styleNote(_prev: BoardState, formData: FormData): Promise<
       id: Id,
       x: Fraction.optional(),
       y: Fraction.optional(),
-      w: Fraction.optional(),
-      h: Fraction.optional(),
+      // The same limits the corner handle enforces on the board. The board is
+      // not the only thing that can send this — an action is a public POST — and
+      // a note sized to 0 is invisible and ungrabbable, one sized to 1 covers
+      // the board for all three people.
+      w: Fraction.transform(clampW).optional(),
+      h: Fraction.transform(clampH).optional(),
       color: z.enum(NOTE_COLORS).optional(),
       pin: z.enum(NOTE_PINS).optional(),
       done: z.enum(['true', 'false']).optional()

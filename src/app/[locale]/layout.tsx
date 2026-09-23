@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { Manrope } from 'next/font/google';
 
 import { routing } from '@/i18n/routing';
@@ -69,17 +68,19 @@ export default async function LocaleLayout({
 }) {
   // Validates the segment and opts this subtree into static rendering.
   const locale = resolveLocale((await params).locale);
-  const messages = await getMessages();
 
-  // The document and the translations, and nothing else. The application
-  // chrome — drawer, assistant, canvas — belongs to the (app) group, because
-  // the login and join screens under (auth) must render without it: a sidebar
-  // full of someone's stats has no business being on a signed-out page.
+  // The document, and nothing else. The application chrome — drawer,
+  // assistant, canvas — belongs to the (app) group, because the login and join
+  // screens under (auth) must render without it: a sidebar full of someone's
+  // stats has no business being on a signed-out page.
+  //
+  // The translations are not provided here either, for the same reason. Each
+  // group wraps itself in its own provider with only the strings its client
+  // components read — see `i18n/client-messages.ts`. A provider here would hand
+  // the whole catalogue to the login page, which is what it used to do.
   return (
     <html lang={locale} className={sans.variable}>
-      <body className="bg-canvas font-sans text-ink antialiased">
-        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
-      </body>
+      <body className="bg-canvas font-sans text-ink antialiased">{children}</body>
     </html>
   );
 }

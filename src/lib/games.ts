@@ -121,6 +121,26 @@ const toAccountId = (steam64: string) => String(BigInt(steam64) - STEAM_BASE);
  * лежит в самой странице профиля. Ключ понадобился бы только ради того же
  * значения, и его пришлось бы заводить, хранить и однажды чинить.
  */
+/**
+ * An avatar address we can actually show, or nothing.
+ *
+ * The picture is drawn through `next/image`, which refuses any host not listed
+ * in `next.config.mjs` — and refuses by throwing during render, which takes the
+ * whole game tile in the drawer down with it. OpenDota passes along whatever
+ * Steam hands it, and Steam serves avatars from several CDNs over the years. An
+ * address from any other host becomes "no avatar", which the tile already
+ * handles, rather than a broken drawer.
+ */
+function steamAvatar(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'avatars.steamstatic.com' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveSteam(input: string): Promise<string | null> {
   const text = input.trim();
   if (!text) return null;
@@ -215,7 +235,7 @@ export async function dotaProfile(
       name: typeof who?.profile?.personaname === 'string' ? who.profile.personaname : null,
       // Адрес, а не файл у себя: аватарка меняется вместе со стимовской, и
       // копия у нас устарела бы в тот же день.
-      avatar: typeof who?.profile?.avatarfull === 'string' ? who.profile.avatarfull : null,
+      avatar: steamAvatar(who?.profile?.avatarfull),
       medal: medal && medal >= 1 && medal <= 8 ? medal : null,
       // У Immortal единицы всегда ноль, так что отдельного случая не нужно.
       stars: tier ? tier % 10 : 0,

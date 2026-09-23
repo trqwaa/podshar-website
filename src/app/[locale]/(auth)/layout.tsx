@@ -1,4 +1,7 @@
+import { NextIntlClientProvider } from 'next-intl';
+
 import { redirect } from '@/i18n/routing';
+import { SIGNED_OUT, clientMessages } from '@/i18n/client-messages';
 import { PodsharWordmark } from '@/components/PodsharMark';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
 import { readSession } from '@/lib/auth/session';
@@ -32,7 +35,13 @@ export default async function AuthLayout({
     if (session) redirect({ href: '/', locale });
   }
 
+  // Only the strings the forms and the language switch read. This is the one
+  // page anyone at all can open, so it is the one place where "whatever is in
+  // the catalogue" meant handing the whole private site to a stranger.
+  const messages = await clientMessages(locale, SIGNED_OUT);
+
   return (
+    <NextIntlClientProvider locale={locale} messages={messages}>
     <div className="flex min-h-dvh flex-col bg-canvas">
       <header className="flex items-center justify-between border-b border-rule-soft px-4 py-4 sm:px-6">
         <PodsharWordmark className="text-xs font-semibold text-ink" />
@@ -43,5 +52,6 @@ export default async function AuthLayout({
         <div className="block-card w-full max-w-md p-6 sm:p-8">{children}</div>
       </main>
     </div>
+    </NextIntlClientProvider>
   );
 }

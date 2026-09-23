@@ -2,11 +2,13 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 import { getTranslations } from 'next-intl/server';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { hashPassword } from '@/lib/auth/password';
+import { linkOrigin } from '@/lib/auth/origin';
 import { deliver } from '@/lib/mail';
 import { redirect } from '@/i18n/routing';
 import { resolveLocale } from '@/lib/locale';
@@ -70,12 +72,9 @@ async function atLeast<T>(ms: number, work: Promise<T>): Promise<T> {
   return result;
 }
 
-/** Where this site is being served from, for the link in the letter. */
+/** Where the link in the letter should point — never simply the `Host` asked with. See `auth/origin.ts`. */
 async function origin() {
-  const h = await headers();
-  const host = h.get('host') ?? 'localhost:3000';
-  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
-  return `${proto}://${host}`;
+  return linkOrigin((await headers()).get('host'), process.env.NODE_ENV === 'production');
 }
 
 /**
@@ -99,10 +98,29 @@ export async function requestReset(
   // what the visitor just typed, not a fact about who has an account.
   if (!parsed.success) return { error: 'badEmail' };
 
-  return atLeast(400, issue(parsed.data.email, locale));
+  // The work happens after the answer has gone, not before it.
+  //
+  // It used to be awaited behind a 400 ms floor, and the floor was not enough:
+  // a real address hashes, writes and posts a letter, and whenever the mail
+  // provider took longer than 400 ms the answer for a real account came back
+  // visibly later than the one for an address nobody owns. That difference is
+  // exactly the question this form must never answer. `after` runs the letter
+  // once the response is out, so every answer takes the same floor and nothing
+  // about the account can be read off the clock.
+  //
+  // The origin is read here, while the request is still ours to read.
+  const email = parsed.data.email;
+  const base = await origin();
+  after(() =>
+    issue(email, locale, base).catch((error) => {
+      console.error('[podshar] reset letter not issued:', error);
+    })
+  );
+
+  return atLeast(400, Promise.resolve({ sent: true }));
 }
 
-async function issue(email: string, locale: string): Promise<ResetState> {
+async function issue(email: string, locale: string, base: string): Promise<ResetState> {
   const user = await prisma.user.findUnique({
     where: { email },
     select: { id: true, displayName: true, email: true, locale: true }
@@ -115,40 +133,48 @@ async function issue(email: string, locale: string): Promise<ResetState> {
   const identifier = `${SCOPE}${user.id}`;
   const now = Date.now();
 
+  const token = randomBytes(32).toString('base64url');
+  const userLocale = resolveLocale(user.locale ?? locale);
+
   // One letter per two minutes. Without this, holding the button down turns
   // the form into a way to bury someone's inbox using our provider's quota.
   // The issue time is not stored: it is the expiry minus the lifetime, which is
   // one fewer column to add to a table three people share.
-  const existing = await prisma.verificationToken.findFirst({
-    where: { identifier, expires: { gt: new Date(now) } },
-    orderBy: { expires: 'desc' }
-  });
-  if (existing && existing.expires.getTime() - LINK_MINUTES * 60_000 > now - COOLDOWN_MS) {
-    return { sent: true };
-  }
-
-  const token = randomBytes(32).toString('base64url');
-  const userLocale = resolveLocale(user.locale ?? locale);
-
+  //
+  // Checked and written under one lock per account. As a plain read followed
+  // by a write it did not hold: sixteen requests fired together each read "no
+  // letter yet" before any of them had written one, and seven letters went
+  // out. The advisory lock makes requests for the same account take turns, so
+  // the second one reads the first one's row. It lives only as long as the
+  // transaction, which suits the pooled connection the app runs on.
+  //
   // Older links stop working the moment a new one is asked for. Two live links
   // in one inbox is two chances for the wrong one to be used, and the older one
   // is the likelier to have leaked.
-  await prisma.$transaction([
-    prisma.verificationToken.deleteMany({ where: { identifier } }),
-    prisma.verificationToken.create({
-      data: {
-        identifier,
-        token: sha256(token),
-        expires: new Date(now + LINK_MINUTES * 60_000)
-      }
-    })
-  ]);
+  const fresh = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${identifier}))`;
+
+    const existing = await tx.verificationToken.findFirst({
+      where: { identifier, expires: { gt: new Date(now) } },
+      orderBy: { expires: 'desc' }
+    });
+    if (existing && existing.expires.getTime() - LINK_MINUTES * 60_000 > now - COOLDOWN_MS) {
+      return false;
+    }
+
+    await tx.verificationToken.deleteMany({ where: { identifier } });
+    await tx.verificationToken.create({
+      data: { identifier, token: sha256(token), expires: new Date(now + LINK_MINUTES * 60_000) }
+    });
+    return true;
+  });
+  if (!fresh) return { sent: true };
 
   // The letter speaks the language the person chose in their profile, not the
   // language of the browser that happens to be asking — being locked out is
   // exactly when you want your own language.
   const t = await getTranslations({ locale: userLocale, namespace: 'reset' });
-  const link = `${await origin()}/${userLocale}/reset?token=${token}`;
+  const link = `${base}/${userLocale}/reset?token=${token}`;
 
   const sent = await deliver({
     to: user.email,

@@ -17,11 +17,12 @@ import { resolveLocale } from '@/lib/locale';
 /**
  * How many quotes each catalogue carries. Keep in step with `quotes` in the JSON.
  *
- * A hundred and twenty: one a day, so a line comes back round in four months
+ * Two hundred and forty: one a day, so a line comes back round in eight months
  * rather than in a week. Eight was small enough that all three of them had read
  * the lot twice over, which is the one way a thought for the day can fail.
+ * Must stay coprime with the greeting count — see `VARIANTS` in Greeting.
  */
-const QUOTE_COUNT = 120;
+const QUOTE_COUNT = 240;
 
 /**
  * The homepage as a bento grid.
@@ -75,7 +76,7 @@ export default async function HomePage({
       {/* Greeting — full width, the only large type on the page */}
       <section className="block-card animate-rise-in flex flex-col justify-center gap-2 px-6 py-10 sm:px-10 sm:py-12 md:col-span-6">
         <p className="ps-label">{t('greetingLabel')}</p>
-        <Greeting name={member.displayName.split(' ')[0]} day={day} />
+        <Greeting locale={locale} name={member.displayName.split(' ')[0]} day={day} />
       </section>
 
       {/* The reactor — the dominant block, as tall as the three beside it */}

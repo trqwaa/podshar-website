@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
+import { DisplayName } from '@/lib/auth/names';
 import { createSession, destroySession, readSession } from '@/lib/auth/session';
 import { redirect } from '@/i18n/routing';
 import { resolveLocale } from '@/lib/locale';
@@ -38,7 +39,7 @@ const LoginInput = z.object({
 
 const JoinInput = z.object({
   token: z.string().trim().min(10).max(200),
-  displayName: z.string().trim().min(2, 'nameTooShort').max(40),
+  displayName: DisplayName,
   password,
   confirm: z.string()
 });
@@ -74,13 +75,30 @@ const DUMMY_HASH =
 const MAX_FAILURES = 8;
 const WINDOW_MINUTES = 10;
 
+/**
+ * Whether this address has failed too often lately.
+ *
+ * Counted *after* the current attempt has already been written down (see
+ * `login`), which is why the comparison is `>` rather than `>=`: the row for
+ * this very request is in the count.
+ */
 async function isRateLimited(ipHash: string) {
   const since = new Date(Date.now() - WINDOW_MINUTES * 60_000);
   const failures = await prisma.auditLog.count({
     where: { action: 'login_failed', ipHash, createdAt: { gte: since } }
   });
-  return failures >= MAX_FAILURES;
+  return failures > MAX_FAILURES;
 }
+
+/**
+ * What was typed into the login field, in a form fit for a log.
+ *
+ * It used to be stored as typed. People put their password into the wrong box
+ * all the time, and every one of those went into the audit table in the clear.
+ * A hash still answers the only question the log is for — was the same account
+ * being hammered — because hashing a handle gives the same string back.
+ */
+const typedAs = (identifier: string) => sha256(identifier.toLowerCase()).slice(0, 16);
 
 export async function login(
   locale: string,
@@ -94,9 +112,21 @@ export async function login(
   if (!parsed.success) return { error: 'invalid' };
 
   const { ipHash, userAgent } = await clientFingerprint();
-  if (await isRateLimited(ipHash)) return { error: 'tooMany' };
-
   const { identifier, password: plain } = parsed.data;
+
+  // The attempt is written down as a failure *before* anything is checked, and
+  // turned into a success afterwards if it earns it.
+  //
+  // The other order — count the failures, then try, then record — let a burst
+  // straight through: a hundred requests sent at once all counted "fewer than
+  // eight so far" before any of them had written anything, and all hundred got
+  // a guess. Written first, each request's own row is in the count every other
+  // request sees.
+  const attempt = await prisma.auditLog.create({
+    data: { action: 'login_failed', ipHash, userAgent, metadata: { typed: typedAs(identifier) } },
+    select: { id: true }
+  });
+  if (await isRateLimited(ipHash)) return { error: 'tooMany' };
   // One field for both, because with three users nobody remembers which they
   // registered with. `handle` is stored lowercase; emails are matched as given.
   const user = await prisma.user.findFirst({
@@ -109,17 +139,16 @@ export async function login(
   const stored = user?.passwordHash ?? DUMMY_HASH;
   const ok = await verifyPassword(stored, plain);
 
-  if (!user || !ok) {
-    await prisma.auditLog.create({
-      data: { action: 'login_failed', ipHash, userAgent, metadata: { identifier } }
-    });
-    return { error: 'badCredentials' };
-  }
+  // The failure is already on record.
+  if (!user || !ok) return { error: 'badCredentials' };
 
   await createSession(user.id);
   await Promise.all([
-    prisma.auditLog.create({
-      data: { action: 'login_ok', userId: user.id, ipHash, userAgent }
+    // The row written up front becomes the success it turned out to be, so a
+    // correct password does not count against the address.
+    prisma.auditLog.update({
+      where: { id: attempt.id },
+      data: { action: 'login_ok', userId: user.id, metadata: {} }
     }),
     prisma.user.update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
   ]);

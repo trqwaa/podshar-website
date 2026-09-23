@@ -1,4 +1,7 @@
+import { NextIntlClientProvider } from 'next-intl';
+
 import { redirect } from '@/i18n/routing';
+import { SIGNED_IN, clientMessages } from '@/i18n/client-messages';
 import { AppShell } from '@/components/AppShell';
 import { PatchList } from '@/components/Patches';
 import { PresenceBeat } from '@/components/Presence';
@@ -37,10 +40,15 @@ export default async function AppLayout({
     if (!session) redirect({ href: '/login', locale });
   }
 
-  const profile = await getCurrentMember();
+  // Read only after the gate above has let the visitor through: the strings
+  // behind the login are not built at all for someone who is being sent away.
+  const [profile, messages] = await Promise.all([
+    getCurrentMember(),
+    clientMessages(locale, SIGNED_IN)
+  ]);
 
   return (
-    <>
+    <NextIntlClientProvider locale={locale} messages={messages}>
       {/* The patch list is rendered here, on the server, and handed to the
           shell as a prop — it needs the database to turn handles into names,
           which a client dialog cannot do. It costs a few kilobytes on every
@@ -56,7 +64,7 @@ export default async function AppLayout({
       {/* Here and not on the homepage: every signed-in page is being on the
           site, and this layout is exactly the set of signed-in pages. */}
       <PresenceBeat />
-    </>
+    </NextIntlClientProvider>
   );
 }
 

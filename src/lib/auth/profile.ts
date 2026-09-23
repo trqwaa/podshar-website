@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
+import { DisplayName } from '@/lib/auth/names';
 import { readSession, destroySession } from '@/lib/auth/session';
 import { AVATAR_PRESETS } from '@/components/profile/MemberAvatar';
 import { routing } from '@/i18n/routing';
@@ -45,8 +46,25 @@ const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
  */
 const HANDLE = /^[a-z0-9_]{2,20}$/;
 
+/**
+ * A time zone the platform actually knows.
+ *
+ * Stored as typed until now — any sixty characters. Nothing on the site feeds
+ * it to `Intl` yet, but the first thing that does would throw a RangeError on a
+ * typo and take that page down with it. Asking `Intl` itself is the only list
+ * that is guaranteed to agree with what `Intl` will later accept.
+ */
+const knownZone = (zone: string) => {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const Identity = z.object({
-  displayName: z.string().trim().min(2, 'nameTooShort').max(40),
+  displayName: DisplayName,
   handle: z
     .string()
     .trim()
@@ -54,7 +72,7 @@ const Identity = z.object({
     .refine((v) => HANDLE.test(v), 'badHandle'),
   email: z.string().trim().toLowerCase().email('badEmail').max(200),
   locale: z.enum(routing.locales),
-  timeZone: z.string().trim().min(1).max(60),
+  timeZone: z.string().trim().min(1).max(60).refine(knownZone, 'badTimeZone'),
   avatarPreset: z
     .string()
     .optional()
@@ -66,6 +84,27 @@ const Passwords = z.object({
   next: z.string().min(10, 'tooShort').max(200),
   confirm: z.string()
 });
+
+/**
+ * Whether this account has got its own password wrong too often lately.
+ *
+ * Both places that ask for the current password — changing it, and changing
+ * the address — are reachable by someone who has a session and not the
+ * password. Without a ceiling, they are a password-guessing endpoint that the
+ * login form's rate limit never sees. Five in ten minutes is plenty for a
+ * person who mistyped.
+ */
+async function tooManyWrong(userId: string) {
+  const since = new Date(Date.now() - 10 * 60_000);
+  const wrong = await prisma.auditLog.count({
+    where: {
+      userId,
+      action: { in: ['password_change_failed', 'email_change_failed'] },
+      createdAt: { gte: since }
+    }
+  });
+  return wrong >= 5;
+}
 
 async function fingerprint() {
   const h = await headers();
@@ -94,6 +133,32 @@ export async function updateIdentity(
   }
 
   const { displayName, handle, email, locale, timeZone, avatarPreset } = parsed.data;
+
+  // A new address costs the current password.
+  //
+  // Everything else here is cosmetic, but the address is where "forgot my
+  // password" sends its letter — so whoever can change it owns the account.
+  // Without this, anyone holding a live session for a minute (a laptop left
+  // open, a cookie lifted off one) could put their own address in, ask for a
+  // reset, and keep the account after the session was long gone. Changing the
+  // password already demanded the old one; the address is the same key by
+  // another door.
+  if (email !== session.user.email.toLowerCase()) {
+    const typed = formData.get('emailPassword');
+    if (typeof typed !== 'string' || !typed) return { error: 'emailNeedsPassword' };
+    if (await tooManyWrong(session.userId)) return { error: 'tooMany' };
+
+    const { ipHash, userAgent } = await fingerprint();
+    if (!(await verifyPassword(session.user.passwordHash, typed))) {
+      await prisma.auditLog.create({
+        data: { action: 'email_change_failed', userId: session.userId, ipHash, userAgent }
+      });
+      return { error: 'wrongCurrent' };
+    }
+    await prisma.auditLog.create({
+      data: { action: 'email_changed', userId: session.userId, ipHash, userAgent }
+    });
+  }
 
   // Handle and email are unique across the site. Checking first turns a raw
   // Postgres constraint violation into a sentence the visitor can act on.
@@ -141,6 +206,7 @@ export async function changePassword(
   const { current, next, confirm } = parsed.data;
   if (next !== confirm) return { error: 'mismatch' };
   if (next === current) return { error: 'samePassword' };
+  if (await tooManyWrong(session.userId)) return { error: 'tooMany' };
 
   const ok = await verifyPassword(session.user.passwordHash, current);
   const { ipHash, userAgent } = await fingerprint();

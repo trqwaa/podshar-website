@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.49',
+    date: '2026-09-23',
+    author: 'nellet',
+    note: 'ещё вдвое больше фраз, и сайт закрыт всерьёз: сброс пароля, вход, смена почты, мопс и чужие листочки'
+  },
+  {
     version: '0.48',
     date: '2026-09-23',
     author: 'nellet',

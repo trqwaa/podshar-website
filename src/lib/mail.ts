@@ -64,7 +64,11 @@ export async function deliver({
         authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         'content-type': 'application/json'
       },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, text })
+      body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, text }),
+      // A provider that never answers would hold the background task until the
+      // platform kills it, with nothing in the log to say why the letter never
+      // came. Ten seconds is generous for one POST.
+      signal: AbortSignal.timeout(10_000)
     });
 
     if (!response.ok) {

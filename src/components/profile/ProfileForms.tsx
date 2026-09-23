@@ -137,9 +137,22 @@ export function IdentityForm({
   const [state, action] = useActionState<ProfileState, FormData>(updateIdentity, {});
   // The picked avatar is local state so the preview updates before saving.
   const [avatar, setAvatar] = useState(member.avatarPreset ?? '');
+  // A new address costs the current password (see `updateIdentity`). The field
+  // for it appears only once the address actually differs — asking for a
+  // password to change an avatar would teach everyone to type it without
+  // reading why.
+  const [emailChanged, setEmailChanged] = useState(false);
 
   return (
-    <form action={action}>
+    <form
+      action={action}
+      onChange={(event) => {
+        // `target` is typed as the form, but on a bubbled change it is the field.
+        const field = event.target as unknown as HTMLInputElement;
+        if (field.name !== 'email') return;
+        setEmailChanged(field.value.trim().toLowerCase() !== member.email.toLowerCase());
+      }}
+    >
       <Section title={t('identityTitle')} hint={t('identityHint')}>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-8">
           <div className="flex items-center gap-4 sm:flex-col sm:gap-3">
@@ -172,6 +185,14 @@ export function IdentityForm({
               defaultValue={member.email}
               autoComplete="email"
             />
+            {emailChanged ? (
+              <Field
+                name="emailPassword"
+                label={t('emailPassword')}
+                type="password"
+                autoComplete="current-password"
+              />
+            ) : null}
           </div>
         </div>
 
