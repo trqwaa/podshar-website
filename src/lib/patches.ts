@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.47',
+    date: '2026-09-23',
+    author: 'nellet',
+    note: 'погода на неделю по клику на плитку, а мопс теперь смотрит на небо, на расписание и умеет записать'
+  },
+  {
     version: '0.46',
     date: '2026-09-19',
     author: 'nellet',

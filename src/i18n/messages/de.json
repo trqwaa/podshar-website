@@ -81,6 +81,9 @@
     "feels": "gefühlt {temp}°",
     "rain": "niederschlag {chance}%",
     "unavailable": "kein wetter gekommen. schau aus dem fenster",
+    "weekTitle": "die woche",
+    "weekHint": "zürich, sieben tage voraus",
+    "today": "heute",
     "conditions": {
       "clear": "klar",
       "clearNight": "klare nacht",

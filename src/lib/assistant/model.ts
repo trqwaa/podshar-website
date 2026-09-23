@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { ALL_PLACES } from '@/lib/navigation';
 import { LOOKUP_TOOLS, isLookup, runLookup } from '@/lib/assistant/lookup';
+import { WRITE_TOOLS, isWrite, runWrite } from '@/lib/assistant/write';
 
 /**
  * Which model answers as Podshar.
@@ -325,7 +326,7 @@ export async function* streamPodshar({
       // charge on every turn. What the tools *return* is another matter — that
       // goes in `messages`, past the breakpoint, which is the whole reason the
       // lookups exist instead of the data being pasted into the brief.
-      tools: [NAVIGATE, ...LOOKUP_TOOLS],
+      tools: [NAVIGATE, ...LOOKUP_TOOLS, ...WRITE_TOOLS],
       messages: turns
     });
 
@@ -360,7 +361,13 @@ export async function* streamPodshar({
 
       // Everything he asked for was a move, and he has already said his piece.
       // Nothing left to hand him — going round again would only cost money.
-      if (spoke && !calls.some((call) => isLookup(call.name))) break;
+      //
+      // A write never takes this exit even when he has already spoken. He has
+      // to be told what was actually saved and read it back: "готово" said
+      // before the row exists is the one reply here that can be wrong without
+      // anyone noticing until the day of the meeting.
+      const needsAnswer = calls.some((call) => isLookup(call.name) || isWrite(call.name));
+      if (spoke && !needsAnswer) break;
 
       // Answer every call in one user turn. The API requires a result for each
       // one, in the same message: leaving a single block unanswered is a 400,
@@ -373,7 +380,11 @@ export async function* streamPodshar({
           // time anything comes back the page has already changed. It is told
           // the move happened so the turn is well-formed and he can add a line
           // to it: arriving somewhere in silence reads like the site glitched.
-          content: isLookup(call.name) ? await runLookup(call.name, call.input, userId) : 'done'
+          content: isLookup(call.name)
+            ? await runLookup(call.name, call.input, userId)
+            : isWrite(call.name)
+              ? await runWrite(call.name, call.input, userId)
+              : 'done'
         }))
       );
 

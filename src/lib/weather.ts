@@ -38,6 +38,17 @@ export type Condition =
   | 'showers'
   | 'thunder';
 
+/** One row in the week: what a day looks like from a distance. */
+export type DayForecast = {
+  /** `2026-09-23`, already in Zurich days — the provider is asked in that zone. */
+  date: string;
+  condition: Condition;
+  min: number;
+  max: number;
+  /** Chance of rain or snow at some point that day, 0–100. */
+  rain: number;
+};
+
 export type Weather = {
   temp: number;
   feels: number;
@@ -47,6 +58,20 @@ export type Weather = {
   max: number;
   /** Chance of rain or snow at some point today, 0–100. */
   rain: number;
+  /**
+   * The week, today first.
+   *
+   * Comes down in the same request as the tile's own numbers, because it is the
+   * same request either way: the provider bills nothing and the answer is
+   * cached for fifteen minutes and shared. Fetching the week separately when
+   * the panel opens would mean a second round trip in front of someone who has
+   * already clicked, for data we could have had for free.
+   *
+   * May be empty if the provider sends a shape we do not recognise. The panel
+   * then says there is no forecast, which is true, rather than rendering rows
+   * of nothing.
+   */
+  days: DayForecast[];
 };
 
 /**
@@ -77,9 +102,12 @@ export async function getWeather(): Promise<Weather | null> {
     latitude: String(HOME.latitude),
     longitude: String(HOME.longitude),
     current: 'temperature_2m,apparent_temperature,weather_code,is_day',
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
     timezone: 'Europe/Zurich',
-    forecast_days: '1'
+    // Seven, not one: the tile reads the first day and the panel behind it
+    // reads all of them. One request serves both, and asking for six more days
+    // costs nothing here — the answer is one JSON body either way.
+    forecast_days: '7'
   }).toString();
 
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -107,6 +135,21 @@ export async function getWeather(): Promise<Weather | null> {
     if (!needed.every(finite)) throw new Error('unexpected response shape');
 
     const chance = today?.precipitation_probability_max?.[0];
+
+    // The week is assembled defensively and separately from the numbers above:
+    // a missing day must cost the panel that row, never the tile its
+    // temperature. Anything that does not parse is dropped rather than rendered
+    // as a dash, and an empty list is a legitimate answer.
+    const dates: unknown[] = Array.isArray(today?.time) ? today.time : [];
+    const days: DayForecast[] = dates.flatMap((date, i) => {
+      const min = today?.temperature_2m_min?.[i];
+      const max = today?.temperature_2m_max?.[i];
+      const code = today?.weather_code?.[i];
+      if (typeof date !== 'string' || !finite(min) || !finite(max) || !finite(code)) return [];
+      const wet = today?.precipitation_probability_max?.[i];
+      return [{ date, condition: conditionOf(code), min, max, rain: finite(wet) ? wet : 0 }];
+    });
+
     return {
       temp: now.temperature_2m,
       feels: now.apparent_temperature,
@@ -115,7 +158,8 @@ export async function getWeather(): Promise<Weather | null> {
       min: today.temperature_2m_min[0],
       max: today.temperature_2m_max[0],
       // Some forecast models leave this out; "no chance given" reads as dry.
-      rain: finite(chance) ? chance : 0
+      rain: finite(chance) ? chance : 0,
+      days
     };
   } catch (error) {
     // Logged, like every other quiet fallback here: a tile that has said "no

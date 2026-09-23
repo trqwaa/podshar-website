@@ -81,6 +81,9 @@
     "feels": "ощущается как {temp}°",
     "rain": "осадки {chance}%",
     "unavailable": "погода не пришла. выгляни в окно",
+    "weekTitle": "погода на неделю",
+    "weekHint": "цюрих, семь дней вперёд",
+    "today": "сегодня",
     "conditions": {
       "clear": "ясно",
       "clearNight": "ясная ночь",

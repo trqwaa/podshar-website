@@ -1,6 +1,8 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
-import { getWeather, type Condition } from '@/lib/weather';
+import { WeatherPanel } from '@/components/WeatherPanel';
+import { ZONE } from '@/lib/calendar/scales';
+import { getWeather, type Condition, type DayForecast } from '@/lib/weather';
 
 /**
  * The sky over Zurich, in the same shape as the date tile beside it: a big
@@ -13,7 +15,11 @@ import { getWeather, type Condition } from '@/lib/weather';
  * `lib/weather.ts`.
  */
 export async function WeatherTile({ className = '' }: { className?: string }) {
-  const [t, weather] = await Promise.all([getTranslations('weather'), getWeather()]);
+  const [t, tHome, weather] = await Promise.all([
+    getTranslations('weather'),
+    getTranslations('home'),
+    getWeather()
+  ]);
   const label = `${t('label')} · ${t('place')}`;
 
   if (!weather) {
@@ -30,7 +36,14 @@ export async function WeatherTile({ className = '' }: { className?: string }) {
   const key = weather.condition === 'clear' && night ? 'clearNight' : weather.condition;
 
   return (
-    <Frame label={label} className={className}>
+    <WeatherPanel
+      label={label}
+      className={className}
+      title={t('weekTitle')}
+      hint={t('weekHint')}
+      close={tHome('close')}
+      week={<Week days={weather.days} />}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-3xl font-semibold leading-tight tabular-nums text-ink">
@@ -44,7 +57,87 @@ export async function WeatherTile({ className = '' }: { className?: string }) {
         {t('feels', { temp: Math.round(weather.feels) })} &middot; {deg(weather.min)}&thinsp;…&thinsp;
         {deg(weather.max)} &middot; {t('rain', { chance: Math.round(weather.rain) })}
       </p>
-    </Frame>
+    </WeatherPanel>
+  );
+}
+
+/**
+ * The week, one row a day, behind the tile.
+ *
+ * Rendered on the server and handed to the panel as a node, so the whole of
+ * this file — the provider call, the four catalogues, the date formatting —
+ * stays where it already was and the client shell never learns what the
+ * weather is.
+ *
+ * Zurich days, like everything dated on this site. The forecast was asked for
+ * in that zone, and the weekday written over a row has to agree with it, or on
+ * a Sunday night Monday's row is labelled Sunday.
+ *
+ * No night variant here. A row is a whole day, and a day is not "clear at
+ * night" — that distinction only means something to the tile, which is showing
+ * this minute.
+ */
+async function Week({ days }: { days: DayForecast[] }) {
+  const [t, locale] = await Promise.all([getTranslations('weather'), getLocale()]);
+  if (days.length === 0) return <p className="text-base text-ink-muted">{t('unavailable')}</p>;
+
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: ZONE });
+  // Месяц словом, как в списке патчей. Числами `en` читается как 09/23 —
+  // американский порядок, который в Швейцарии значит двадцать третье сентября
+  // или девятое двадцать третьего, смотря кто смотрит. Слово не двусмысленно.
+  const date = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', timeZone: ZONE });
+  const deg = (n: number) => `${Math.round(n)}°`;
+
+  return (
+    <ol>
+      {days.map((day, index) => {
+        // Noon, not midnight. `2026-09-23` parsed bare is midnight UTC, which
+        // any zone west of London reads as the evening before — and then the
+        // weekday written over the row is off by one. The middle of the day is
+        // far from every boundary.
+        const at = new Date(`${day.date}T12:00:00Z`);
+
+        return (
+          <li
+            key={day.date}
+            // Two lines on a phone, one on a desktop, out of a single grid —
+            // the same trick the patches list uses. "переменная облачность"
+            // plus two temperatures plus a weekday does not cross 390px
+            // without something being cut, so the sky drops to its own line
+            // and `order` does the rearranging rather than a second markup.
+            className={`grid grid-cols-[3.5rem_1fr] items-center gap-x-3 gap-y-1 py-3 sm:grid-cols-[4.5rem_auto_1fr_auto] ${
+              index > 0 ? 'ps-rule' : ''
+            }`}
+          >
+            <span className="ps-label sm:order-1">
+              {index === 0 ? t('today') : weekday.format(at)}
+            </span>
+            <span className="justify-self-end text-base font-medium tabular-nums text-ink sm:order-4">
+              {deg(day.min)}&thinsp;…&thinsp;{deg(day.max)}
+            </span>
+            <span className="col-span-2 flex min-w-0 items-center gap-3 sm:order-3 sm:col-span-1">
+              <span className="shrink-0 sm:order-2">
+                <WeatherIcon condition={day.condition} night={false} small />
+              </span>
+              <span className="truncate text-base text-ink-muted">
+                {t(`conditions.${day.condition}`)}
+                {day.rain > 0 ? (
+                  <span className="ps-label ml-2 tabular-nums">
+                    {t('rain', { chance: Math.round(day.rain) })}
+                  </span>
+                ) : null}
+              </span>
+              {/* The date is only worth room on a phone, where the panel has
+                  no other column to put it in. On a desktop the weekday is
+                  enough for a week you can see all of at once. */}
+              <span className="ps-label ml-auto shrink-0 tabular-nums sm:hidden">
+                {date.format(at)}
+              </span>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -89,7 +182,16 @@ function Frame({
  * same cloud to anyone glancing at a phone, and the words under the number say
  * which it is.
  */
-function WeatherIcon({ condition, night }: { condition: Condition; night: boolean }) {
+function WeatherIcon({
+  condition,
+  night,
+  small = false
+}: {
+  condition: Condition;
+  night: boolean;
+  /** Row-sized rather than tile-sized, for the week behind the tile. */
+  small?: boolean;
+}) {
   const rainCloud = 'M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25';
 
   const shape = (() => {
@@ -143,7 +245,7 @@ function WeatherIcon({ condition, night }: { condition: Condition; night: boolea
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className="h-10 w-10 shrink-0 text-ink"
+      className={`shrink-0 text-ink ${small ? 'h-6 w-6' : 'h-10 w-10'}`}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.6"

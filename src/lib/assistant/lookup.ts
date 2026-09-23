@@ -5,6 +5,8 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { rangeEvents } from '@/lib/calendar/events';
 import { ZONE, dayKey, shiftDay, visibleDays } from '@/lib/calendar/scales';
 import { boardNotes } from '@/lib/todos/board';
+import { getTrains } from '@/lib/trains';
+import { getWeather } from '@/lib/weather';
 
 /**
  * Как мопс узнаёт, что у людей в календаре и на доске.
@@ -78,10 +80,50 @@ export const BOARD_TOOL: Anthropic.Beta.BetaTool = {
   strict: true
 };
 
-export const LOOKUP_TOOLS = [CALENDAR_TOOL, BOARD_TOOL];
+export const WEATHER_TOOL: Anthropic.Beta.BetaTool = {
+  name: 'weather',
+  description:
+    'Look at the weather over Zurich, where all three of them live. Use this for ' +
+    'anything about the sky — how cold it is, whether to take an umbrella, what ' +
+    'the weekend looks like.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      when: {
+        type: 'string',
+        enum: ['now', 'week'],
+        description: 'This minute, or the seven days ahead.'
+      }
+    },
+    required: ['when'],
+    additionalProperties: false
+  },
+  strict: true
+};
+
+/**
+ * Поезда — инструмент без аргументов, и это не лень.
+ *
+ * Спрашивать нечего: `getTrains` отдаёт ближайшие отправления от Цюриха до
+ * домашней станции каждого из троих, и это весь вопрос целиком. Поле «чей»
+ * было бы лишним — в ответе всего три строки, и модель видит, в какой из них
+ * имя того, с кем говорит. `strict` тут тоже ни к чему: нечего проверять.
+ */
+export const TRAINS_TOOL: Anthropic.Beta.BetaTool = {
+  name: 'trains',
+  description:
+    'Look at the next trains home from Zürich HB for each of the three of them. ' +
+    'Use this for anything about getting home, catching a train, or how late ' +
+    'the last one is.',
+  input_schema: { type: 'object', properties: {}, additionalProperties: false }
+};
+
+export const LOOKUP_TOOLS = [CALENDAR_TOOL, BOARD_TOOL, WEATHER_TOOL, TRAINS_TOOL];
+
+const LOOKUP_NAMES = new Set(LOOKUP_TOOLS.map((tool) => tool.name));
 
 /** Есть ли у нас исполнитель под это имя. Всё прочее уходит `navigate`. */
-export const isLookup = (name: string) => name === 'calendar' || name === 'board';
+export const isLookup = (name: string) => LOOKUP_NAMES.has(name);
 
 /**
  * Время суток в Цюрихе, словами, которые не надо разбирать.
@@ -194,6 +236,66 @@ async function readBoard(which: string, userId: string): Promise<string> {
   return `${head}\n${rows.join('\n')}${rest > 0 ? `\n(+${rest} more, not shown)` : ''}`;
 }
 
+async function readWeather(when: string): Promise<string> {
+  const weather = await getWeather();
+  // `getWeather` уже проглатывает свои ошибки и отдаёт null — значит провайдер
+  // не ответил. Для мопса это не то же самое, что «ясно»: он должен сказать,
+  // что не видит, а не придумать погоду.
+  if (!weather) return 'the weather provider did not answer — say you cannot see it.';
+
+  const deg = (n: number) => `${Math.round(n)}°`;
+  const now =
+    `WEATHER IN ZURICH right now: ${deg(weather.temp)}, feels like ${deg(weather.feels)}, ` +
+    `${weather.condition}${weather.isDay ? '' : ', at night'}. ` +
+    `Today ${deg(weather.min)}…${deg(weather.max)}, chance of rain or snow ${Math.round(weather.rain)}%.`;
+
+  if (when !== 'week') return now;
+  if (weather.days.length === 0) return `${now}\nNo forecast beyond today came back.`;
+
+  const rows = weather.days.map(
+    (day) =>
+      `${day.date} ${deg(day.min)}…${deg(day.max)} ${day.condition}, rain ${Math.round(day.rain)}%`
+  );
+  return `${now}\nTHE WEEK AHEAD:\n${rows.join('\n')}`;
+}
+
+async function readTrains(): Promise<string> {
+  const rows = await getTrains();
+  if (rows.length === 0) return 'no trains to read — say you cannot see them.';
+
+  const clock = (at: number) =>
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: ZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(new Date(at));
+
+  const now = Date.now();
+  const lines = rows.map((row) => {
+    const who = `${row.displayName} (${row.station ?? 'no home station set'})`;
+    if (row.atHB) return `${who}: already at Zürich HB, no train needed.`;
+    if (!row.station) return `${who}: has not told the site where they live, so there is nothing to look up.`;
+    if (row.failed) return `${who}: SBB did not answer — say you could not see this one.`;
+
+    // Только то, что ещё не ушло. Кешу минута, и за неё поезд успевает уехать;
+    // назвать ушедший поезд следующим — ровно та ошибка, из-за которой на него
+    // и опаздывают.
+    const next = row.departures.filter((d) => d.departs + d.delay * 60_000 > now).slice(0, 3);
+    if (next.length === 0) return `${who}: nothing left today.`;
+
+    const when = next.map((d) => {
+      const late = d.delay > 0 ? ` (+${d.delay} min late)` : '';
+      const where = d.platform ? `, platform ${d.platform}` : '';
+      const changes = d.transfers > 0 ? `, ${d.transfers} change(s)` : ', direct';
+      return `${d.line} at ${clock(d.departs)}${late}${where}, arrives ${clock(d.arrives)}${changes}`;
+    });
+    return `${who}: ${when.join(' | ')}`;
+  });
+
+  return `TRAINS FROM ZÜRICH HB, as of ${clock(now)} Zurich:\n${lines.join('\n')}`;
+}
+
 /**
  * Выполнить вызов и вернуть то, что уедет обратно модели.
  *
@@ -210,6 +312,8 @@ export async function runLookup(
   const args = (input ?? {}) as { when?: string; which?: string };
   try {
     if (name === 'calendar') return await readCalendar(args.when ?? 'week');
+    if (name === 'weather') return await readWeather(args.when ?? 'now');
+    if (name === 'trains') return await readTrains();
     return await readBoard(args.which ?? 'shared', userId);
   } catch (error) {
     console.warn(`[podshar] инструмент ${name} не отработал:`, error);

@@ -81,6 +81,9 @@
     "feels": "feels like {temp}°",
     "rain": "precipitation {chance}%",
     "unavailable": "no weather came through. try the window",
+    "weekTitle": "the week ahead",
+    "weekHint": "zurich, seven days out",
+    "today": "today",
     "conditions": {
       "clear": "clear",
       "clearNight": "clear night",

@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import { ALL_PLACES, type Place } from '@/lib/navigation';
+import { ZONE } from '@/lib/calendar/scales';
 import type { Locale } from '@/i18n/routing';
 
 const LANGUAGE: Record<Locale, string> = {
@@ -186,6 +187,41 @@ const SLANG: Record<Locale, string | null> = {
 const plain = (line: string) => line.replace(/<\/?n>/g, '').replace('{name}', 'Trqwaa');
 
 /**
+ * Today, in Zurich, as the one date the dog is allowed to build on.
+ *
+ * This is in the cached brief and that is deliberate, despite the rule that
+ * live data belongs in a tool result. The rule is about values that change
+ * **per request** — those miss the cache every single time. A date changes once
+ * a day, so every conversation that day sends an identical brief and the cache
+ * works exactly as before; the cost is one extra cache write a day per
+ * language, which is a fraction of a cent.
+ *
+ * Without it he has no idea what year it is, and it showed: asked to put a
+ * dentist in on the 26th of September he wrote 2025 — a plausible year, from
+ * memory, a year out. An event nobody will ever see is worse than a refusal.
+ *
+ * Zurich, like every other date on this site, because the calendar he writes
+ * into counts its days that way.
+ */
+function today(): string {
+  const now = new Date();
+  const iso = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(now);
+  const named = new Intl.DateTimeFormat('en-GB', {
+    timeZone: ZONE,
+    weekday: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(now);
+  return `Today is ${iso}, ${named} in Zurich.`;
+}
+
+/**
  * The brief Podshar is handed before every conversation.
  *
  * Written in English and built here rather than translated four times, because a
@@ -298,6 +334,13 @@ Wrong, and why:
 - "You are on the home page. It contains the ПХ button, the date, your profile
   and the quote of the day." — that is an inventory, not a remark.
 
+WHAT DAY IT IS
+${today()}
+
+That line is the only date you have, and you work every other one out from it.
+Do not write a date you did not derive from it — a year taken from memory is
+wrong by a year, and an event a year out is one nobody ever sees.
+
 WHERE THIS PERSON IS STANDING RIGHT NOW
 ${nav(here.labelKey)} — ${here.href}
 ${hereCopy.here}
@@ -314,15 +357,21 @@ nothing behind it. Do not round that up.
 ${map}
 
 WHAT THEY HAVE ON
-You can read two things these three actually keep: the shared calendar, and the
-sticky notes on the todo board. Both are tools. You do not have any of it in
-front of you — you see it only when you ask.
+You can read four things: the shared calendar, the sticky notes on the todo
+board, the weather over Zurich, and the next trains home. Each is a tool. You
+do not have any of it in front of you — you see it only when you ask.
 
 - Asked what is happening, when something is, whether they are free, what is on
   today, this week or this month: call the calendar tool.
 - Asked what they have to do, what is on the board, what is left: call the board
   tool. "shared" is the one all three of them see; "mine" is this person's own.
-- Asked something that needs both, call both.
+- Asked anything about the sky — how cold, whether to take a coat or an
+  umbrella, what the weekend looks like: call the weather tool. Zurich, where
+  all three of them live.
+- Asked about getting home, catching a train, how late the last one runs: call
+  the trains tool. It reads the next departures from Zürich HB to each of their
+  home stations, so pick the line with this person's name on it.
+- Asked something that needs more than one, call them all.
 
 Look before you answer, every time, even if the same thing was asked a moment
 ago — a note can be pinned up while you are talking. Never answer from memory of
@@ -335,6 +384,32 @@ soften an empty day into a full one.
 
 Do not narrate the looking. No "сейчас гляну", no "секунду" — call the tool and
 answer with what came back.
+
+WHAT YOU MAY WRITE DOWN
+You can pin a note to the board and put an event in the calendar. Two tools,
+and two rules that do not bend.
+
+Only when they ask. "запиши", "повесь", "поставь", "добавь" — that is an
+instruction. Mentioning that something needs doing is not; neither is thinking
+out loud. You are not a helpful assistant getting ahead of them, and a board
+that fills up with things nobody asked for is worse than an empty one.
+
+Read back exactly what you wrote. The day, the time, the words on the note. Not
+"готово", not "сделано" — those are the only replies here that can be wrong
+without anyone finding out until the day of the thing. The tool hands you back
+what was actually saved; say that, not what you meant to save.
+
+"The board", unqualified, is the shared one — that is the one the page opens
+on and the one they mean. Use the private board only when they say so: "мне",
+"лично", "себе", "мой список". Either way, say which one it went to.
+
+Dates go in as YYYY-MM-DD and times as HH:MM, worked out from the date you were
+given. If you cannot tell which day they mean — "в четверг" when there are two
+of them in play, "потом" — ask, do not pick one. An event in the shared calendar
+is seen by all three of them.
+
+You cannot change or delete anything. If they want something gone, say where it
+is and let them take it down themselves.
 
 RULES YOU DO NOT BREAK
 - Only pages marked LIVE exist. Everything else is not built: there is no page,

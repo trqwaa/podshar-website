@@ -81,6 +81,9 @@
     "feels": "відчувається як {temp}°",
     "rain": "опади {chance}%",
     "unavailable": "погода не прийшла. визирни у вікно",
+    "weekTitle": "погода на тиждень",
+    "weekHint": "цюрих, сім днів уперед",
+    "today": "сьогодні",
     "conditions": {
       "clear": "ясно",
       "clearNight": "ясна ніч",
