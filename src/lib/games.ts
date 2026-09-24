@@ -431,7 +431,10 @@ export async function currentDota(
     console.warn('[podshar] dota snapshot not saved:', error);
   });
   await rememberName(account.id, account.tag, found.name);
-  return { player: found, linked: true };
+  // Матчи уже разложены по базе; шторке, которая получит этот ответ, они не
+  // нужны — она показывает профиль. Без них ответ тот же, что и из снимка.
+  const { matches: _matches, ...player } = found;
+  return { player, linked: true };
 }
 
 /** То же для Brawl Stars: свежий снимок из базы, иначе один поход наружу. */
@@ -452,7 +455,8 @@ export async function currentBrawl(
     console.warn('[podshar] brawl snapshot not saved:', error);
   });
   await rememberName(account.id, account.tag, found.name);
-  return { player: found, linked: true };
+  const { battles: _battles, ...player } = found;
+  return { player, linked: true };
 }
 
 /**

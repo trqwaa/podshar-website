@@ -23,7 +23,16 @@ const PLAYER_TTL = 3600;
 const BUDGET = 9000;
 
 /** Порядок из `rank_tier`: 1 — Herald, 8 — Immortal. */
-export const BRACKETS = ['herald', 'guardian', 'crusader', 'archon', 'legend', 'ancient', 'divine', 'immortal'] as const;
+export const BRACKETS = [
+  'herald',
+  'guardian',
+  'crusader',
+  'archon',
+  'legend',
+  'ancient',
+  'divine',
+  'immortal'
+] as const;
 
 /**
  * Герои вне меты. Всегда в почёте, что бы ни говорила статистика.
@@ -52,7 +61,12 @@ export type DotaMeta = {
   heroes: MetaHero[];
 };
 
-type HeroStat = Record<string, unknown> & { id: number; name: string; localized_name: string; roles?: string[] };
+type HeroStat = Record<string, unknown> & {
+  id: number;
+  name: string;
+  localized_name: string;
+  roles?: string[];
+};
 
 async function heroStats(): Promise<HeroStat[] | null> {
   try {
@@ -79,7 +93,15 @@ export async function dotaMeta(bracket: number | null): Promise<DotaMeta | null>
     const games = tiers.reduce((sum, t) => sum + num(h[`${t}_pick`]), 0);
     const wins = tiers.reduce((sum, t) => sum + num(h[`${t}_win`]), 0);
     const key = h.name.replace('npc_dota_hero_', '');
-    return { id: h.id, key, name: h.localized_name, hasIcon: DOTA_HERO_ICONS.has(key), roles: h.roles ?? [], games, wins };
+    return {
+      id: h.id,
+      key,
+      name: h.localized_name,
+      hasIcon: DOTA_HERO_ICONS.has(key),
+      roles: h.roles ?? [],
+      games,
+      wins
+    };
   });
 
   // Десять героев в матче, значит матчей вдесятеро меньше, чем пиков.
@@ -110,7 +132,9 @@ const META_MIN_PICK = 0.03;
 const SHAME_MIN_PICK = 0.015;
 
 export function metaList(meta: DotaMeta): MetaHero[] {
-  return meta.heroes.filter((h) => h.pickRate >= META_MIN_PICK).sort((a, b) => b.winRate - a.winRate);
+  return meta.heroes
+    .filter((h) => h.pickRate >= META_MIN_PICK)
+    .sort((a, b) => b.winRate - a.winRate);
 }
 
 /** Худший винрейт среди тех, кого реально берут: позор — это не «никто не играет», а «играют и сливают». */
@@ -137,10 +161,9 @@ type Item = { id: number; dname: string; cost: number };
 /** Справочник предметов: номер → имя и цена. Нужен, чтобы из номеров в сборке сделать слова. */
 async function itemIndex(): Promise<Map<number, Item & { key: string }> | null> {
   try {
-    const data = (await ask(`${API}/constants/items`, BUILD_TTL, BUDGET).then((r) => r.json())) as Record<
-      string,
-      { id?: number; dname?: string; cost?: number }
-    >;
+    const data = (await ask(`${API}/constants/items`, BUILD_TTL, BUDGET).then((r) =>
+      r.json()
+    )) as Record<string, { id?: number; dname?: string; cost?: number }>;
     const index = new Map<number, Item & { key: string }>();
     for (const [key, item] of Object.entries(data)) {
       if (typeof item?.id === 'number' && typeof item.dname === 'string') {
@@ -162,7 +185,8 @@ async function itemIndex(): Promise<Map<number, Item & { key: string }> | null> 
  * цене в каждой фазе и список того, что не считается никогда. Остаётся то, что
  * человек реально собирает: ботинки, ядро, ситуативку.
  */
-const NEVER = /^(recipe_|tpscroll|ward_|smoke_of_deceit|dust|tango|clarity|flask|enchanted_mango|faerie_fire|blood_grenade|famango|aghanims_shard)/;
+const NEVER =
+  /^(recipe_|tpscroll|ward_|smoke_of_deceit|dust|tango|clarity|flask|enchanted_mango|faerie_fire|blood_grenade|famango|aghanims_shard)/;
 
 export async function dotaBuild(heroId: number): Promise<Build | null> {
   try {
@@ -185,7 +209,10 @@ export async function dotaBuild(heroId: number): Promise<Build | null> {
       // Старт — наоборот, дешёвое: это и есть стартовые предметы.
       start: Object.entries((popular.start_game_items ?? {}) as Record<string, number>)
         .map(([id, n]) => ({ item: items.get(Number(id)), n }))
-        .filter((x): x is { item: Item & { key: string }; n: number } => Boolean(x.item) && !/^recipe_/.test(x.item!.key))
+        .filter(
+          (x): x is { item: Item & { key: string }; n: number } =>
+            Boolean(x.item) && !/^recipe_/.test(x.item!.key)
+        )
         .sort((a, b) => b.n - a.n)
         .slice(0, 4)
         .map((x) => x.item.dname),
@@ -194,7 +221,10 @@ export async function dotaBuild(heroId: number): Promise<Build | null> {
       late: phase(popular.late_game_items, 2500, 3)
     };
   } catch (error) {
-    console.warn(`[podshar] opendota build ${heroId}:`, error instanceof Error ? error.message : error);
+    console.warn(
+      `[podshar] opendota build ${heroId}:`,
+      error instanceof Error ? error.message : error
+    );
     return null;
   }
 }
@@ -210,7 +240,9 @@ export type OwnHero = { id: number; games: number; wins: number };
  */
 export async function ownHeroes(accountId: string): Promise<OwnHero[] | null> {
   try {
-    const data = await ask(`${API}/players/${accountId}/heroes`, PLAYER_TTL, BUDGET).then((r) => r.json());
+    const data = await ask(`${API}/players/${accountId}/heroes`, PLAYER_TTL, BUDGET).then((r) =>
+      r.json()
+    );
     if (!Array.isArray(data)) return null;
     return data
       .map((h) => ({ id: Number(h?.hero_id), games: num(h?.games), wins: num(h?.win) }))

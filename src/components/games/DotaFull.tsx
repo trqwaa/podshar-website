@@ -5,9 +5,19 @@ import { HeroIcon, MEDALS, Pct, Segmented, metaRankName } from '@/components/gam
 import { Link } from '@/i18n/routing';
 import { percent } from '@/components/games/format';
 import type { Locale } from '@/i18n/routing';
-import { ALWAYS_HONOURED, dotaBuild, dotaMeta, honourList, metaList, ownHeroes, shameList, type MetaHero } from '@/lib/dota-meta';
+import {
+  ALWAYS_HONOURED,
+  dotaBuild,
+  dotaMeta,
+  honourList,
+  metaList,
+  ownHeroes,
+  shameList,
+  type MetaHero
+} from '@/lib/dota-meta';
 import { dotaHero } from '@/lib/game-catalog';
-import { boardFor } from '@/lib/games-board';
+import { boardFor, recentHistory } from '@/lib/games-board';
+import { History } from '@/components/games/History';
 
 export type Tab = 'meta' | 'shame' | 'honour';
 
@@ -33,7 +43,10 @@ export async function DotaFull({
   /** Из адреса: `all`, `1`–`8` или ничего — тогда свой. */
   rank: string | undefined;
 }) {
-  const [t, board] = await Promise.all([getTranslations({ locale, namespace: 'gamesBoard' }), boardFor(userId)]);
+  const [t, board] = await Promise.all([
+    getTranslations({ locale, namespace: 'gamesBoard' }),
+    boardFor(userId)
+  ]);
   const own = board.dota.profile?.medal ?? null;
   const bracket = rank === 'all' ? null : rank && /^[1-8]$/.test(rank) ? Number(rank) : own;
   const href = (next: { tab?: Tab; rank?: string }) =>
@@ -44,11 +57,18 @@ export async function DotaFull({
       <section className="block-card animate-rise-in flex flex-col gap-4 p-6 [animation-delay:60ms]">
         <Segmented
           label={t('tabsLabel')}
-          items={(['meta', 'shame', 'honour'] as Tab[]).map((x) => ({ href: href({ tab: x }), text: t(`tabs.${x}`), active: x === tab }))}
+          items={(['meta', 'shame', 'honour'] as Tab[]).map((x) => ({
+            href: href({ tab: x }),
+            text: t(`tabs.${x}`),
+            active: x === tab
+          }))}
         />
         {/* Ранг — мелкими пилюлями: их девять, и крупными они съели бы экран телефона. */}
-        <nav aria-label={t('rankLabel')} className="flex flex-wrap gap-1">
-          {[{ v: 'all', text: t('allRanks'), n: null as number | null }, ...MEDALS.map((m, i) => ({ v: String(i + 1), text: m, n: i + 1 }))].map((r) => {
+        <nav aria-label={t('rankLabel')} className="flex flex-wrap gap-1.5">
+          {[
+            { v: 'all', text: t('allRanks'), n: null as number | null },
+            ...MEDALS.map((m, i) => ({ v: String(i + 1), text: m, n: i + 1 }))
+          ].map((r) => {
             const active = r.n === bracket;
             return (
               <Link
@@ -56,7 +76,9 @@ export async function DotaFull({
                 href={href({ rank: r.v })}
                 aria-current={active ? 'page' : undefined}
                 className={`h-8 rounded border-2 px-3 text-sm normal-case leading-[1.75] transition-colors duration-drape ease-drape ${
-                  active ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
+                  active
+                    ? 'border-ink bg-ink text-canvas'
+                    : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
                 } ${r.n === own && !active ? 'border-ink/60' : ''}`}
               >
                 {r.text}
@@ -67,7 +89,23 @@ export async function DotaFull({
       </section>
 
       <Suspense fallback={<ListPending />}>
-        <DotaLists locale={locale} tab={tab} bracket={bracket} accountId={board.dota.account?.externalId ?? null} profile={board.dota.profile} />
+        <DotaLists
+          locale={locale}
+          tab={tab}
+          bracket={bracket}
+          accountId={board.dota.account?.externalId ?? null}
+          profile={board.dota.profile}
+          history={
+            board.dota.account ? (
+              <History
+                game="DOTA2"
+                recent={board.dota.recent}
+                matches={await recentHistory(board.dota.account.id)}
+                locale={locale}
+              />
+            ) : null
+          }
+        />
       </Suspense>
     </div>
   );
@@ -78,13 +116,16 @@ async function DotaLists({
   tab,
   bracket,
   accountId,
-  profile
+  profile,
+  history
 }: {
   locale: Locale;
   tab: Tab;
   bracket: number | null;
   accountId: string | null;
   profile: { wins: number; losses: number } | null;
+  /** Форма, неделя и герои недели — низ правой колонки. */
+  history: React.ReactNode;
 }) {
   const [t, meta, mine] = await Promise.all([
     getTranslations({ locale, namespace: 'gamesBoard' }),
@@ -100,11 +141,16 @@ async function DotaLists({
     );
   }
 
-  const list = tab === 'meta' ? metaList(meta).slice(0, 15) : tab === 'shame' ? shameList(meta) : honourList(meta);
+  const list =
+    tab === 'meta'
+      ? metaList(meta).slice(0, 15)
+      : tab === 'shame'
+        ? shameList(meta)
+        : honourList(meta);
   const hint = tab === 'meta' ? t('metaHint') : tab === 'shame' ? t('shameHint') : t('honourHint');
   const sample = bracket
-    ? t('sampleDota', { matches: meta.matches.toLocaleString(locale), rank: metaRankName(bracket) })
-    : t('sampleDotaAll', { matches: meta.matches.toLocaleString(locale) });
+    ? t('sampleDota', { matches: meta.matches, rank: metaRankName(bracket) })
+    : t('sampleDotaAll', { matches: meta.matches });
 
   // Своё: сколько сыграно и на ком. Тащишь — от лучшего винрейта, сливаешь — от худшего.
   const judged = (mine ?? []).filter((h) => h.games >= OWN_MIN);
@@ -114,7 +160,8 @@ async function DotaLists({
       : tab === 'honour'
         ? [...judged].sort((a, b) => b.wins / b.games - a.wins / a.games).slice(0, 5)
         : [...(mine ?? [])].sort((a, b) => b.games - a.games).slice(0, 5);
-  const ownTitle = tab === 'shame' ? t('ownShame') : tab === 'honour' ? t('ownHonour') : t('yourStats');
+  const ownTitle =
+    tab === 'shame' ? t('ownShame') : tab === 'honour' ? t('ownHonour') : t('yourStats');
   const played = profile ? profile.wins + profile.losses : 0;
 
   return (
@@ -124,28 +171,40 @@ async function DotaLists({
           <h2 className="text-xl font-semibold leading-tight text-ink">{t(`tabs.${tab}`)}</h2>
           {/* `normal-case`: строки каталога и так строчные, а медаль в выборке —
               имя собственное, как в шторке. `ps-label` сделал бы из Divine divine. */}
-          <p className="ps-label mt-1 normal-case">
+          <p className="ps-label mt-2 normal-case">
             {hint} · {sample}
           </p>
         </div>
         <ol className="flex flex-col">
           {list.map((h, i) => (
-            <HeroRow key={h.id} hero={h} index={i} tab={tab} pinnedLabel={t('pinned')} buildLabel={t('build')} locale={locale} />
+            <HeroRow
+              key={h.id}
+              hero={h}
+              index={i}
+              tab={tab}
+              pinnedLabel={t('pinned')}
+              buildLabel={t('build')}
+              locale={locale}
+            />
           ))}
         </ol>
       </section>
 
-      <aside className="block-card animate-rise-in flex flex-col gap-3 self-start p-6 [animation-delay:180ms]">
+      <aside className="block-card animate-rise-in flex flex-col gap-3 self-start p-6 [animation-delay:180ms] lg:sticky lg:top-20">
         <h2 className="text-lg font-semibold leading-tight text-ink">{ownTitle}</h2>
         {tab === 'meta' && played ? (
           <p className="text-base text-ink">
-            <span className="font-semibold tabular-nums">{played.toLocaleString(locale)}</span>{' '}
-            <span className="text-ink-muted">{t('games')} · </span>
-            <Pct value={profile!.wins / played} />
+            <span className="font-semibold tabular-nums">{t('ownGames', { games: played })}</span>
+            <span className="text-ink-muted"> · </span>
+            <Pct locale={locale} value={profile!.wins / played} />
           </p>
         ) : null}
         {tab !== 'meta' ? (
-          <p className="ps-label">{tab === 'shame' ? t('ownShameHint', { min: OWN_MIN }) : t('ownHonourHint', { min: OWN_MIN })}</p>
+          <p className="ps-label">
+            {tab === 'shame'
+              ? t('ownShameHint', { min: OWN_MIN })
+              : t('ownHonourHint', { min: OWN_MIN })}
+          </p>
         ) : null}
         {ownList.length === 0 ? (
           <p className="text-base text-ink-faint">{accountId ? t('ownNone') : t('notLinked')}</p>
@@ -156,14 +215,19 @@ async function DotaLists({
               return (
                 <li key={h.id} className={`flex items-center gap-3 py-2 ${i > 0 ? 'ps-rule' : ''}`}>
                   <HeroIcon hero={hero} size={28} />
-                  <span className="min-w-0 flex-1 truncate text-base font-medium normal-case text-ink">{hero.name}</span>
-                  <span className="text-sm tabular-nums text-ink-muted">{t('ownGames', { games: h.games })}</span>
-                  <Pct value={h.wins / h.games} className="text-sm" />
+                  <span className="min-w-0 flex-1 truncate text-base font-medium normal-case text-ink">
+                    {hero.name}
+                  </span>
+                  <span className="text-sm tabular-nums text-ink-muted">
+                    {t('ownGames', { games: h.games })}
+                  </span>
+                  <Pct locale={locale} value={h.wins / h.games} className="text-sm" />
                 </li>
               );
             })}
           </ul>
         )}
+        {history}
       </aside>
     </div>
   );
@@ -193,20 +257,31 @@ function HeroRow({
     <li className={index > 0 ? 'ps-rule' : ''}>
       <details className="group">
         <summary className="flex cursor-pointer list-none items-center gap-3 py-2.5 [&::-webkit-details-marker]:hidden">
-          <span className="w-6 shrink-0 text-right text-sm tabular-nums text-ink-faint">{index + 1}</span>
+          <span className="w-6 shrink-0 text-right text-sm tabular-nums text-ink-faint">
+            {index + 1}
+          </span>
           <HeroIcon hero={hero} size={32} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-base font-medium normal-case leading-tight text-ink">{hero.name}</span>
+            <span className="block truncate text-base font-medium normal-case leading-tight text-ink">
+              {hero.name}
+            </span>
             {pinned ? <span className="ps-label block text-ink">{pinnedLabel}</span> : null}
           </span>
-          <span className="hidden w-16 text-right text-sm tabular-nums text-ink-muted sm:block">{percent(hero.pickRate)}</span>
-          <Pct value={hero.winRate} className="w-16 text-right text-base" />
-          <span aria-hidden="true" className="w-4 text-ink-faint transition-transform duration-drape ease-drape group-open:rotate-90">
+          <span className="hidden w-16 text-right text-sm tabular-nums text-ink-muted sm:block">
+            {percent(hero.pickRate, locale)}
+          </span>
+          <Pct locale={locale} value={hero.winRate} className="w-16 text-right text-base" />
+          <span
+            aria-hidden="true"
+            className="w-4 text-ink-faint transition-transform duration-drape ease-drape group-open:rotate-90"
+          >
             ›
           </span>
         </summary>
         <div className="pb-3 pl-9 sm:pl-[4.25rem]">
-          <Suspense fallback={<span className="inline-block h-4 w-40 animate-pulse rounded-sm bg-sunk" />}>
+          <Suspense
+            fallback={<span className="inline-block h-4 w-40 animate-pulse rounded-sm bg-sunk" />}
+          >
             <BuildFor heroId={hero.id} locale={locale} label={buildLabel} />
           </Suspense>
         </div>
@@ -215,8 +290,19 @@ function HeroRow({
   );
 }
 
-async function BuildFor({ heroId, locale, label }: { heroId: number; locale: Locale; label: string }) {
-  const [t, build] = await Promise.all([getTranslations({ locale, namespace: 'gamesBoard' }), dotaBuild(heroId)]);
+async function BuildFor({
+  heroId,
+  locale,
+  label
+}: {
+  heroId: number;
+  locale: Locale;
+  label: string;
+}) {
+  const [t, build] = await Promise.all([
+    getTranslations({ locale, namespace: 'gamesBoard' }),
+    dotaBuild(heroId)
+  ]);
   if (!build) return <p className="text-sm text-ink-faint">{t('buildMissing')}</p>;
   const phases: [string, string[]][] = [
     [t('start'), build.start],

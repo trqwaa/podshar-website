@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@/lib/db';
+import { authConfigured } from '@/lib/auth/config';
 import { BRAWL, ask, battleTime } from '@/lib/games';
 import { brawler } from '@/lib/game-catalog';
 
@@ -63,20 +64,47 @@ export async function refreshBrawlMeta(): Promise<void> {
     if (last && now - last.capturedAt.getTime() < EVERY_MS) return false;
     // Застолбили: маркер с «сейчас» — пока выборка идёт, остальные её не начнут.
     await tx.metaHeroStat.create({
-      data: { game: 'BRAWL_STARS', heroKey: SAMPLE_KEY, bracket: BRACKET, patch: `claim:${now}`, winRate: 0, pickRate: 0 }
+      data: {
+        game: 'BRAWL_STARS',
+        heroKey: SAMPLE_KEY,
+        bracket: BRACKET,
+        patch: `claim:${now}`,
+        winRate: 0,
+        pickRate: 0
+      }
     });
     return true;
   });
   if (!claimed) return;
+
+  // Не вышло — метку не оставляем на шесть часов, а сдвигаем так, чтобы повтор
+  // был через полчаса. Иначе один неответивший Supercell (или протухший ключ)
+  // оставлял бы доску без меты до вечера, а первая выборка на проде — до утра.
+  const giveUp = async (why: string) => {
+    console.warn(`[podshar] brawl meta: ${why}, повтор через полчаса`);
+    await prisma.metaHeroStat
+      .updateMany({
+        where: {
+          game: 'BRAWL_STARS',
+          heroKey: SAMPLE_KEY,
+          bracket: BRACKET,
+          patch: `claim:${now}`
+        },
+        data: { capturedAt: new Date(now - EVERY_MS + 30 * 60_000) }
+      })
+      .catch(() => {});
+  };
 
   const headers = { authorization: `Bearer ${token}` };
   const top = await ask(`${BRAWL}/rankings/global/players?limit=${TOP_PLAYERS}`, 0, BUDGET, headers)
     .then((r) => r.json())
     .catch(() => null);
   const tags: string[] = Array.isArray(top?.items)
-    ? top.items.map((p: { tag?: unknown }) => p?.tag).filter((t: unknown): t is string => typeof t === 'string')
+    ? top.items
+        .map((p: { tag?: unknown }) => p?.tag)
+        .filter((t: unknown): t is string => typeof t === 'string')
     : [];
-  if (!tags.length) return;
+  if (!tags.length) return giveUp('топ игроков не пришёл');
 
   // По восемь одновременно: быстрее, чем по одному, и вежливее, чем все пятьдесят разом.
   const logs: unknown[] = [];
@@ -108,7 +136,11 @@ export async function refreshBrawlMeta(): Promise<void> {
 
       const teams = battle.teams as { tag?: string; brawler?: { id?: number } }[][];
       // Один и тот же бой лежит в журналах у всех топов, которые в нём были.
-      const key = `${at}:${teams.flat().map((p) => p.tag).sort().join(',')}`;
+      const key = `${at}:${teams
+        .flat()
+        .map((p) => p.tag)
+        .sort()
+        .join(',')}`;
       if (seen.has(key)) continue;
       seen.add(key);
       battles += 1;
@@ -128,21 +160,37 @@ export async function refreshBrawlMeta(): Promise<void> {
       });
     }
   }
-  if (!battles) return;
+  if (!battles) return giveUp('ни одного подходящего боя');
 
   const patch = new Date(now).toISOString().slice(0, 13);
   await prisma.$transaction([
     // Держим неделю выборок — хватит, чтобы однажды нарисовать, кто как рос.
     prisma.metaHeroStat.deleteMany({
-      where: { game: 'BRAWL_STARS', bracket: BRACKET, capturedAt: { lt: new Date(now - 7 * 86_400_000) } }
+      where: {
+        game: 'BRAWL_STARS',
+        bracket: BRACKET,
+        capturedAt: { lt: new Date(now - 7 * 86_400_000) }
+      }
     }),
     prisma.metaHeroStat.deleteMany({
-      where: { game: 'BRAWL_STARS', bracket: BRACKET, heroKey: SAMPLE_KEY, patch: { startsWith: 'claim:' } }
+      where: {
+        game: 'BRAWL_STARS',
+        bracket: BRACKET,
+        heroKey: SAMPLE_KEY,
+        patch: { startsWith: 'claim:' }
+      }
     }),
     prisma.metaHeroStat.createMany({
       skipDuplicates: true,
       data: [
-        { game: 'BRAWL_STARS', heroKey: SAMPLE_KEY, bracket: BRACKET, patch, winRate: logs.length, pickRate: battles },
+        {
+          game: 'BRAWL_STARS',
+          heroKey: SAMPLE_KEY,
+          bracket: BRACKET,
+          patch,
+          winRate: logs.length,
+          pickRate: battles
+        },
         ...[...tally].map(([id, t]) => ({
           game: 'BRAWL_STARS' as const,
           heroKey: String(id),
@@ -155,7 +203,9 @@ export async function refreshBrawlMeta(): Promise<void> {
       ]
     })
   ]);
-  console.log(`[podshar] brawl meta: ${battles} боёв у ${logs.length} игроков, ${tally.size} бравлеров`);
+  console.log(
+    `[podshar] brawl meta: ${battles} боёв у ${logs.length} игроков, ${tally.size} бравлеров`
+  );
 }
 
 export type MetaBrawler = Brawler & { winRate: number; pickRate: number; games: number };
@@ -164,14 +214,28 @@ export type BrawlMeta = { battles: number; players: number; at: Date; brawlers: 
 
 /** Последняя посчитанная выборка. `null` — ещё ни разу не считали. */
 export async function brawlMeta(): Promise<BrawlMeta | null> {
+  // Без базы — разработка без DATABASE_URL, где сайт нарочно открыт гостем.
+  // Остальная доска там честно пустая, и мета не должна ронять её запросом в
+  // базу, которой нет.
+  if (!authConfigured()) return null;
   const sample = await prisma.metaHeroStat.findFirst({
-    where: { game: 'BRAWL_STARS', bracket: BRACKET, heroKey: SAMPLE_KEY, NOT: { patch: { startsWith: 'claim:' } } },
+    where: {
+      game: 'BRAWL_STARS',
+      bracket: BRACKET,
+      heroKey: SAMPLE_KEY,
+      NOT: { patch: { startsWith: 'claim:' } }
+    },
     orderBy: { capturedAt: 'desc' }
   });
   if (!sample) return null;
 
   const rows = await prisma.metaHeroStat.findMany({
-    where: { game: 'BRAWL_STARS', bracket: BRACKET, patch: sample.patch, NOT: { heroKey: SAMPLE_KEY } }
+    where: {
+      game: 'BRAWL_STARS',
+      bracket: BRACKET,
+      patch: sample.patch,
+      NOT: { heroKey: SAMPLE_KEY }
+    }
   });
 
   const battles = Math.round(sample.pickRate);
@@ -198,6 +262,9 @@ export const brawlMetaList = (m: BrawlMeta) =>
   m.brawlers.filter((b) => b.games >= MIN_GAMES).sort((a, b) => b.winRate - a.winRate);
 
 export const brawlShameList = (m: BrawlMeta, count = 12) =>
-  m.brawlers.filter((b) => b.games >= MIN_GAMES).sort((a, b) => a.winRate - b.winRate).slice(0, count);
+  m.brawlers
+    .filter((b) => b.games >= MIN_GAMES)
+    .sort((a, b) => a.winRate - b.winRate)
+    .slice(0, count);
 
 export const brawlHonourList = (m: BrawlMeta, count = 10) => brawlMetaList(m).slice(0, count);

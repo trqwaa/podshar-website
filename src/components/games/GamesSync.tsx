@@ -38,7 +38,12 @@ export function GamesSync({ working, done }: { working: string; done: string }) 
 
   // После обновления строка исчезает: «свежее» под подзаголовком читалось как
   // мусор, а не как новость. Для скринридера оно успевает прозвучать.
-  if (state !== 'working') return <span className="sr-only" aria-live="polite">{state === 'done' ? done : ''}</span>;
+  if (state !== 'working')
+    return (
+      <span className="sr-only" aria-live="polite">
+        {state === 'done' ? done : ''}
+      </span>
+    );
   return (
     <p className="ps-label" aria-live="polite">
       {working}

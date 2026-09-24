@@ -2,8 +2,17 @@ import { Suspense } from 'react';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 
-import { ActionLink, BrawlerIcon, Delta, HeroIcon, MEDALS, Pct, ResultChip, metaRankName } from '@/components/games/bits';
-import { ago, modeName } from '@/components/games/format';
+import {
+  ActionLink,
+  BrawlerIcon,
+  Delta,
+  HeroIcon,
+  MEDALS,
+  Pct,
+  ResultChip,
+  metaRankName
+} from '@/components/games/bits';
+import { ago, count, modeName } from '@/components/games/format';
 import { Link } from '@/i18n/routing';
 import type { Locale } from '@/i18n/routing';
 import { brawlMeta, brawlMetaList } from '@/lib/brawl-meta';
@@ -32,8 +41,13 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
     <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
       {/* Дота */}
       <section className="block-card animate-rise-in flex flex-col gap-5 p-6 [animation-delay:60ms]">
-        <CardHead label={t('views.dota')} name={board.dota.profile?.name ?? board.dota.account?.tag ?? null}>
-          {board.dota.profile?.medal ? <Medal medal={board.dota.profile.medal} stars={board.dota.profile.stars} /> : null}
+        <CardHead
+          label={t('views.dota')}
+          name={board.dota.profile?.name ?? board.dota.account?.tag ?? null}
+        >
+          {board.dota.profile?.medal ? (
+            <Medal medal={board.dota.profile.medal} stars={board.dota.profile.stars} />
+          ) : null}
         </CardHead>
 
         {!board.dota.linked ? (
@@ -41,9 +55,18 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4">
-              <Stat label={t('record', { wins: board.dota.profile?.wins ?? 0, losses: board.dota.profile?.losses ?? 0 })}>
+              <Stat
+                label={t('record', { wins: board.dota.profile?.wins ?? 0, losses: board.dota.profile?.losses ?? 0 })}
+              >
                 {board.dota.profile && board.dota.profile.wins + board.dota.profile.losses > 0 ? (
-                  <Pct value={board.dota.profile.wins / (board.dota.profile.wins + board.dota.profile.losses)} className="text-2xl" />
+                  <Pct
+                    locale={locale}
+                    value={
+                      board.dota.profile.wins /
+                      (board.dota.profile.wins + board.dota.profile.losses)
+                    }
+                    className="text-2xl"
+                  />
                 ) : (
                   <span className="text-2xl text-ink-faint">—</span>
                 )}
@@ -51,7 +74,7 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
               <TodayStat
                 label={t('today')}
                 none={t('todayNone')}
-                unit={t('mmr')}
+                unit={() => t('mmr')}
                 totals={totals(today(board.dota.recent), 'DOTA2')}
               />
             </div>
@@ -62,9 +85,15 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
               matches={board.dota.recent.slice(0, 8)}
               locale={locale}
               letters={[t('win'), t('loss'), t('draw')]}
+              spoken={{ WIN: t('result.WIN'), LOSS: t('result.LOSS'), DRAW: t('result.DRAW') }}
               row={(m) => {
                 const hero = dotaHero(Number(m.character));
-                const p = m.payload as { kills?: number; deaths?: number; assists?: number; ranked?: boolean };
+                const p = m.payload as {
+                  kills?: number;
+                  deaths?: number;
+                  assists?: number;
+                  ranked?: boolean;
+                };
                 return {
                   icon: <HeroIcon hero={hero} size={26} />,
                   name: hero.name,
@@ -87,7 +116,10 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
 
       {/* Бравл */}
       <section className="block-card animate-rise-in flex flex-col gap-5 p-6 [animation-delay:120ms]">
-        <CardHead label={t('views.brawl')} name={board.brawl.profile?.name ?? board.brawl.account?.tag ?? null}>
+        <CardHead
+          label={t('views.brawl')}
+          name={board.brawl.profile?.name ?? board.brawl.account?.tag ?? null}
+        >
           {board.brawl.profile?.rankTier ? (
             <Image
               src={`/brawl/rank-${board.brawl.profile.rankTier}.png`}
@@ -104,16 +136,24 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
         ) : (
           <>
             <div className="grid grid-cols-2 gap-4">
-              <Stat label={board.brawl.profile ? t('peak', { peak: board.brawl.profile.highest }) : ''}>
+              <Stat
+                label={
+                  board.brawl.profile
+                    ? t('peak', { peak: board.brawl.profile.highest })
+                    : ''
+                }
+              >
                 <span className="text-2xl font-semibold tabular-nums text-ink">
-                  {board.brawl.profile ? board.brawl.profile.trophies : '—'}
+                  {board.brawl.profile ? count(board.brawl.profile.trophies, locale) : '—'}
                 </span>
-                <span className="ml-1.5 text-base text-ink-muted">{t('trophies')}</span>
+                <span className="ml-1.5 text-base text-ink-muted">
+                  {t('trophiesUnit', { n: board.brawl.profile?.trophies ?? 0 })}
+                </span>
               </Stat>
               <TodayStat
                 label={t('today')}
                 none={t('todayNone')}
-                unit={t('trophies')}
+                unit={(n) => t('trophiesUnit', { n })}
                 totals={totals(today(board.brawl.recent), 'BRAWL_STARS')}
               />
             </div>
@@ -124,6 +164,7 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
               matches={board.brawl.recent.slice(0, 8)}
               locale={locale}
               letters={[t('win'), t('loss'), t('draw')]}
+              spoken={{ WIN: t('result.WIN'), LOSS: t('result.LOSS'), DRAW: t('result.DRAW') }}
               row={(m) => {
                 const b = brawler(Number(m.character));
                 const p = m.payload as { mode?: string; map?: string };
@@ -138,7 +179,7 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
           </>
         )}
 
-        <BrawlPeek label={t('metaTop50')} empty={t('brawlMetaNone')} />
+        <BrawlPeek label={t('metaTop50')} empty={t('brawlMetaNone')} locale={locale} />
 
         <div className="mt-auto flex flex-wrap gap-2">
           <ActionLink href="/games?view=brawl">{t('fullBrawl')}</ActionLink>
@@ -148,26 +189,57 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
   );
 }
 
-function CardHead({ label, name, children }: { label: string; name: string | null; children?: React.ReactNode }) {
+function CardHead({
+  label,
+  name,
+  children
+}: {
+  label: string;
+  name: string | null;
+  children?: React.ReactNode;
+}) {
   return (
     <header className="flex items-start justify-between gap-4">
       <div className="min-w-0">
         <p className="ps-label">{label}</p>
-        {/* `normal-case`: ник — имя человека, строчить его нельзя. */}
-        <p className="truncate text-2xl font-semibold normal-case leading-tight text-ink">{name ?? '—'}</p>
+        {/* `normal-case`: ник — имя человека, строчить его нельзя. Нет аккаунта —
+            нет и строки: жирный прочерк на месте ника читался как ошибка. */}
+        {name ? (
+          <p className="truncate text-2xl font-semibold normal-case leading-tight text-ink">{name}</p>
+        ) : null}
       </div>
       {children}
     </header>
   );
 }
 
-export function Medal({ medal, stars, size = 48 }: { medal: number; stars: number; size?: number }) {
+export function Medal({
+  medal,
+  stars,
+  size = 48
+}: {
+  medal: number;
+  stars: number;
+  size?: number;
+}) {
   return (
     <span className="flex shrink-0 items-center gap-2">
       <span style={{ width: size, height: size }} className="relative block" aria-hidden="true">
-        <Image src={`/dota/medal-${medal}.png`} alt="" width={size * 2} height={size * 2} className="h-full w-full" />
+        <Image
+          src={`/dota/medal-${medal}.png`}
+          alt=""
+          width={size * 2}
+          height={size * 2}
+          className="h-full w-full"
+        />
         {stars > 0 ? (
-          <Image src={`/dota/star-${stars}.png`} alt="" width={size * 2} height={size * 2} className="absolute inset-0 h-full w-full" />
+          <Image
+            src={`/dota/star-${stars}.png`}
+            alt=""
+            width={size * 2}
+            height={size * 2}
+            className="absolute inset-0 h-full w-full"
+          />
         ) : null}
       </span>
       <span className="sr-only">
@@ -194,7 +266,8 @@ function TodayStat({
 }: {
   label: string;
   none: string;
-  unit: string;
+  /** Подпись к числу — со склонением: 41 кубок, 2 кубка, 11 кубков. */
+  unit: (n: number) => string;
   totals: ReturnType<typeof totals>;
 }) {
   const played = day.wins + day.losses;
@@ -207,7 +280,8 @@ function TodayStat({
           </span>
           {day.delta !== null ? (
             <span className="text-base">
-              <Delta value={day.delta} estimated={day.estimated} /> <span className="text-ink-muted">{unit}</span>
+              <Delta value={day.delta} estimated={day.estimated} />{' '}
+              <span className="text-ink-muted">{unit(Math.abs(day.delta))}</span>
             </span>
           ) : null}
         </p>
@@ -223,7 +297,10 @@ function NotLinked({ text, link, anchor }: { text: string; link: string; anchor:
   return (
     <p className="text-base text-ink-muted">
       {text}.{' '}
-      <Link href={`/profile#${anchor}`} className="text-ink underline decoration-rule underline-offset-4 hover:decoration-ink">
+      <Link
+        href={`/profile#${anchor}`}
+        className="text-ink underline decoration-rule underline-offset-4 hover:decoration-ink"
+      >
         {link}
       </Link>
     </p>
@@ -238,6 +315,7 @@ function MatchList({
   matches,
   locale,
   letters,
+  spoken,
   row
 }: {
   title: string;
@@ -245,6 +323,7 @@ function MatchList({
   matches: BoardMatch[];
   locale: string;
   letters: [string, string, string];
+  spoken: Record<'WIN' | 'LOSS' | 'DRAW', string>;
   row: (m: BoardMatch) => Row;
 }) {
   return (
@@ -258,10 +337,18 @@ function MatchList({
             const r = row(m);
             return (
               <li key={m.id} className={`flex items-center gap-3 py-2 ${i > 0 ? 'ps-rule' : ''}`}>
-                <ResultChip result={m.result} letter={m.result === 'WIN' ? letters[0] : m.result === 'LOSS' ? letters[1] : letters[2]} />
+                <ResultChip
+                  result={m.result}
+                  letter={
+                    m.result === 'WIN' ? letters[0] : m.result === 'LOSS' ? letters[1] : letters[2]
+                  }
+                  spoken={spoken[m.result]}
+                />
                 {r.icon}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-medium normal-case leading-tight text-ink">{r.name}</p>
+                  <p className="truncate text-base font-medium normal-case leading-tight text-ink">
+                    {r.name}
+                  </p>
                   <p className="truncate text-sm tabular-nums text-ink-muted">{r.detail}</p>
                 </div>
                 {r.right ? <span className="text-sm">{r.right}</span> : null}
@@ -295,27 +382,54 @@ function PeekPending({ label }: { label: string }) {
  * ходит в OpenDota (из шестичасового кеша), и карточка не должна его ждать.
  */
 async function DotaPeek({ locale, medal }: { locale: Locale; medal: number | null }) {
-  const [t, meta] = await Promise.all([getTranslations({ locale, namespace: 'gamesBoard' }), dotaMeta(medal)]);
+  const [t, meta] = await Promise.all([
+    getTranslations({ locale, namespace: 'gamesBoard' }),
+    dotaMeta(medal)
+  ]);
   const label = medal ? t('metaOn', { rank: metaRankName(medal) }) : t('metaAllRanks');
-  if (!meta) return <Peek label={label} empty={t('metaMissing')} items={[]} />;
+  if (!meta) return <Peek label={label} empty={t('metaMissing')} items={[]} locale={locale} />;
   return (
     <Peek
+      locale={locale}
       label={label}
       empty={t('metaMissing')}
-      items={metaList(meta).slice(0, 3).map((h) => ({ key: h.id, icon: <HeroIcon hero={h} size={26} />, name: h.name, winRate: h.winRate }))}
+      items={metaList(meta)
+        .slice(0, 3)
+        .map((h) => ({
+          key: h.id,
+          icon: <HeroIcon hero={h} size={26} />,
+          name: h.name,
+          winRate: h.winRate
+        }))}
     />
   );
 }
 
-async function BrawlPeek({ label, empty }: { label: string; empty: string }) {
+async function BrawlPeek({
+  label,
+  empty,
+  locale
+}: {
+  label: string;
+  empty: string;
+  locale: string;
+}) {
   const meta = await brawlMeta();
   return (
     <Peek
+      locale={locale}
       label={label}
       empty={empty}
       items={
         meta
-          ? brawlMetaList(meta).slice(0, 3).map((b) => ({ key: b.id, icon: <BrawlerIcon brawler={b} size={26} />, name: b.name, winRate: b.winRate }))
+          ? brawlMetaList(meta)
+              .slice(0, 3)
+              .map((b) => ({
+                key: b.id,
+                icon: <BrawlerIcon brawler={b} size={26} />,
+                name: b.name,
+                winRate: b.winRate
+              }))
           : []
       }
     />
@@ -325,11 +439,13 @@ async function BrawlPeek({ label, empty }: { label: string; empty: string }) {
 function Peek({
   label,
   empty,
-  items
+  items,
+  locale
 }: {
   label: string;
   empty: string;
   items: { key: number; icon: React.ReactNode; name: string; winRate: number }[];
+  locale: string;
 }) {
   return (
     <div>
@@ -339,10 +455,15 @@ function Peek({
       ) : (
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {items.map((x) => (
-            <li key={x.key} className="flex min-w-0 items-center gap-2 rounded-sm bg-sunk px-2 py-1.5">
+            <li
+              key={x.key}
+              className="flex min-w-0 items-center gap-2 rounded-sm bg-sunk px-2 py-1.5"
+            >
               {x.icon}
-              <span className="min-w-0 flex-1 truncate text-sm font-medium normal-case text-ink">{x.name}</span>
-              <Pct value={x.winRate} className="text-sm" />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium normal-case text-ink">
+                {x.name}
+              </span>
+              <Pct locale={locale} value={x.winRate} className="text-sm" />
             </li>
           ))}
         </ul>

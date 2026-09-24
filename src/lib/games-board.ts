@@ -43,7 +43,14 @@ async function matchesOf(accountId: string, since?: Date, take = 12): Promise<Bo
     where: { accountId, ...(since ? { playedAt: { gte: since } } : {}) },
     orderBy: { playedAt: 'desc' },
     take: since ? undefined : take,
-    select: { id: true, playedAt: true, result: true, character: true, ratingDelta: true, payload: true }
+    select: {
+      id: true,
+      playedAt: true,
+      result: true,
+      character: true,
+      ratingDelta: true,
+      payload: true
+    }
   });
   return rows.map((r) => ({
     id: r.id,
@@ -69,7 +76,10 @@ async function side<P>(
 ): Promise<GameSide<P>> {
   const account = await activeAccount(userId, game);
   if (!account) return { linked: false, account: null, profile: null, recent: [] };
-  const [{ payload }, recent] = await Promise.all([lastSnapshot(account.id), matchesOf(account.id)]);
+  const [{ payload }, recent] = await Promise.all([
+    lastSnapshot(account.id),
+    matchesOf(account.id)
+  ]);
   return { linked: true, account, profile: read(payload), recent };
 }
 
@@ -140,7 +150,9 @@ export type MemberDay = {
  * смотрит: иначе ночная катка в Киеве была бы у одного вчерашней, а у другого
  * сегодняшней, и спор «кто больше слил за день» не решался бы в принципе.
  */
-export async function compareToday(viewerId: string): Promise<{ since: Date; members: MemberDay[] }> {
+export async function compareToday(
+  viewerId: string
+): Promise<{ since: Date; members: MemberDay[] }> {
   const since = zurichMidnight(dayKey(new Date()));
   if (!authConfigured()) return { since, members: [] };
 
@@ -183,6 +195,15 @@ export async function compareToday(viewerId: string): Promise<{ since: Date; mem
   );
 
   return { since, members };
+}
+
+/**
+ * Всё, что аккаунт сыграл за последние дни, свежее первым. Для боковой колонки:
+ * форма, неделя, режимы.
+ */
+export async function recentHistory(accountId: string, days = 7): Promise<BoardMatch[]> {
+  if (!authConfigured()) return [];
+  return matchesOf(accountId, new Date(Date.now() - days * 86_400_000));
 }
 
 /**

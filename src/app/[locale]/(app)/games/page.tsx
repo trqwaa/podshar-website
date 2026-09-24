@@ -10,6 +10,12 @@ import { readSession } from '@/lib/auth/session';
 import { authConfigured } from '@/lib/auth/config';
 import { resolveLocale } from '@/lib/locale';
 
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const locale = resolveLocale((await params).locale);
+  const t = await getTranslations({ locale, namespace: 'gamesBoard' });
+  return { title: t('title') };
+}
+
 type View = 'overview' | 'compare' | 'dota' | 'brawl';
 const VIEWS: View[] = ['overview', 'compare', 'dota', 'brawl'];
 const TABS: Tab[] = ['meta', 'shame', 'honour'];
@@ -47,12 +53,17 @@ export default async function GamesPage({
     <div className="grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4">
       <section className="block-card animate-rise-in flex flex-wrap items-end justify-between gap-4 px-6 py-6 sm:px-8">
         <div>
-          <h1 className="text-2xl font-semibold leading-tight text-ink sm:text-3xl">{t('title')}</h1>
-          <p className="ps-label">{t('hint')}</p>
+          <h1 className="text-2xl font-semibold leading-tight text-ink sm:text-3xl">
+            {t('title')}
+          </h1>
+          {/* Отступ больше, чем у соседних страниц: здесь под заголовком ещё
+              строка синхронизации, и вплотную всё слипалось в один абзац. */}
+          <p className="ps-label mt-2">{t('hint')}</p>
           <GamesSync working={t('syncing')} done={t('synced')} />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Segmented
+            fill
             label={t('navLabel')}
             items={VIEWS.map((v) => ({
               href: v === 'overview' ? '/games' : `/games?view=${v}`,

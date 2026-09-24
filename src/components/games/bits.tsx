@@ -11,7 +11,16 @@ import { Link } from '@/i18n/routing';
  */
 
 /** Имена медалей — по-английски на всех языках, как в шторке: так их и называют. */
-export const MEDALS = ['Herald', 'Guardian', 'Crusader', 'Archon', 'Legend', 'Ancient', 'Divine', 'Immortal'];
+export const MEDALS = [
+  'Herald',
+  'Guardian',
+  'Crusader',
+  'Archon',
+  'Legend',
+  'Ancient',
+  'Divine',
+  'Immortal'
+];
 
 /**
  * Как подписать ранг, на котором посчитана мета.
@@ -22,23 +31,53 @@ export const MEDALS = ['Herald', 'Guardian', 'Crusader', 'Archon', 'Legend', 'An
 export const metaRankName = (bracket: number) => (bracket === 8 ? 'Divine+' : MEDALS[bracket - 1]);
 
 /** Плашка исхода. Цвет ускоряет чтение, буква оставляет смысл тому, кто цвета не различает. */
-export function ResultChip({ result, letter }: { result: 'WIN' | 'LOSS' | 'DRAW'; letter: string }) {
+export function ResultChip({
+  result,
+  letter,
+  spoken
+}: {
+  result: 'WIN' | 'LOSS' | 'DRAW';
+  letter: string;
+  /** Исход словом — для скринридера. Буква в плашке ему ничего не говорит. */
+  spoken: string;
+}) {
   const tone = result === 'WIN' ? 'bg-win' : result === 'LOSS' ? 'bg-loss' : 'bg-ink-faint';
   return (
-    <span
-      aria-hidden="true"
-      className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-sm text-[0.625rem] font-bold leading-none text-surface ${tone}`}
-    >
-      {letter}
-    </span>
+    <>
+      <span
+        aria-hidden="true"
+        className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-sm text-[0.625rem] font-bold leading-none text-surface ${tone}`}
+      >
+        {letter}
+      </span>
+      <span className="sr-only">{spoken}</span>
+    </>
   );
 }
 
 /** Процент победы с тем же светофором, что в шторке: 51 и выше — зелёный, до 45 — красный. */
-export function Pct({ value, className = '' }: { value: number; className?: string }) {
+export function Pct({
+  value,
+  locale,
+  className = ''
+}: {
+  value: number;
+  locale: string;
+  className?: string;
+}) {
   const pct = value * 100;
   const tone = pct >= 51 ? 'text-win' : pct >= 45 ? 'text-amber' : 'text-loss';
-  return <span className={`font-semibold tabular-nums ${tone} ${className}`}>{pct.toFixed(1)}%</span>;
+  // Форматом языка страницы: запятая по-русски и по-немецки, точка по-английски.
+  const text = new Intl.NumberFormat(locale, {
+    style: 'percent',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).format(value);
+  return (
+    <span className={`whitespace-nowrap font-semibold tabular-nums ${tone} ${className}`}>
+      {text}
+    </span>
+  );
 }
 
 /** Сколько очков пришло или ушло. «≈» — когда число оценка, а не факт. */
@@ -125,22 +164,36 @@ function Initials({ name, size }: { name: string; size: number }) {
  */
 export function Segmented({
   label,
-  items
+  items,
+  fill = false
 }: {
   label: string;
   items: { href: string; text: string; active: boolean }[];
+  /**
+   * На телефоне — сеткой два на два во всю ширину, с `sm` — обычным рядом.
+   *
+   * Сначала был ряд, и «бравл» в 390px уезжал на вторую строку один; ровными
+   * четвертями не влезало «сравнить»; рядом с переносом на 360px выходило три
+   * кнопки сверху и одна снизу — и по-немецки так было даже на 390. Два на два
+   * одинаково ровно на любом языке и любой ширине.
+   */
+  fill?: boolean;
 }) {
   return (
-    <nav aria-label={label} className="flex flex-wrap items-center gap-1">
+    <nav
+      aria-label={label}
+      className={
+        fill ? 'grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center' : 'flex flex-wrap items-center gap-2'
+      }
+    >
       {items.map((item) => (
         <Link
           key={item.href}
           href={item.href}
           aria-current={item.active ? 'page' : undefined}
-          // Уже на телефоне: четыре вида в 390px помещаются в одну строку только так.
-          className={`h-10 rounded border-2 px-3 text-base leading-[2.1] transition-colors duration-drape ease-drape sm:px-4 ${
-            item.active ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
-          }`}
+          className={`h-10 whitespace-nowrap rounded border-2 text-center text-base leading-[2.1] transition-colors duration-drape ease-drape ${
+            fill ? 'px-2 sm:px-4' : 'px-3 sm:px-4'
+          } ${item.active ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'}`}
         >
           {item.text}
         </Link>
