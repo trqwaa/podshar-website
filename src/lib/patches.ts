@@ -56,6 +56,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '0.50',
+    date: '2026-09-24',
+    author: 'nellet',
+    note: 'игры: дота и бравл — матчи, мета, сборки, позор и почёт, и кто сколько поднял за сегодня'
+  },
+  {
     version: '0.49',
     date: '2026-09-23',
     author: 'nellet',

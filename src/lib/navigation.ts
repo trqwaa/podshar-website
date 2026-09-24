@@ -63,7 +63,7 @@ export const PRIMARY_NAV_SLOTS = 5;
  * переедет в базу на человека, а этот массив останется тем, что видит новичок.
  * Остаток до `PRIMARY_NAV_SLOTS` шторка добивает честными заглушками.
  */
-export const BOOKMARKS: string[] = ['calendar', 'todos'];
+export const BOOKMARKS: string[] = ['calendar', 'todos', 'games'];
 
 /**
  * The homepage. Not part of `NAV_GROUPS` because it is not a nav destination —
@@ -252,7 +252,7 @@ export const NAV_GROUPS: NavGroup[] = [
         href: '/wall-of-shame',
         status: 'planned',
         labelKey: 'wallOfShame',
-        terms: ['позор', 'ганьб', 'shame', 'schande', 'стена', 'стіна']
+        terms: ['стена позора', 'стену позора', 'стене позора', 'стіна ганьби', 'стіну ганьби', 'wall of shame', 'schandmauer', 'стена', 'стіна']
       }
     ]
   },
@@ -323,16 +323,30 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         id: 'games',
         href: '/games',
-        status: 'planned',
+        status: 'live',
         labelKey: 'games',
-        terms: ['game', 'tetris', 'chess', 'durak', 'игр', 'ігр', 'spiel', 'тетрис', 'шахмат', 'дурак']
-      },
-      {
-        id: 'gameStats',
-        href: '/stats',
-        status: 'planned',
-        labelKey: 'gameStats',
-        terms: ['dota', 'brawl', 'mmr', 'stat', 'статист', 'статис']
+        // Дота и бравл: матчи, мета, позор и почёт. Здесь стояли тетрис, шахматы и
+        // дурак — это был замысел, а раздел в итоге стал доской наших игр.
+        //
+        // «игры» падежами, а не стемом `игр`: короче четырёх букв термин
+        // сверяется только целым словом, и «игры» мимо него проходили — тот же
+        // капкан, что был с «мем». «Мета» и «позор» сюда не идут: «мета» сидит в
+        // «комета» и «метал», а «позор» принадлежит стене позора; на самой
+        // странице игр их узнают элементы ниже.
+        terms: [
+          'игры', 'игру', 'играх', 'ігри', 'ігор', 'games', 'game', 'spiel',
+          'дота', 'доты', 'доте', 'доту', 'dota', 'бравл', 'brawl',
+          'ммр', 'mmr', 'птс', 'катк', 'стата', 'статист', 'stats'
+        ],
+        elements: [
+          { id: 'compare', terms: ['сравн', 'порівн', 'compar', 'vergleich'] },
+          { id: 'shame', terms: ['позор', 'ганьб', 'shame', 'schande', 'слив'] },
+          { id: 'honour', terms: ['почёт', 'почет', 'шана', 'шану', 'honour', 'honor', ' ehre'] },
+          { id: 'meta', terms: ['мета', 'меты', 'мету', 'meta', 'сборк', 'збірк', 'build'] },
+          { id: 'dota', terms: ['дота', 'доты', 'доте', 'доту', 'dota', 'герой', 'героя', 'героев', 'hero'] },
+          { id: 'brawl', terms: ['бравл', 'brawl', 'кубк', 'trophy', 'trophä'] },
+          { id: 'overview', terms: ['обзор', 'огляд', 'overview', 'übersicht'] }
+        ]
       }
     ]
   }
@@ -391,6 +405,10 @@ const LOOK_AROUND_TERMS = [
   'что тут',
   'что здесь',
   'что это за место',
+  'за страниц',
+  'що за сторінк',
+  'what page',
+  'welche seite',
   'осмотрись',
   'где мы',
   'де я',

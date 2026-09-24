@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@/lib/db';
-import type { BrawlProfile, DotaProfile } from '@/lib/types';
+import type { BrawlBattle, BrawlProfile, DotaMatch, DotaProfile } from '@/lib/types';
 
 /**
  * Где кто в доте, и сколько у кого кубков.
@@ -76,7 +76,7 @@ const FRESH_MS = 30 * 60 * 1000;
 const RECENT = 5;
 
 /** Гонка вместо `abort`: медленный ответ всё равно доедет и ляжет в кеш. */
-async function ask(
+export async function ask(
   url: string,
   revalidate: number,
   budget = TIMEOUT_MS,
@@ -110,18 +110,6 @@ const STEAM_BASE = 76561197960265728n;
 const toAccountId = (steam64: string) => String(BigInt(steam64) - STEAM_BASE);
 
 /**
- * Что человек вставил в поле — в номер аккаунта.
- *
- * Принимает всё, что реально копируется из адресной строки: ссылку на Steam
- * любого из двух видов, ссылку на Dotabuff или OpenDota, или голый номер. Люди
- * вставляют то, что у них открыто, а не то, что удобно нам, и заставлять их
- * искать «тот самый» номер — верный способ, чтобы поле осталось пустым.
- *
- * Красивая ссылка (`/id/NelleT`) разбирается без ключа Steam: настоящий номер
- * лежит в самой странице профиля. Ключ понадобился бы только ради того же
- * значения, и его пришлось бы заводить, хранить и однажды чинить.
- */
-/**
  * An avatar address we can actually show, or nothing.
  *
  * The picture is drawn through `next/image`, which refuses any host not listed
@@ -141,6 +129,18 @@ function steamAvatar(value: unknown): string | null {
   }
 }
 
+/**
+ * Что человек вставил в поле — в номер аккаунта.
+ *
+ * Принимает всё, что реально копируется из адресной строки: ссылку на Steam
+ * любого из двух видов, ссылку на Dotabuff или OpenDota, или голый номер. Люди
+ * вставляют то, что у них открыто, а не то, что удобно нам, и заставлять их
+ * искать «тот самый» номер — верный способ, чтобы поле осталось пустым.
+ *
+ * Красивая ссылка (`/id/NelleT`) разбирается без ключа Steam: настоящий номер
+ * лежит в самой странице профиля. Ключ понадобился бы только ради того же
+ * значения, и его пришлось бы заводить, хранить и однажды чинить.
+ */
 export async function resolveSteam(input: string): Promise<string | null> {
   const text = input.trim();
   if (!text) return null;
@@ -209,18 +209,45 @@ export async function dotaProfile(
     // Победа считается так: слоты 0–127 — Radiant, 128 и выше — Dire. То есть
     // «мой слот меньше 128» должно совпасть с «Radiant выиграли». Сверено на
     // живых матчах, включая те, где человек был за Dire и Dire проиграли.
+    //
+    // `recentMatches`, а не `matches?limit=5`: тот же один запрос, но двадцать
+    // матчей и с героем, KDA и типом лобби. Полоска берёт из них пять, а все
+    // двадцать ложатся в `match_records` — из них доска игр считает «сколько
+    // кто сегодня поднял» и личный почёт с позором.
     let recent: boolean[] = [];
+    let matches: DotaMatch[] = [];
     try {
       const games = await ask(
-        `https://api.opendota.com/api/players/${accountId}/matches?limit=${RECENT}`,
+        `https://api.opendota.com/api/players/${accountId}/recentMatches`,
         PLAYER_TTL,
         Math.round(budget / 2)
       ).then((r) => r.json());
       if (Array.isArray(games)) {
-        recent = games
-          .filter((g) => Number.isFinite(g?.player_slot) && typeof g?.radiant_win === 'boolean')
-          .slice(0, RECENT)
-          .map((g) => (g.player_slot < 128) === g.radiant_win);
+        matches = games.flatMap((g): DotaMatch[] => {
+          const ok =
+            Number.isFinite(g?.player_slot) &&
+            typeof g?.radiant_win === 'boolean' &&
+            Number.isFinite(g?.match_id) &&
+            Number.isFinite(g?.start_time) &&
+            Number.isFinite(g?.hero_id);
+          if (!ok) return [];
+          return [
+            {
+              id: String(g.match_id),
+              at: g.start_time * 1000,
+              won: (g.player_slot < 128) === g.radiant_win,
+              heroId: g.hero_id,
+              kills: Number(g.kills) || 0,
+              deaths: Number(g.deaths) || 0,
+              assists: Number(g.assists) || 0,
+              // 7 — рейтинговый матчмейкинг. Турбо, обычные и лобби медаль не
+              // двигают, и в «сколько поднял» их считать было бы враньём.
+              ranked: g.lobby_type === 7,
+              durationSec: Number(g.duration) || 0
+            }
+          ];
+        });
+        recent = matches.slice(0, RECENT).map((m) => m.won);
       }
     } catch {
       // Полоски просто не будет. Медаль важнее.
@@ -231,6 +258,7 @@ export async function dotaProfile(
 
     return {
       recent,
+      matches,
       accountId,
       name: typeof who?.profile?.personaname === 'string' ? who.profile.personaname : null,
       // Адрес, а не файл у себя: аватарка меняется вместе со стимовской, и
@@ -255,7 +283,7 @@ export async function dotaProfile(
  * Их может быть несколько — берётся отмеченный, а если отметки нет ни на одном
  * (запись из тех времён, когда аккаунт был один), то самый свежий.
  */
-async function activeAccount(userId: string, game: 'DOTA2' | 'BRAWL_STARS') {
+export async function activeAccount(userId: string, game: 'DOTA2' | 'BRAWL_STARS') {
   return prisma.gameAccount.findFirst({
     where: { userId, game },
     orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
@@ -264,7 +292,7 @@ async function activeAccount(userId: string, game: 'DOTA2' | 'BRAWL_STARS') {
 }
 
 /** Последний снимок и не пора ли за новым. */
-async function lastSnapshot(accountId: string) {
+export async function lastSnapshot(accountId: string) {
   const newest = await prisma.gameStatSnapshot.findFirst({
     where: { accountId },
     orderBy: { capturedAt: 'desc' },
@@ -297,7 +325,7 @@ async function rememberName(accountId: string, was: string | null, now: string |
  * отдельными колонками не ради показа, а чтобы однажды можно было спросить базу
  * «когда он поднялся до Divine», не разбирая JSON в каждой строке.
  */
-function fromSnapshot(payload: unknown): DotaProfile | null {
+export function fromSnapshot(payload: unknown): DotaProfile | null {
   if (!payload || typeof payload !== 'object') return null;
   const p = payload as Record<string, unknown>;
   if (!('stars' in p) || !('wins' in p)) return null;
@@ -318,6 +346,7 @@ function fromSnapshot(payload: unknown): DotaProfile | null {
 
 /** Записать, что мы увидели. Таблица только дописывается — это история, не кеш. */
 export async function rememberDota(accountId: string, player: DotaProfile) {
+  const { matches, ...profile } = player;
   const played = player.wins + player.losses;
   await prisma.gameStatSnapshot.create({
     data: {
@@ -325,8 +354,49 @@ export async function rememberDota(accountId: string, player: DotaProfile) {
       game: 'DOTA2',
       rankTier: player.medal ? String(player.medal * 10 + player.stars) : null,
       winRate: played ? player.wins / played : null,
-      payload: { ...player }
+      payload: { ...profile }
     }
+  });
+
+  if (!matches?.length) return;
+  // `skipDuplicates` — потому что двадцать последних матчей почти целиком
+  // совпадают с прошлым разом, и дописывать надо только новые. Уникальность
+  // (аккаунт, матч) стоит в самой таблице, так что дубль не пройдёт и при гонке.
+  await prisma.matchRecord.createMany({
+    skipDuplicates: true,
+    data: matches.map((m) => ({
+      accountId,
+      game: 'DOTA2' as const,
+      externalMatchId: m.id,
+      playedAt: new Date(m.at),
+      result: m.won ? ('WIN' as const) : ('LOSS' as const),
+      character: String(m.heroId),
+      durationSec: m.durationSec,
+      // Сколько MMR принёс матч, Valve не говорит никому. Пусто — честнее, чем
+      // выдуманное число в базе; оценку доска считает на экране и пишет «≈».
+      ratingDelta: null,
+      payload: { kills: m.kills, deaths: m.deaths, assists: m.assists, ranked: m.ranked }
+    }))
+  });
+}
+
+/** Бои Brawl Stars — в ту же таблицу, что матчи доты. */
+async function rememberBattles(accountId: string, battles: BrawlBattle[] | undefined) {
+  if (!battles?.length) return;
+  await prisma.matchRecord.createMany({
+    skipDuplicates: true,
+    data: battles.map((b) => ({
+      accountId,
+      game: 'BRAWL_STARS' as const,
+      externalMatchId: b.id,
+      playedAt: new Date(b.at),
+      result: b.result,
+      character: b.brawlerId ? String(b.brawlerId) : null,
+      durationSec: b.durationSec,
+      // Здесь число настоящее: журнал боёв сам говорит, сколько кубков ушло.
+      ratingDelta: b.trophyChange,
+      payload: { brawler: b.brawler, mode: b.mode, map: b.map }
+    }))
   });
 }
 
@@ -394,7 +464,7 @@ export async function currentBrawl(
  * сторонами: через прокси приходит 200, напрямую — 403 `accessDenied.invalidIp`.
  * То есть утёкший ключ работать откуда попало не будет, и это не предположение.
  */
-const BRAWL = 'https://bsproxy.royaleapi.dev/v1';
+export const BRAWL = 'https://bsproxy.royaleapi.dev/v1';
 
 /** True, когда есть чем представиться. Без ключа плитка честно молчит. */
 export const brawlConfigured = () => Boolean(process.env.BRAWL_STARS_API_TOKEN);
@@ -435,6 +505,58 @@ function battleWon(battle: Record<string, unknown> | undefined): boolean | null 
   return null;
 }
 
+/** `20260924T101500.000Z` → epoch-миллисекунды. Supercell пишет время без разделителей. */
+export function battleTime(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(value);
+  if (!m) return null;
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+}
+
+type Slot = { tag?: unknown; brawler?: { id?: unknown; name?: unknown } };
+
+/**
+ * Один бой из журнала — с точки зрения этого игрока.
+ *
+ * Своего бравлера приходится искать по тегу среди всех участников: в командных
+ * режимах они лежат в `teams`, в «выживании» — в `players`. Дуэли (у игрока там
+ * несколько бравлеров) и всё, где себя не нашли, пропускаются — лучше не
+ * записать бой, чем записать его на чужого бравлера.
+ */
+function parseBattle(item: unknown, tag: string): BrawlBattle[] {
+  const x = item as { battleTime?: unknown; event?: Record<string, unknown>; battle?: Record<string, unknown> };
+  const at = battleTime(x?.battleTime);
+  const battle = x?.battle;
+  if (!at || !battle) return [];
+
+  const everyone: Slot[] = [
+    ...(Array.isArray(battle.teams) ? (battle.teams as Slot[][]).flat() : []),
+    ...(Array.isArray(battle.players) ? (battle.players as Slot[]) : [])
+  ];
+  const me = everyone.find((p) => p?.tag === `#${tag}`);
+
+  const won = battleWon(battle);
+  const result = battle.result === 'draw' ? 'DRAW' : won === true ? 'WIN' : won === false ? 'LOSS' : null;
+  if (!result) return [];
+
+  const mode = typeof x.event?.mode === 'string' ? x.event.mode : typeof battle.mode === 'string' ? battle.mode : null;
+  const map = typeof x.event?.map === 'string' ? x.event.map : null;
+
+  return [
+    {
+      id: `${at}:${mode ?? ''}:${map ?? ''}`,
+      at,
+      result,
+      brawlerId: Number.isFinite(me?.brawler?.id) ? Number(me!.brawler!.id) : null,
+      brawler: typeof me?.brawler?.name === 'string' ? me.brawler.name : null,
+      mode,
+      map,
+      trophyChange: Number.isFinite(battle.trophyChange) ? Number(battle.trophyChange) : null,
+      durationSec: Number.isFinite(battle.duration) ? Number(battle.duration) : null
+    }
+  ];
+}
+
 /** Профиль и последние бои. `null` — если ключа нет или API не ответило. */
 export async function brawlProfile(
   tag: string,
@@ -453,6 +575,7 @@ export async function brawlProfile(
     // Кубки важнее полоски.
     let recent: boolean[] = [];
     let decided: boolean[] = [];
+    let battles: BrawlBattle[] = [];
     try {
       const log = await ask(at('/battlelog'), PLAYER_TTL, Math.round(budget / 2), headers).then(
         (r) => r.json()
@@ -462,6 +585,7 @@ export async function brawlProfile(
           .map((x: { battle?: Record<string, unknown> }) => battleWon(x?.battle))
           .filter((v: boolean | null): v is boolean => v !== null);
         recent = decided.slice(0, RECENT);
+        battles = log.items.flatMap((x: unknown) => parseBattle(x, tag));
       }
     } catch {
       // Без полоски и без винрейта, но с кубками.
@@ -479,7 +603,8 @@ export async function brawlProfile(
       // Весь журнал, а не только пятёрка из полоски: винрейт по пяти боям
       // прыгает на двадцать процентов от одного матча и ничего не значит.
       recentWins: decided.filter(Boolean).length,
-      recentPlayed: decided.length
+      recentPlayed: decided.length,
+      battles
     };
   } catch (error) {
     console.warn(
@@ -493,7 +618,7 @@ export async function brawlProfile(
 /** Снимок Brawl Stars обратно в профиль. Кубки продублированы колонкой: под них
  *  в таблице заведено отдельное поле, и однажды по нему захочется построить
  *  график, не разбирая JSON в каждой строке. */
-function fromBrawlSnapshot(payload: unknown): BrawlProfile | null {
+export function fromBrawlSnapshot(payload: unknown): BrawlProfile | null {
   if (!payload || typeof payload !== 'object') return null;
   const p = payload as Record<string, unknown>;
   if (!('trophies' in p)) return null;
@@ -512,6 +637,7 @@ function fromBrawlSnapshot(payload: unknown): BrawlProfile | null {
 }
 
 export async function rememberBrawl(accountId: string, player: BrawlProfile) {
+  const { battles, ...profile } = player;
   await prisma.gameStatSnapshot.create({
     data: {
       accountId,
@@ -519,7 +645,8 @@ export async function rememberBrawl(accountId: string, player: BrawlProfile) {
       cups: player.trophies,
       highestCups: player.highest,
       rankTier: player.rank,
-      payload: { ...player }
+      payload: { ...profile }
     }
   });
+  await rememberBattles(accountId, battles);
 }

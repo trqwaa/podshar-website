@@ -43,6 +43,48 @@ export type DotaProfile = {
    * список матчей не доехал; на экране тогда просто нет полоски.
    */
   recent: boolean[];
+  /**
+   * Сами матчи — те же, из которых собрана полоска, но целиком.
+   *
+   * Едут только по дороге в базу: `rememberDota` раскладывает их в
+   * `match_records`, а в снимок они не кладутся — снимок про «где человек
+   * стоит», а матчи копятся отдельно и дольше. Поэтому поле необязательное:
+   * профиль, собранный из снимка, его не несёт.
+   */
+  matches?: DotaMatch[];
+};
+
+/** Один матч в доте, как его отдаёт OpenDota. */
+export type DotaMatch = {
+  id: string;
+  /** Начало матча, epoch-миллисекунды. */
+  at: number;
+  won: boolean;
+  heroId: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  /** Рейтинговый. Только за такие матчи двигается медаль. */
+  ranked: boolean;
+  durationSec: number;
+};
+
+/** Один бой в Brawl Stars, из журнала боёв. */
+export type BrawlBattle = {
+  /**
+   * Своего номера у боя нет. Время начала, режим и карта вместе однозначно
+   * называют бой у одного игрока — этого хватает, чтобы не записать его дважды.
+   */
+  id: string;
+  at: number;
+  result: 'WIN' | 'LOSS' | 'DRAW';
+  brawlerId: number | null;
+  brawler: string | null;
+  mode: string | null;
+  map: string | null;
+  /** Сколько кубков принёс или унёс. `null` в режимах, где кубков не дают. */
+  trophyChange: number | null;
+  durationSec: number | null;
 };
 
 /** One person, as the "who is here" tile sees them. */
@@ -113,4 +155,6 @@ export type BrawlProfile = {
    */
   recentWins: number;
   recentPlayed: number;
+  /** Бои целиком — только по дороге в базу, как `DotaProfile.matches`. */
+  battles?: BrawlBattle[];
 };
