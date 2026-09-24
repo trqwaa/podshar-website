@@ -29,12 +29,13 @@
  *
  * Номер — `МАЖОР.МИНОР`, руками. Заметная правка поднимает минор на единицу.
  * Когда мелких патчей накопилось столько, что счёт перестал читаться, или
- * появилось что-то по-настоящему крупное, — новый мажор: 0.20 → 1.0. Решение
+ * появилось что-то по-настоящему крупное, — новый мажор: 0.50 → 1.0.0, как
+ * вышло с доской игр. Третья цифра допустима и сортируется. Решение
  * человеческое, код его не выводит и не проверяет.
  */
 
 export type Patch = {
-  /** `МАЖОР.МИНОР`. */
+  /** `МАЖОР.МИНОР` или `МАЖОР.МИНОР.ПАТЧ`. */
   version: string;
   /** `ГГГГ-ММ-ДД`. */
   date: string;
@@ -56,16 +57,10 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
-    version: '0.50',
+    version: '1.0.0',
     date: '2026-09-24',
     author: 'nellet',
-    note: 'игры: дота и бравл — матчи, мета, сборки, позор и почёт, и кто сколько поднял за сегодня'
-  },
-  {
-    version: '0.49',
-    date: '2026-09-23',
-    author: 'nellet',
-    note: 'ещё вдвое больше фраз, и сайт закрыт всерьёз: сброс пароля, вход, смена почты, мопс и чужие листочки'
+    note: 'игры: дота и бравл — матчи, мета, сборки, позор и почёт, кто сколько поднял за день. плюс вдвое больше фраз и сайт закрыт всерьёз'
   },
   {
     version: '0.48',
@@ -372,9 +367,9 @@ const ENTRIES: Patch[] = [
  * заметить, что «последняя версия» на главной показывает не ту, — трудно.
  */
 function newestFirst(a: Patch, b: Patch): number {
-  const [aMajor, aMinor] = a.version.split('.').map(Number);
-  const [bMajor, bMinor] = b.version.split('.').map(Number);
-  return bMajor - aMajor || bMinor - aMinor;
+  const [aMajor, aMinor, aPatch = 0] = a.version.split('.').map(Number);
+  const [bMajor, bMinor, bPatch = 0] = b.version.split('.').map(Number);
+  return bMajor - aMajor || bMinor - aMinor || bPatch - aPatch;
 }
 
 export const PATCHES: Patch[] = [...ENTRIES].sort(newestFirst);
