@@ -369,6 +369,13 @@
     "homeHint": "wohin du ab HB fährst. die kachel auf der startseite und der nach-hause-knopf nutzen sie",
     "homeStation": "station",
     "homeSaved": "jetzt ist es {station}",
+    "tabRoute": "verbindung",
+    "day": "tag",
+    "quick": "schnell",
+    "soonest": "der nächste",
+    "wait": "{min} min umsteigen",
+    "close": "schliessen",
+    "tripHint": "{from} → {to}, {min} min fahrt",
     "errors": {
       "invalid": "irgendwas stimmt nicht",
       "notYours": "das ist nicht deine strecke",

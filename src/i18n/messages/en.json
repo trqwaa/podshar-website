@@ -369,6 +369,13 @@
     "homeHint": "where you ride home from HB. the front page tile and the home button use it",
     "homeStation": "station",
     "homeSaved": "it is {station} now",
+    "tabRoute": "route",
+    "day": "day",
+    "quick": "quick",
+    "soonest": "soonest",
+    "wait": "{min} min to change",
+    "close": "close",
+    "tripHint": "{from} → {to}, {min} min on the train",
     "errors": {
       "invalid": "something is off",
       "notYours": "that route is not yours",

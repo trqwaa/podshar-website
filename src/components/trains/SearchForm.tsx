@@ -20,12 +20,18 @@ import { StationField } from './StationField';
  * форме принимался набранный текст, и человек, написавший «Bern» без выбора,
  * получал молча не ту станцию. Лучше не пустить, чем соврать.
  *
+ * Раскладка держится на двух правилах, и оба из жалобы владельца «кнопки лежат
+ * незакономерно». Первое: **всё в одном ряду одного роста** (`h-11`) — поля,
+ * переключатели и кнопка, — иначе глаз не видит ряда, он видит россыпь.
+ * Второе: **каждая группа названа**. «когда» подписывает день, час и выбор
+ * между отправлением и прибытием; «быстро» подписывает готовые дороги. Без
+ * подписей это восемь одинаковых прямоугольников, про которые надо вспоминать,
+ * что есть что.
+ *
  * День выбирается **нашей сеткой** (`DayField` из календаря), а не системным
- * `<input type="date">`. Это уже решённый в проекте вопрос: системный календарь
- * мелкий, в каждом браузере свой и говорит на языке браузера, а не страницы —
+ * `<input type="date">`: системный говорит на языке браузера, а не страницы —
  * на русской странице он писал `TT.mm.jjjj`, потому что Edge тут немецкий.
- * Час остаётся системным `type="time"`: он ничего не рисует, кроме двух чисел,
- * и в календаре сделан так же.
+ * Час остаётся системным `type="time"`: он рисует только два числа.
  */
 export function SearchForm({
   from,
@@ -55,6 +61,7 @@ export function SearchForm({
   const form = useRef<HTMLFormElement>(null);
 
   const ready = Boolean(a?.id && b?.id && a.id !== b.id);
+  const anyQuick = Boolean(home) || friends.length > 0 || roads.length > 0;
 
   function go(next?: { from?: Station | null; to?: Station | null }) {
     const one = next?.from !== undefined ? next.from : a;
@@ -77,13 +84,16 @@ export function SearchForm({
   return (
     <form
       ref={form}
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         go();
       }}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      {/* Концы маршрута — главное на форме, поэтому они одни в своём ряду и
+          занимают всю ширину. Перевёртыш стоит между ними, а не сбоку: он про
+          то, что слева и справа, и на своём месте не требует подписи. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
         <StationField name="from" label={t('from')} station={a} onPick={setA} />
 
         <button
@@ -93,13 +103,20 @@ export function SearchForm({
             setA(b);
             setB(was);
           }}
-          // Не `disabled`: поменять местами можно и когда заполнено одно поле —
-          // это как раз частый случай, «а давай обратно».
-          className="self-start rounded border-2 border-rule px-3 py-2.5 text-ink-muted transition-colors hover:border-ink hover:text-ink sm:self-auto"
+          className="-my-1 grid h-11 w-11 shrink-0 place-items-center self-center rounded border-2 border-rule text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink sm:my-0 sm:self-end"
           aria-label={t('swap')}
           title={t('swap')}
         >
-          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+          <svg
+            viewBox="0 0 16 16"
+            // Поля на телефоне стоят друг под другом, на столе — рядом.
+            // Стрелки показывают то направление, в котором поменяются местами.
+            className="h-4 w-4 sm:-rotate-90"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            aria-hidden="true"
+          >
             <path d="M4.5 2.5v11M4.5 13.5 2 11M11.5 13.5v-11M11.5 2.5 14 5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
@@ -107,8 +124,11 @@ export function SearchForm({
         <StationField name="to" label={t('to')} station={b} onPick={setB} />
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <DayField name="day" label={t('when')} value={at.slice(0, 10)} clearable />
+      {/* Когда ехать и в какую сторону считать — один ряд, всё ростом `h-11`.
+          Группу держит близость: день, час и выбор стоят вплотную, а кнопка
+          поиска отжата в конец ряда, потому что она не про время. */}
+      <div className="flex flex-wrap items-end gap-x-2 gap-y-4">
+        <DayField name="day" label={t('day')} value={at.slice(0, 10)} clearable />
 
         <label className="flex flex-col gap-1">
           <span className="ps-label">{t('clock')}</span>
@@ -116,11 +136,11 @@ export function SearchForm({
             type="time"
             value={clock}
             onChange={(event) => setClock(event.target.value)}
-            className="rounded border-2 border-rule bg-canvas px-3 py-2.5 text-[1rem] text-ink outline-none transition-colors focus:border-ink sm:text-[0.9375rem]"
+            className="h-11 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base"
           />
         </label>
 
-        <div className="flex items-end gap-1" role="group" aria-label={t('when')}>
+        <div className="ms-1 flex items-end gap-1" role="group" aria-label={t('when')}>
           <Toggle on={!arrive} onClick={() => setArrive(false)}>
             {t('leaveAt')}
           </Toggle>
@@ -132,44 +152,59 @@ export function SearchForm({
         <button
           type="submit"
           disabled={!ready}
-          className="ml-auto rounded border-2 border-ink bg-ink px-5 py-2.5 text-sm font-medium text-canvas transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
+          className="h-11 w-full rounded border-2 border-ink bg-ink px-6 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30 sm:ms-auto sm:w-auto"
         >
           {t('search')}
         </button>
       </div>
 
-      {!ready && (a?.id || b?.id) ? (
-        <p className="text-sm text-ink-faint">{t('pickBoth')}</p>
+      {!ready && (a?.id || b?.id) ? <p className="text-sm text-ink-faint">{t('pickBoth')}</p> : null}
+
+      {/* Быстрые дороги. Каждая — «подставить и сразу искать»: человек, нажавший
+          «домой», пришёл за поездом, а не за заполненной формой. */}
+      {anyQuick ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-4">
+          <span className="ps-label me-1 text-ink-faint">{t('quick')}</span>
+
+          {home ? (
+            <Quick
+              onClick={() => {
+                setB(home);
+                go({ to: home });
+              }}
+            >
+              {t('toHome')}
+            </Quick>
+          ) : null}
+
+          {friends.map((friend) => (
+            <Quick
+              key={friend.station.id}
+              onClick={() => {
+                setB(friend.station);
+                go({ to: friend.station });
+              }}
+            >
+              {t('toFriend', { name: friend.name })}
+            </Quick>
+          ))}
+
+          {roads.map((road) => (
+            <Quick
+              key={road.id}
+              onClick={() => {
+                const one = { id: road.fromId, name: road.fromName };
+                const two = { id: road.toId, name: road.toName };
+                setA(one);
+                setB(two);
+                go({ from: one, to: two });
+              }}
+            >
+              {road.label || `${road.fromName} → ${road.toName}`}
+            </Quick>
+          ))}
+        </div>
       ) : null}
-
-      {/* Быстрые дороги. Каждая — это «подставить и сразу искать»: человек,
-          который нажал «домой», пришёл за поездом, а не за заполненной формой. */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-3">
-        {home ? (
-          <Quick onClick={() => { setB(home); go({ to: home }); }}>{t('toHome')}</Quick>
-        ) : null}
-
-        {friends.map((friend) => (
-          <Quick key={friend.station.id} onClick={() => { setB(friend.station); go({ to: friend.station }); }}>
-            {t('toFriend', { name: friend.name })}
-          </Quick>
-        ))}
-
-        {roads.map((road) => (
-          <Quick
-            key={road.id}
-            onClick={() => {
-              const one = { id: road.fromId, name: road.fromName };
-              const two = { id: road.toId, name: road.toName };
-              setA(one);
-              setB(two);
-              go({ from: one, to: two });
-            }}
-          >
-            {road.label || `${road.fromName} → ${road.toName}`}
-          </Quick>
-        ))}
-      </div>
     </form>
   );
 }
@@ -190,8 +225,8 @@ function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; c
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`rounded border-2 px-3 py-2.5 text-sm transition-colors ${
-        on ? 'border-ink text-ink' : 'border-rule text-ink-faint hover:text-ink'
+      className={`h-11 rounded border-2 px-3 text-base transition-colors duration-drape ease-drape ${
+        on ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
       }`}
     >
       {children}
@@ -204,7 +239,7 @@ function Quick({ onClick, children }: { onClick: () => void; children: React.Rea
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-ink hover:text-ink"
+      className="rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
     >
       {children}
     </button>

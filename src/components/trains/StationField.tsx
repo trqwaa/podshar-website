@@ -154,7 +154,7 @@ export function StationField({
       <input
         id={`${listId}-input`}
         // 16px на телефоне: меньше — и айфон зумит страницу при тапе.
-        className="w-full rounded border-2 border-rule bg-canvas px-3 py-2.5 text-[1rem] text-ink outline-none transition-colors focus:border-ink sm:text-[0.9375rem] placeholder:text-ink-faint"
+        className="h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base placeholder:text-ink-faint"
         value={text}
         onChange={(event) => typed(event.target.value)}
         onFocus={() => setOpen(true)}

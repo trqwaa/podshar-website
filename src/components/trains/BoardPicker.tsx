@@ -24,14 +24,14 @@ export function BoardPicker({ station }: { station: Station | null }) {
       className="flex flex-wrap items-end gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        if (picked?.id) router.push(`/trains?board=${picked.id}`);
+        if (picked?.id) router.push(`/trains?view=board&board=${picked.id}`);
       }}
     >
       <StationField name="board" label={t('boardStation')} station={picked} onPick={setPicked} />
       <button
         type="submit"
         disabled={!picked?.id}
-        className="rounded border-2 border-ink px-4 py-2.5 text-sm font-medium text-ink transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
+        className="h-11 rounded border-2 border-ink bg-ink px-6 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30"
       >
         {t('show')}
       </button>

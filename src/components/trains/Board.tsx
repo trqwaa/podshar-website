@@ -40,7 +40,7 @@ export function Board({ rows, serverNow }: { rows: BoardRow[]; serverNow: number
   );
 
   if (rows.length === 0) {
-    return <p className="text-base font-medium text-ink-muted">{t('boardEmpty')}</p>;
+    return <p className="px-1 text-base font-medium text-ink-muted">{t('boardEmpty')}</p>;
   }
 
   return (
@@ -51,7 +51,7 @@ export function Board({ rows, serverNow }: { rows: BoardRow[]; serverNow: number
         return (
           <li
             key={`${row.line}-${row.departs}-${index}`}
-            className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-rule py-2.5 first:border-t-0"
+            className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule px-1 py-3"
           >
             <span className="w-14 shrink-0 text-base font-medium tabular-nums text-ink">
               {clock.format(row.departs)}

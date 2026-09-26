@@ -28,7 +28,7 @@ function Saving({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded border-2 border-ink px-4 py-2 text-sm font-medium text-ink transition-opacity disabled:opacity-40"
+      className="h-11 shrink-0 rounded border-2 border-ink px-5 text-base font-medium text-ink transition-colors duration-drape ease-drape hover:bg-sunk disabled:opacity-40"
     >
       {label}
     </button>
@@ -41,7 +41,7 @@ export function SaveRoad({ from, to }: { from: Station; to: Station }) {
   const [state, action] = useActionState(saveRoad, {});
 
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2">
+    <form action={action} className="flex flex-wrap items-end gap-2 px-1 pt-2">
       <input type="hidden" name="from" value={from.id} />
       <input type="hidden" name="to" value={to.id} />
       <label className="flex min-w-0 flex-1 flex-col gap-1">
@@ -51,7 +51,7 @@ export function SaveRoad({ from, to }: { from: Station; to: Station }) {
           maxLength={40}
           placeholder={`${from.name} → ${to.name}`}
           autoComplete="off"
-          className="w-full rounded border-2 border-rule bg-canvas px-3 py-2 text-[1rem] text-ink outline-none transition-colors focus:border-ink sm:text-[0.9375rem] placeholder:text-ink-faint"
+          className="h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base placeholder:text-ink-faint"
         />
       </label>
       <Saving label={t('remember')} />
@@ -112,7 +112,7 @@ function Road({ road, label }: { road: SavedRoad; label: string }) {
             maxLength={40}
             autoFocus
             aria-label={label}
-            className="min-w-0 flex-1 rounded border-2 border-rule bg-canvas px-3 py-2 text-[1rem] text-ink outline-none transition-colors focus:border-ink sm:w-52 sm:text-[0.9375rem]"
+            className="h-11 min-w-0 flex-1 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:w-52 sm:text-base"
           />
           <Saving label={t('save')} />
         </form>

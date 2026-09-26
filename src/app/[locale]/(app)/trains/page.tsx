@@ -6,6 +6,7 @@ import { BoardPicker } from '@/components/trains/BoardPicker';
 import { Journeys } from '@/components/trains/Journeys';
 import { HomeStation, Roads, SaveRoad } from '@/components/trains/Roads';
 import { SearchForm } from '@/components/trains/SearchForm';
+import { Link } from '@/i18n/routing';
 import { readSession } from '@/lib/auth/session';
 import { resolveLocale } from '@/lib/locale';
 import { HB_STOP, journeys, stationBoard, stationById } from '@/lib/sbb';
@@ -18,23 +19,33 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return { title: t('title') };
 }
 
-type Query = { from?: string; to?: string; at?: string; mode?: string; board?: string };
+type Query = { from?: string; to?: string; at?: string; mode?: string; board?: string; view?: string };
 
 /**
  * Поезда: как отсюда попасть туда.
  *
- * Поиск, табло станции и сохранённые дороги на одной странице. Всё, что человек
- * выбрал, живёт в адресной строке — станции, время, режим, станция табло, — по
- * той же причине, что масштаб календаря: ссылку можно бросить в чат, «назад»
- * работает, перезагрузка не теряет место.
+ * Страница держится на трёх блоках, и это её второй заход. Первый разложил
+ * всё по шести одинаковым белым карточкам в столбик — заголовок, поиск,
+ * результат, табло, дороги, станция, — и владелец сказал ровно то, что видно:
+ * монотонно, и не понять, где что. Карточка перестаёт что-либо значить, когда
+ * их шесть подряд.
  *
- * Разговоры с SBB завёрнуты в `<Suspense>`, каждый в свой. Каркас, форма и
- * список дорог рисуются мгновенно из базы, а расписание доезжает следом —
- * иначе одна медленная поездка держала бы и табло, и список, и человек смотрел
- * бы на пустой экран из-за того, чего не спрашивал.
+ * Теперь так:
  *
- * Домашняя станция переехала сюда из профиля вместе со всем поездным: настройка
- * поездная, и место ей рядом с поездами, а не между паролем и приглашениями.
+ *   1. **панель** — заголовок, переключатель «маршрут / табло» и то, чем
+ *      спрашивают. Одна на всё, что человек делает руками;
+ *   2. **ответ** — лежит прямо на странице, без своей рамки. Он и так
+ *      отделён: панель над ним плотная, а он воздушный;
+ *   3. **своё** — сохранённые дороги и домашняя станция вместе, потому что
+ *      это одно и то же по смыслу: что сайт про тебя помнит.
+ *
+ * Выбранное живёт в адресной строке — станции, время, режим, вкладка, станция
+ * табло, — по той же причине, что масштаб календаря: ссылку можно бросить в
+ * чат, «назад» работает, перезагрузка не теряет место.
+ *
+ * Разговоры с SBB завёрнуты в `<Suspense>`. Панель и дороги рисуются мгновенно
+ * из базы, расписание доезжает следом — иначе человек смотрел бы на пустой
+ * экран из-за того, чего не спрашивал.
  */
 export default async function TrainsPage({
   params,
@@ -62,34 +73,64 @@ export default async function TrainsPage({
   const arriving = query.mode === 'arrive';
   const at = typeof query.at === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(query.at) ? query.at : '';
 
+  const onBoard = query.view === 'board';
   // Табло: что попросили, иначе станция поиска, иначе своя, иначе HB.
-  const boardStop = pickStop(query.board) ?? from?.id ?? home?.id ?? HB_STOP;
+  const asked = pickStop(query.board);
+  const boardStop = asked ?? from?.id ?? home?.id ?? HB_STOP;
+  const boardStation = asked ? await look(asked) : (from ?? home);
   const serverNow = Date.now();
 
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 p-3 sm:gap-4 sm:p-4">
-      <header className="block-card animate-rise-in flex flex-col gap-2 px-6 py-8 sm:px-8">
-        <p className="ps-label">{t('kicker')}</p>
-        <h1 className="text-greeting font-medium leading-tight text-ink">{t('title')}</h1>
-        <p className="max-w-xl text-base leading-relaxed text-ink-muted">{t('intro')}</p>
-      </header>
+  // Возврат к маршруту не теряет уже найденное.
+  const backToRoute = from && to ? `/trains?from=${from.id}&to=${to.id}` : '/trains';
 
-      <section className="block-card animate-rise-in flex flex-col gap-4 px-6 py-6 [animation-delay:60ms] sm:px-8">
-        <SearchForm
-          from={from}
-          to={to}
-          at={at}
-          arriving={arriving}
-          home={home}
-          friends={friends}
-          roads={roads}
-        />
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-3 sm:p-4">
+      <section className="block-card animate-rise-in flex flex-col gap-6 px-6 py-6 sm:px-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="ps-label">{t('kicker')}</p>
+            <h1 className="text-greeting font-medium leading-none text-ink">{t('title')}</h1>
+          </div>
+
+          {/* Две вкладки — ссылками, а не состоянием: обе половины считаются на
+              сервере, и обе должны жить в адресе. Вид тот же, что у масштабов
+              календаря, — на сайте это уже язык «выбери одно из». */}
+          <nav className="flex shrink-0 items-center gap-1" aria-label={t('kicker')}>
+            <Tab href={backToRoute} on={!onBoard}>
+              {t('tabRoute')}
+            </Tab>
+            <Tab href={`/trains?view=board&board=${boardStop}`} on={onBoard}>
+              {t('boardTitle')}
+            </Tab>
+          </nav>
+        </div>
+
+        {onBoard ? (
+          <BoardPicker station={boardStation} />
+        ) : (
+          <SearchForm
+            from={from}
+            to={to}
+            at={at}
+            arriving={arriving}
+            home={home}
+            friends={friends}
+            roads={roads}
+          />
+        )}
       </section>
 
-      {from && to ? (
-        <section className="block-card animate-rise-in flex flex-col gap-4 px-6 py-6 [animation-delay:90ms] sm:px-8">
+      {onBoard ? (
+        <section className="animate-rise-in flex flex-col gap-3 px-2 [animation-delay:60ms] sm:px-3">
+          <p className="ps-label normal-case text-ink-faint">{boardStation?.name ?? t('boardStation')}</p>
+          <Suspense key={boardStop} fallback={<Waiting text={t('asking')} />}>
+            <BoardFor stop={boardStop} serverNow={serverNow} />
+          </Suspense>
+        </section>
+      ) : from && to ? (
+        <section className="animate-rise-in flex flex-col gap-3 px-2 [animation-delay:60ms] sm:px-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="ps-label normal-case">
+            <p className="ps-label normal-case text-ink-faint">
               {from.name} → {to.name}
             </p>
             <p className="ps-label text-ink-faint">{arriving ? t('arriveBy') : t('leaveAt')}</p>
@@ -99,42 +140,44 @@ export default async function TrainsPage({
             <Found from={from.id} to={to.id} at={at} arriving={arriving} serverNow={serverNow} />
           </Suspense>
 
-          <div className="border-t border-rule pt-4">
-            <SaveRoad from={from} to={to} />
-          </div>
+          <SaveRoad from={from} to={to} />
         </section>
       ) : null}
 
-      <section className="block-card animate-rise-in flex flex-col gap-4 px-6 py-6 [animation-delay:120ms] sm:px-8">
-        <p className="ps-label">{t('boardTitle')}</p>
-        <BoardPicker station={boardStop === from?.id ? from : boardStop === home?.id ? home : null} />
-        <Suspense key={boardStop} fallback={<Waiting text={t('asking')} />}>
-          <BoardFor stop={boardStop} serverNow={serverNow} />
-        </Suspense>
-      </section>
-
       <section
         id="roads"
-        className="block-card animate-rise-in flex scroll-mt-20 flex-col gap-4 px-6 py-6 [animation-delay:150ms] sm:px-8"
+        className="block-card animate-rise-in flex scroll-mt-20 flex-col gap-5 px-6 py-6 [animation-delay:120ms] sm:px-8"
       >
         <div className="flex flex-col gap-1">
           <p className="ps-label">{t('roadsTitle')}</p>
           <p className="text-sm text-ink-muted">{t('roadsHint')}</p>
         </div>
-        <Roads roads={roads} />
-      </section>
 
-      <section
-        id="station"
-        className="block-card animate-rise-in flex scroll-mt-20 flex-col gap-4 px-6 py-6 [animation-delay:180ms] sm:px-8"
-      >
-        <div className="flex flex-col gap-1">
-          <p className="ps-label">{t('homeTitle')}</p>
-          <p className="text-sm text-ink-muted">{t('homeHint')}</p>
+        <Roads roads={roads} />
+
+        <div id="station" className="flex scroll-mt-20 flex-col gap-3 border-t border-rule pt-5">
+          <div className="flex flex-col gap-1">
+            <p className="ps-label">{t('homeTitle')}</p>
+            <p className="text-sm text-ink-muted">{t('homeHint')}</p>
+          </div>
+          <HomeStation station={home} />
         </div>
-        <HomeStation station={home} />
       </section>
     </div>
+  );
+}
+
+function Tab({ href, on, children }: { href: string; on: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={on ? 'page' : undefined}
+      className={`grid h-11 place-items-center rounded border-2 px-4 text-base transition-colors duration-drape ease-drape ${
+        on ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
+      }`}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -155,7 +198,7 @@ async function look(value: unknown): Promise<Station | null> {
 
 function Waiting({ text }: { text: string }) {
   return (
-    <p className="animate-pulse text-base text-ink-faint" role="status">
+    <p className="animate-pulse px-1 text-base text-ink-faint" role="status">
       {text}
     </p>
   );
@@ -182,11 +225,6 @@ async function Found({
   serverNow: number;
 }) {
   const t = await getTranslations('trains');
-
-  // Локальное время Цюриха, набранное человеком. `new Date('...T18:00')` без
-  // пояса читается как местное время сервера — на Vercel это UTC, и поиск
-  // уезжал бы на два часа. Поэтому час и день едут в SBB строками, а сюда
-  // передаётся только момент «примерно тогда», от которого он считает.
   const when = at ? zurich(at) : null;
 
   try {
@@ -194,7 +232,7 @@ async function Found({
     return <Journeys list={list} serverNow={serverNow} />;
   } catch (error) {
     console.warn('[podshar] SBB не ответили на поиск:', error instanceof Error ? error.message : error);
-    return <p className="text-base font-medium text-ink-muted">{t('unavailable')}</p>;
+    return <p className="px-1 text-base font-medium text-ink-muted">{t('unavailable')}</p>;
   }
 }
 
@@ -204,7 +242,7 @@ async function BoardFor({ stop, serverNow }: { stop: string; serverNow: number }
     return <Board rows={await stationBoard(stop)} serverNow={serverNow} />;
   } catch (error) {
     console.warn('[podshar] SBB не ответили на табло:', error instanceof Error ? error.message : error);
-    return <p className="text-base font-medium text-ink-muted">{t('unavailable')}</p>;
+    return <p className="px-1 text-base font-medium text-ink-muted">{t('unavailable')}</p>;
   }
 }
 
