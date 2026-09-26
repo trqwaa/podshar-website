@@ -63,7 +63,7 @@ export const PRIMARY_NAV_SLOTS = 5;
  * переедет в базу на человека, а этот массив останется тем, что видит новичок.
  * Остаток до `PRIMARY_NAV_SLOTS` шторка добивает честными заглушками.
  */
-export const BOOKMARKS: string[] = ['calendar', 'todos', 'games'];
+export const BOOKMARKS: string[] = ['calendar', 'todos', 'trains', 'games'];
 
 /**
  * The homepage. Not part of `NAV_GROUPS` because it is not a nav destination —
@@ -141,10 +141,6 @@ export const PROFILE: Place = {
     { id: 'avatar', terms: ['аватар', 'картинк', 'фотк', 'avatar', 'picture', 'bild'] },
     { id: 'security', terms: ['пароль', 'пароля', 'безопасн', 'безпек', 'password', 'passwort', 'security'] },
     { id: 'invite', terms: ['пригласи', 'запроси', 'инвайт', 'invite', 'einladung'] },
-    {
-      id: 'station',
-      terms: ['станци', 'станці', 'вокзал', 'поезд', 'потяг', 'station', 'train', 'bahnhof', 'zug']
-    },
     {
       id: 'dota',
       // 'rang' тут нет намеренно: оно сидит внутри orange, strange и arrange, а
@@ -238,6 +234,36 @@ export const NAV_GROUPS: NavGroup[] = [
           // доску» отвечало бы про PRO-режим. Режим называют или латиницей,
           // или двумя словами.
           { id: 'pro', terms: ['pro', 'про режим', 'про-режим', 'расширен', 'розширен', 'подробн', 'докладн'] }
+        ]
+      },
+      {
+        id: 'trains',
+        href: '/trains',
+        status: 'live',
+        labelKey: 'trains',
+        // Голого `train` тут нет намеренно: оно сидит внутри `training` и
+        // `trainer`, а это слова зала. `trains` в них не помещается, а
+        // `train ` с пробелом ловит «my train is late», но не «training».
+        // Сильные слова стоят и здесь, и в элементах намеренно. `matchElement`
+        // вызывается только после того, как совпал сам раздел, поэтому слово,
+        // лежащее лишь в элементе, не найдёт ничего: «покажи табло» не
+        // попадало никуда, пока `табло` было только внизу.
+        //
+        // `дорог` тут нет: оно сидит внутри «дорого» и «дорогой», а термины
+        // сверяются как подстроки. Тот же капкан, что `rain` внутри `train`.
+        // Понятие ловится словом `маршрут`, а `дорог` осталось элементу.
+        terms: [
+          'поезд', 'потяг', 'электричк', 'вокзал', 'станци', 'станці', 'перрон',
+          'табло', 'маршрут', 'ехать', 'їхати', 'свалить', 'доеха', 'доїха',
+          'опозда', 'запізн',
+          'sbb', 'hb', 'trains', 'train ', 'by train', 'zug', 'bahn', 'bahnhof',
+          'fahrplan', 'abfahrt', 'departure', 'timetable'
+        ],
+        elements: [
+          { id: 'search', terms: ['найти', 'знайти', 'маршрут', 'откуда', 'куда', 'звідки', 'куди', 'search', 'route', 'suche', 'verbindung'] },
+          { id: 'board', terms: ['табло', 'уходит', 'відправ', 'board', 'anzeige', 'tafel'] },
+          { id: 'roads', terms: ['сохран', 'збереж', 'дорог', 'запомн', 'saved', 'gespeichert', 'favorit'] },
+          { id: 'station', terms: ['домашн', 'домашню', 'свою станцию', 'мою станцию', 'home station', 'heimat'] }
         ]
       },
       {

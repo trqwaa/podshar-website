@@ -124,6 +124,61 @@ export type TrainRow = {
   failed: boolean;
 };
 
+/** Станция, как её знает SBB: номер остановки и имя, которое видит человек. */
+export type Station = {
+  /** Номер остановки SBB, только цифры. Он же лежит в сохранённом маршруте. */
+  id: string;
+  name: string;
+};
+
+/** Один поезд внутри поездки: сел — доехал — вышел. */
+export type Leg = {
+  /** Что написано на поезде: «S9», «IC 8». */
+  line: string;
+  /** Конечная самого поезда — то, что светится на его лбу. Не наша станция. */
+  head: string | null;
+  from: string;
+  to: string;
+  departs: number;
+  arrives: number;
+  platform: string | null;
+  delay: number;
+};
+
+/** Один вариант доехать: от первого поезда до последнего. */
+export type Journey = {
+  departs: number;
+  arrives: number;
+  /** Сколько всего ехать, в минутах. */
+  minutes: number;
+  delay: number;
+  platform: string | null;
+  /** Сколько раз пересаживаться. Считается по поездам, пешие переходы не в счёт. */
+  transfers: number;
+  legs: Leg[];
+};
+
+/** Строка вокзального табло. */
+export type BoardRow = {
+  line: string;
+  /** Куда идёт поезд. */
+  head: string;
+  departs: number;
+  delay: number;
+  platform: string | null;
+};
+
+/** Сохранённый маршрут: «в школу», «домой». */
+export type SavedRoad = {
+  id: string;
+  /** Своё имя. Пусто — показываем «откуда → куда». */
+  label: string | null;
+  fromId: string;
+  fromName: string;
+  toId: string;
+  toName: string;
+};
+
 /**
  * Где человек в Brawl Stars.
  *

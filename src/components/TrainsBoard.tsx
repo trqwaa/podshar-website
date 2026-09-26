@@ -64,7 +64,14 @@ export function TrainsBoard({
     >
       {/* `normal-case`: `ps-label` lowercases everything, which turned HB into
           "hb". The catalogue copy is lowercase already; the station is not. */}
-      <p className="ps-label normal-case">{t('label')}</p>
+      {/* Подпись — дверь в раздел: плитка отвечает «когда ближайший», а за
+          «а если не домой» человек идёт туда, где есть поиск. */}
+      <Link
+        href="/trains"
+        className="ps-label normal-case w-fit transition-colors hover:text-ink"
+      >
+        {t('label')}
+      </Link>
 
       {ordered.length === 0 ? (
         <p className="text-base font-medium text-ink-muted">{t('nobody')}</p>
@@ -100,7 +107,7 @@ function Row({
   let status: React.ReactNode = null;
   if (!row.station) {
     status = mine ? (
-      <Link href="/profile" className="underline decoration-rule underline-offset-4 hover:text-ink">
+      <Link href="/trains#station" className="underline decoration-rule underline-offset-4 hover:text-ink">
         {t('noStationYou')}
       </Link>
     ) : (

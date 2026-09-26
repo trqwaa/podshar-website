@@ -10,11 +10,9 @@ import {
   revokeOtherSessions,
   updateBrawlAccount,
   updateDotaAccount,
-  updateHomeStation,
   updateIdentity,
   type GameState,
   type ProfileState,
-  type StationState
 } from '@/lib/auth/profile';
 import { routing, LOCALE_LABELS, type Locale } from '@/i18n/routing';
 import { AVATAR_PRESETS, MemberAvatar } from './MemberAvatar';
@@ -337,40 +335,6 @@ export function InviteForm() {
         ) : null}
 
         <Footer state={state.error ? { error: state.error } : {}} label={t('createInvite')} />
-      </Section>
-    </form>
-  );
-}
-
-/**
- * Where you go home to from Zürich HB — the one field the train tile reads.
- *
- * Not in the identity form: that one saves six things at once, and this one
- * asks SBB a question on the way, which can be slow or can fail on its own.
- * Keeping it separate keeps a station typo from rejecting a changed name.
- */
-export function HomeStationForm({ current }: { current: string | null }) {
-  const t = useTranslations('profile');
-  const [state, action] = useActionState<StationState, FormData>(updateHomeStation, {});
-
-  return (
-    <form action={action}>
-      <Section title={t('stationTitle')} hint={t('stationHint')}>
-        <Field
-          name="station"
-          label={t('station')}
-          defaultValue={current ?? ''}
-          autoComplete="off"
-          required={false}
-        />
-        {/* The station SBB actually matched, said out loud, instead of a bare
-            "saved" — it is the one thing worth checking. */}
-        <Footer state={{ error: state.error, ok: state.ok && !state.station }} label={t('save')} />
-        {state.station ? (
-          <p role="status" className="text-sm text-ink-muted">
-            {t('stationSaved', { station: state.station })}
-          </p>
-        ) : null}
       </Section>
     </form>
   );

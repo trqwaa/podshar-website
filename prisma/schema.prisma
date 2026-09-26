@@ -199,6 +199,7 @@ model User {
   eventAttendance    EventAttendee[]
   todosCreated       TodoItem[]          @relation("TodoCreator")
   todosAssigned      TodoItem[]          @relation("TodoAssignee")
+  savedRoutes        SavedRoute[]
   gymSessions        GymSession[]
   shameAuthored      ShameEntry[]        @relation("ShameAuthor")
   shameReceived      ShameEntry[]        @relation("ShameTarget")
@@ -981,6 +982,35 @@ model TransitQuery {
   @@index([fromId, toId, departAt])
   @@index([expiresAt])
   @@map("transit_queries")
+}
+
+/// Дорога, которой человек ездит постоянно: «в школу», «домой», «к бабушке».
+///
+/// Станции лежат здесь номером и именем, а не ссылкой на `Location`: в
+/// `locations` сидят места, про которые сайт знает и другое — погоду, жильцов,
+/// — а тут нужна любая из двадцати тысяч остановок Швейцарии, и заводить
+/// строку в общей таблице ради того, что один человек один раз сохранил, —
+/// значит засорять её. Имя станции хранится рядом с номером, чтобы список
+/// маршрутов рисовался без похода в SBB: он показывается сразу, а расписание
+/// подтягивается уже по нажатию.
+model SavedRoute {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Своё название. Пусто — показываем «откуда → куда».
+  label     String?
+  fromId    String
+  fromName  String
+  toId      String
+  toName    String
+  /// Дробный индекс, как у записок: перетащить один маршрут — одна строка.
+  position  Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position])
+  @@map("saved_routes")
 }
 
 model WeatherSnapshot {

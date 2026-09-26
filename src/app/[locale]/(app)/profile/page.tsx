@@ -2,7 +2,6 @@ import { getTranslations } from 'next-intl/server';
 
 import {
   GameAccountForm,
-  HomeStationForm,
   IdentityForm,
   InviteForm,
   PasswordForm,
@@ -28,8 +27,9 @@ export async function generateMetadata({
  * The profile page.
  *
  * Everything about *you* that the site can change, in one place: who you are,
- * where you go home to, how you sign in, and — if you own the place — who else
- * may.
+ * how you sign in, and — if you own the place — who else may. The home station
+ * used to live here too; it moved to `/trains`, where the rest of the train
+ * things are.
  *
  * It reads the session directly rather than taking the member from the layout.
  * The layout hands down a display shape (name, handle, avatar); this page needs
@@ -53,12 +53,6 @@ export default async function ProfilePage({
   }
 
   const { user } = session;
-  const home = user.homeLocationId
-    ? await prisma.location.findUnique({
-        where: { id: user.homeLocationId },
-        select: { label: true }
-      })
-    : null;
 
   // Все аккаунты, отмеченный первым. Их может быть несколько — смурфы, старый
   // аккаунт, чужой на посмотреть, — и список под полем избавляет от привычки
@@ -90,10 +84,6 @@ export default async function ProfilePage({
             avatarPreset: user.avatarPreset
           }}
         />
-      </div>
-
-      <div className="animate-rise-in [animation-delay:90ms]">
-        <HomeStationForm current={home?.label ?? null} />
       </div>
 
       {/* Якорь: плитка в шторке ведёт сюда, а не на верх страницы. Человек,
