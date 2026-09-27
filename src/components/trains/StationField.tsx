@@ -32,7 +32,8 @@ export function StationField({
   label,
   station,
   onPick,
-  bare = false
+  bare = false,
+  suggest
 }: {
   /** Имя скрытого поля с номером станции. Видимое поле имени не имеет: в форму оно не едет. */
   name: string;
@@ -48,6 +49,14 @@ export function StationField({
    * остаётся обычным: там оно одно и ему нужны края.
    */
   bare?: boolean;
+  /**
+   * Что предложить до того, как человек начал печатать.
+   *
+   * Свои станции: дом, концы сохранённых дорог, станции остальных. Пустое поле,
+   * которое молчит, пока не наберёшь две буквы, заставляет вспоминать точное
+   * название — а девять поездок из десяти идут по тем же четырём станциям.
+   */
+  suggest?: Station[];
 }) {
   const t = useTranslations('trains');
   const listId = useId();
@@ -136,21 +145,25 @@ export function StationField({
       setOpen(false);
       return;
     }
-    if (!found.length) return;
+    const list = typing ? found : (suggest ?? []);
+    if (!list.length) return;
 
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      setCursor((was) => (was + step + found.length) % found.length);
+      setCursor((was) => (was + step + list.length) % list.length);
       return;
     }
     if (event.key === 'Enter' && cursor >= 0) {
       event.preventDefault();
-      pick(found[cursor]);
+      pick(list[cursor]);
     }
   }
 
-  const showing = open && (found.length > 0 || (asking && text.trim().length >= MIN_CHARS));
+  // Пока не набрано двух букв — показываем свои станции, дальше уже найденные.
+  const typing = text.trim().length >= MIN_CHARS && text !== station?.name;
+  const options = typing ? found : (suggest ?? []);
+  const showing = open && (options.length > 0 || (typing && asking));
 
   return (
     <div ref={box} className="relative flex min-w-0 flex-1 flex-col gap-1">
@@ -188,10 +201,10 @@ export function StationField({
           role="listbox"
           className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border-2 border-ink bg-canvas"
         >
-          {found.length === 0 ? (
+          {options.length === 0 ? (
             <li className="px-3 py-2 text-sm text-ink-faint">{t('looking')}</li>
           ) : (
-            found.map((choice, index) => (
+            options.map((choice, index) => (
               <li key={choice.id} id={`${optionId}-${index}`} role="option" aria-selected={index === cursor}>
                 <button
                   type="button"

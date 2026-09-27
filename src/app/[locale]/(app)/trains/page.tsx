@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 
+import { Hint } from '@/components/Hint';
 import { Board } from '@/components/trains/Board';
 import { BoardPicker } from '@/components/trains/BoardPicker';
 import { Journeys } from '@/components/trains/Journeys';
@@ -87,6 +88,22 @@ export default async function TrainsPage({
   const boardStation = asked ? await look(asked) : (from ?? home);
   const serverNow = Date.now();
 
+  // Свои станции: дом, станции остальных и оба конца каждой сохранённой
+  // дороги. Поле предлагает их до того, как человек начал печатать: девять
+  // поездок из десяти идут по тем же четырём станциям, и заставлять вспоминать
+  // точное название незачем.
+  const known: Station[] = [];
+  for (const station of [
+    home,
+    ...friends.map((friend) => friend.station),
+    ...roads.flatMap((road) => [
+      { id: road.fromId, name: road.fromName },
+      { id: road.toId, name: road.toName }
+    ])
+  ]) {
+    if (station && !known.some((had) => had.id === station.id)) known.push(station);
+  }
+
   // Возврат к маршруту не теряет уже найденное.
   const backToRoute = from && to ? `/trains?from=${from.id}&to=${to.id}` : '/trains';
 
@@ -115,7 +132,20 @@ export default async function TrainsPage({
         {onBoard ? (
           <BoardPicker station={boardStation} />
         ) : (
-          <SearchForm from={from} to={to} at={at} arriving={arriving} home={home} friends={friends} />
+          // `key` по концам маршрута — не украшение. Состояние формы заводится
+          // от свойств один раз, при монтировании; без ключа переход по
+          // сохранённой дороге менял адрес, а поля оставались пустыми, и
+          // казалось, что нажатие не сработало.
+          <SearchForm
+            key={`${from?.id ?? ''}-${to?.id ?? ''}`}
+            from={from}
+            to={to}
+            at={at}
+            arriving={arriving}
+            home={home}
+            friends={friends}
+            known={known}
+          />
         )}
       </section>
 
@@ -135,7 +165,7 @@ export default async function TrainsPage({
             id="station"
             className="animate-rise-in flex scroll-mt-20 flex-col gap-2 border-t border-rule-soft px-2 pt-5 [animation-delay:120ms] sm:px-3"
           >
-            <p className="text-sm text-ink-muted">{t('homeHint')}</p>
+            <Hint label={t('whatIsThis')}>{t('homeHint')}</Hint>
             <MakeHome station={boardStation} isHome={Boolean(home && boardStation && home.id === boardStation.id)} />
           </section>
         </>
@@ -143,12 +173,9 @@ export default async function TrainsPage({
         <>
           {from && to ? (
             <section className="animate-rise-in flex flex-col gap-3 px-2 [animation-delay:60ms] sm:px-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="ps-label normal-case text-ink-faint">
-                  {from.name} → {to.name}
-                </p>
-                <p className="ps-label text-ink-faint">{arriving ? t('arriveBy') : t('leaveAt')}</p>
-              </div>
+              <p className="ps-label normal-case text-ink-faint">
+                {from.name} → {to.name}
+              </p>
 
               <Suspense fallback={<Waiting text={t('asking')} />}>
                 <Found from={from.id} to={to.id} at={at} arriving={arriving} serverNow={serverNow} />

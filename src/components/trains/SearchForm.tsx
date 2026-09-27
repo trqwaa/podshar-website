@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { DayField } from '@/components/calendar/DayField';
 import { useRouter } from '@/i18n/routing';
 import type { Station } from '@/lib/types';
 import { StationField } from './StationField';
+import { WhenField } from './WhenField';
 
 /**
  * Откуда и куда — нарисованным маршрутом, а не двумя прямоугольниками.
@@ -36,7 +36,8 @@ export function SearchForm({
   at,
   arriving,
   home,
-  friends
+  friends,
+  known
 }: {
   from: Station | null;
   to: Station | null;
@@ -45,6 +46,8 @@ export function SearchForm({
   arriving: boolean;
   home: Station | null;
   friends: { name: string; station: Station }[];
+  /** Свои станции — их поле предлагает до того, как начали печатать. */
+  known: Station[];
 }) {
   const t = useTranslations('trains');
   const router = useRouter();
@@ -54,9 +57,6 @@ export function SearchForm({
   const [day, setDay] = useState(at.slice(0, 10));
   const [clock, setClock] = useState(at.slice(11, 16));
   const [arrive, setArrive] = useState(arriving);
-  // Сброс дня — это пересоздание поля календаря: день оно ведёт у себя, и
-  // единственный честный способ вернуть его в «не выбрано» — собрать заново.
-  const [round, setRound] = useState(0);
 
   const ready = Boolean(a?.id && b?.id && a.id !== b.id);
   const anyQuick = Boolean(home) || friends.length > 0;
@@ -85,7 +85,7 @@ export function SearchForm({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-3">
         <div className="flex min-w-0 flex-1 items-end gap-3">
           <Dot />
-          <StationField name="from" label={t('from')} station={a} onPick={setA} bare />
+          <StationField name="from" label={t('from')} station={a} onPick={setA} suggest={known} bare />
         </div>
 
         <button
@@ -115,58 +115,23 @@ export function SearchForm({
 
         <div className="flex min-w-0 flex-1 items-end gap-3">
           <Dot hollow />
-          <StationField name="to" label={t('to')} station={b} onPick={setB} bare />
+          <StationField name="to" label={t('to')} station={b} onPick={setB} suggest={known} bare />
         </div>
       </div>
 
-      {/* День, час и сторона отсчёта — тише самого маршрута: их трогают редко.
-          По умолчанию тут вообще нечего трогать: без дня поиск идёт «сейчас».
-
-          Час появляется, **только когда назван день**. Отдельно от дня он не
-          значил ничего — поиск его просто не читал, — но поле висело и просило
-          заполнить. А крестика «очистить» у дня нет намеренно: два крестика
-          подряд, свой и браузерный, мозолили глаза сильнее, чем помогали.
-          Вместо них одно слово «сейчас», которое возвращает всё как было. */}
-      <div className="flex flex-wrap items-end gap-x-2 gap-y-3">
-        <DayField key={round} name="day" label={t('day')} value={day} onPick={setDay} />
-
-        {day ? (
-          <label className="flex flex-col gap-1">
-            <span className="ps-label text-ink-faint">{t('clock')}</span>
-            <input
-              type="time"
-              value={clock}
-              onChange={(event) => setClock(event.target.value)}
-              // Браузер дорисовывает к полю времени свой крестик и стрелки.
-              // Крестик тут лишний: очищается не час, а весь выбор, кнопкой
-              // «сейчас» рядом.
-              className="h-11 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
-            />
-          </label>
-        ) : null}
-
-        {day ? (
-          <button
-            type="button"
-            onClick={() => {
-              setDay('');
-              setClock('');
-              setRound((n) => n + 1);
-            }}
-            className="ps-label h-11 px-1 text-ink-faint transition-colors hover:text-ink"
-          >
-            {t('nowInstead')}
-          </button>
-        ) : null}
-
-        <div className="ms-1 flex items-end gap-1" role="group" aria-label={t('when')}>
-          <Toggle on={!arrive} onClick={() => setArrive(false)}>
-            {t('leaveAt')}
-          </Toggle>
-          <Toggle on={arrive} onClick={() => setArrive(true)}>
-            {t('arriveBy')}
-          </Toggle>
-        </div>
+      {/* Когда ехать — одной кнопкой. Три контрола подряд превращали карточку
+          поиска в панель приборов, а она должна читаться как визитка. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <WhenField
+          day={day}
+          clock={clock}
+          arrive={arrive}
+          onChange={(next) => {
+            if (next.day !== undefined) setDay(next.day);
+            if (next.clock !== undefined) setClock(next.clock);
+            if (next.arrive !== undefined) setArrive(next.arrive);
+          }}
+        />
 
         <button
           type="submit"
@@ -232,21 +197,6 @@ function nowInZurich(): string {
     minute: '2-digit',
     hour12: false
   }).format(new Date());
-}
-
-function Toggle({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`h-11 rounded border-2 px-3 text-base transition-colors duration-drape ease-drape ${
-        on ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
-      }`}
-    >
-      {children}
-    </button>
-  );
 }
 
 function Quick({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {

@@ -7,7 +7,6 @@ import { LocalClock } from '@/components/LocalClock';
 import { PHButton } from '@/components/PHButton';
 import { PresenceBoard } from '@/components/Presence';
 import { QuoteCookie } from '@/components/QuoteCookie';
-import { TrainsPending, TrainsTile } from '@/components/TrainsTile';
 import { WeatherPending, WeatherTile } from '@/components/WeatherTile';
 import { getCurrentMember } from '@/lib/session';
 import { listPresence } from '@/lib/presence';
@@ -52,11 +51,10 @@ export default async function HomePage({
 }) {
   const locale = resolveLocale((await params).locale);
 
-  const [t, tQuote, tWeather, tTrains, member, people] = await Promise.all([
+  const [t, tQuote, tWeather, member, people] = await Promise.all([
     getTranslations('home'),
     getTranslations('quotes'),
     getTranslations('weather'),
-    getTranslations('trains'),
     getCurrentMember(),
     listPresence()
   ]);
@@ -147,11 +145,14 @@ export default async function HomePage({
         className="md:col-span-2"
       />
 
-      {/* How each of you gets home from HB. Streams in like the weather: SBB
-          is a third party, and the page does not wait for it. */}
-      <Suspense fallback={<TrainsPending label={tTrains('label')} className="md:col-span-4" />}>
-        <TrainsTile me={member.handle} className="md:col-span-4" />
-      </Suspense>
+      {/* Слот под сменный блок. Поезда отсюда уехали в свой раздел — держать
+          их тут вторым экземпляром незачем, а место владелец хочет отдать под
+          то, что каждый соберёт себе сам, или под новости сайта. Решение от
+          27 сентября 2026; пока честно написано, что здесь стройка. */}
+      <section className="block-card animate-rise-in flex flex-col gap-2 p-6 [animation-delay:300ms] md:col-span-4">
+        <p className="ps-label">{t('slotLabel')}</p>
+        <p className="text-base leading-relaxed text-ink-muted">{t('slotHint')}</p>
+      </section>
 
       {/* Quote of the day. The one place on the page allowed to have a voice,
           and the only block you have to open before it will speak. */}

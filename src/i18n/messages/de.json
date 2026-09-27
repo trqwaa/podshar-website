@@ -285,7 +285,9 @@
     "close": "schliessen",
     "footerLove": "mit liebe gemacht von drei süssen mistkerlen",
     "footerTelegram": "unsere Telegram-Gruppe",
-    "footerRights": "© 2026 podshar · alle rechte verspottet, mistkerle vorbehalten"
+    "footerRights": "© 2026 podshar · alle rechte verspottet, mistkerle vorbehalten",
+    "slotLabel": "gerade im umbau",
+    "slotHint": "hier steht später, was du selbst hinstellst, oder die neuigkeiten. die züge sind in ihren eigenen bereich gezogen"
   },
   "weather": {
     "label": "wetter",
@@ -339,7 +341,7 @@
     "to": "nach",
     "swap": "tauschen",
     "when": "wann",
-    "leaveAt": "abfahrt",
+    "leaveAt": "abfahrt um",
     "arriveBy": "ankunft bis",
     "clock": "uhrzeit",
     "search": "suchen",
@@ -380,6 +382,7 @@
     "makeHome": "zu meiner station machen",
     "isHome": "das ist deine station",
     "dropHome": "entfernen",
+    "whatIsThis": "was ist das",
     "errors": {
       "invalid": "irgendwas stimmt nicht",
       "notYours": "das ist nicht deine strecke",
