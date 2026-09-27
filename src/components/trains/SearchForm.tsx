@@ -9,29 +9,26 @@ import type { SavedRoad, Station } from '@/lib/types';
 import { StationField } from './StationField';
 
 /**
- * Откуда, куда и когда.
+ * Откуда и куда — нарисованным маршрутом, а не двумя прямоугольниками.
  *
- * Найденное живёт в адресной строке, а не в состоянии, — то же решение, что у
- * масштаба календаря и списка задач: ссылку можно бросить в чат, «назад»
- * работает, перезагрузка не теряет место. Поэтому форма не хранит результат,
- * она только переписывает адрес, а считает уже страница на сервере.
+ * Третий заход, и снова по жалобе владельца: «у нас выглядит сложнее, чем у
+ * SBB». Так и было. Коробка с полями, коробка с кнопками, коробка с дорогами —
+ * каждая честная, а вместе они читались как анкета. Сайт, где задачи живут
+ * листочками на булавках, не должен спрашивать про поезд бланком.
  *
- * Кнопка поиска не нажимается, пока обе станции не **выбраны**. Раньше в такой
- * форме принимался набранный текст, и человек, написавший «Bern» без выбора,
- * получал молча не ту станцию. Лучше не пустить, чем соврать.
+ * Поэтому здесь нарисован сам маршрут: закрашенная точка — откуда, пустая —
+ * куда, подчёркивания под именами станций работают линией, перевёртыш сидит
+ * между ними. Это те же точки и та же нитка, которой потом покажется найденная
+ * поездка, — поиск выглядит как свой собственный ответ.
  *
- * Раскладка держится на двух правилах, и оба из жалобы владельца «кнопки лежат
- * незакономерно». Первое: **всё в одном ряду одного роста** (`h-11`) — поля,
- * переключатели и кнопка, — иначе глаз не видит ряда, он видит россыпь.
- * Второе: **каждая группа названа**. «когда» подписывает день, час и выбор
- * между отправлением и прибытием; «быстро» подписывает готовые дороги. Без
- * подписей это восемь одинаковых прямоугольников, про которые надо вспоминать,
- * что есть что.
+ * Всё остальное — день, час, сторона отсчёта — уведено вниз и сделано тише:
+ * эти три вещи трогают редко, а занимали они столько же места, сколько сам
+ * маршрут.
  *
- * День выбирается **нашей сеткой** (`DayField` из календаря), а не системным
- * `<input type="date">`: системный говорит на языке браузера, а не страницы —
- * на русской странице он писал `TT.mm.jjjj`, потому что Edge тут немецкий.
- * Час остаётся системным `type="time"`: он рисует только два числа.
+ * Найденное живёт в адресной строке, а не в состоянии: ссылку можно бросить в
+ * чат, «назад» работает, перезагрузка не теряет место. Кнопка поиска не
+ * нажимается, пока обе станции не **выбраны из списка**: раньше форма
+ * принимала набранный текст и подставляла не ту станцию молча.
  */
 export function SearchForm({
   from,
@@ -84,17 +81,17 @@ export function SearchForm({
   return (
     <form
       ref={form}
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-6"
       onSubmit={(event) => {
         event.preventDefault();
         go();
       }}
     >
-      {/* Концы маршрута — главное на форме, поэтому они одни в своём ряду и
-          занимают всю ширину. Перевёртыш стоит между ними, а не сбоку: он про
-          то, что слева и справа, и на своём месте не требует подписи. */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-        <StationField name="from" label={t('from')} station={a} onPick={setA} />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-end gap-3">
+          <Dot />
+          <StationField name="from" label={t('from')} station={a} onPick={setA} bare />
+        </div>
 
         <button
           type="button"
@@ -103,14 +100,14 @@ export function SearchForm({
             setA(b);
             setB(was);
           }}
-          className="-my-1 grid h-11 w-11 shrink-0 place-items-center self-center rounded border-2 border-rule text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink sm:my-0 sm:self-end"
+          className="grid h-10 w-10 shrink-0 place-items-center self-center rounded-full border-2 border-rule text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink sm:mb-0 sm:self-end"
           aria-label={t('swap')}
           title={t('swap')}
         >
           <svg
             viewBox="0 0 16 16"
-            // Поля на телефоне стоят друг под другом, на столе — рядом.
-            // Стрелки показывают то направление, в котором поменяются местами.
+            // Стрелки показывают ту сторону, в которую концы поменяются
+            // местами: на телефоне поля друг под другом, на столе — рядом.
             className="h-4 w-4 sm:-rotate-90"
             fill="none"
             stroke="currentColor"
@@ -121,17 +118,18 @@ export function SearchForm({
           </svg>
         </button>
 
-        <StationField name="to" label={t('to')} station={b} onPick={setB} />
+        <div className="flex min-w-0 flex-1 items-end gap-3">
+          <Dot hollow />
+          <StationField name="to" label={t('to')} station={b} onPick={setB} bare />
+        </div>
       </div>
 
-      {/* Когда ехать и в какую сторону считать — один ряд, всё ростом `h-11`.
-          Группу держит близость: день, час и выбор стоят вплотную, а кнопка
-          поиска отжата в конец ряда, потому что она не про время. */}
-      <div className="flex flex-wrap items-end gap-x-2 gap-y-4">
+      {/* День, час и сторона отсчёта — тише самого маршрута: их трогают редко. */}
+      <div className="flex flex-wrap items-end gap-x-2 gap-y-3">
         <DayField name="day" label={t('day')} value={at.slice(0, 10)} clearable />
 
         <label className="flex flex-col gap-1">
-          <span className="ps-label">{t('clock')}</span>
+          <span className="ps-label text-ink-faint">{t('clock')}</span>
           <input
             type="time"
             value={clock}
@@ -160,10 +158,10 @@ export function SearchForm({
 
       {!ready && (a?.id || b?.id) ? <p className="text-sm text-ink-faint">{t('pickBoth')}</p> : null}
 
-      {/* Быстрые дороги. Каждая — «подставить и сразу искать»: человек, нажавший
+      {/* Готовые дороги. Каждая — «подставить и сразу искать»: человек, нажавший
           «домой», пришёл за поездом, а не за заполненной формой. */}
       {anyQuick ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-rule pt-4">
+        <div className="flex flex-wrap items-center gap-2 border-t border-rule-soft pt-4">
           <span className="ps-label me-1 text-ink-faint">{t('quick')}</span>
 
           {home ? (
@@ -206,6 +204,15 @@ export function SearchForm({
         </div>
       ) : null}
     </form>
+  );
+}
+
+/** Конец маршрута: закрашенная точка — откуда, пустая — куда. */
+function Dot({ hollow = false }: { hollow?: boolean }) {
+  return (
+    <span className="mb-1.5 flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden="true">
+      <span className={`block h-3 w-3 rounded-full border-2 border-ink ${hollow ? 'bg-canvas' : 'bg-ink'}`} />
+    </span>
   );
 }
 

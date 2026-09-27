@@ -31,7 +31,8 @@ export function StationField({
   name,
   label,
   station,
-  onPick
+  onPick,
+  bare = false
 }: {
   /** Имя скрытого поля с номером станции. Видимое поле имени не имеет: в форму оно не едет. */
   name: string;
@@ -39,6 +40,14 @@ export function StationField({
   station: Station | null;
   /** Вызывается, когда станция выбрана или очищена, — форме это нужно для перевёртыша. */
   onPick?: (station: Station | null) => void;
+  /**
+   * Без коробки: крупный текст на волосяной линии.
+   *
+   * В поиске поле стоит на конце нарисованного маршрута, и рамка вокруг него
+   * превращала бы рисунок обратно в форму. В настройках и на табло поле
+   * остаётся обычным: там оно одно и ему нужны края.
+   */
+  bare?: boolean;
 }) {
   const t = useTranslations('trains');
   const listId = useId();
@@ -145,7 +154,7 @@ export function StationField({
 
   return (
     <div ref={box} className="relative flex min-w-0 flex-1 flex-col gap-1">
-      <label className="ps-label" htmlFor={`${listId}-input`}>
+      <label className={`ps-label ${bare ? 'text-ink-faint' : ''}`} htmlFor={`${listId}-input`}>
         {label}
       </label>
 
@@ -154,7 +163,11 @@ export function StationField({
       <input
         id={`${listId}-input`}
         // 16px на телефоне: меньше — и айфон зумит страницу при тапе.
-        className="h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base placeholder:text-ink-faint"
+        className={
+          bare
+            ? 'w-full border-b-2 border-rule bg-transparent pb-1 text-[1.0625rem] font-medium text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-lg placeholder:font-normal placeholder:text-ink-faint'
+            : 'h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base placeholder:text-ink-faint'
+        }
         value={text}
         onChange={(event) => typed(event.target.value)}
         onFocus={() => setOpen(true)}

@@ -357,7 +357,6 @@
     "boardEmpty": "nothing is leaving here right now",
     "show": "show",
     "roadsTitle": "your routes",
-    "roadsHint": "the ones you ride all the time. the name can be changed whenever",
     "roadName": "name",
     "remember": "remember it",
     "remembered": "remembered",
@@ -376,6 +375,9 @@
     "wait": "{min} min to change",
     "close": "close",
     "tripHint": "{from} → {to}, {min} min on the train",
+    "leavesIn": "in {min} min",
+    "ridesLong": "{h} h {min} min on the train",
+    "rememberRoad": "remember this route",
     "errors": {
       "invalid": "something is off",
       "notYours": "that route is not yours",

@@ -35,20 +35,51 @@ function Saving({ label }: { label: string }) {
   );
 }
 
-/** Запомнить показанную сейчас дорогу. */
+/**
+ * Запомнить показанную сейчас дорогу.
+ *
+ * Свёрнута в кружок, пока не нажали. Развёрнутая форма с полем и кнопкой висела
+ * под каждым найденным маршрутом и по весу не отличалась от самого поиска —
+ * а нужна она раз в жизни на дорогу, которой ездишь. Нажал — появилось поле,
+ * сохранил — кружок сказал «запомнил» и пропал.
+ */
 export function SaveRoad({ from, to }: { from: Station; to: Station }) {
   const t = useTranslations('trains');
   const [state, action] = useActionState(saveRoad, {});
+  const [open, setOpen] = useState(false);
+
+  if (state.ok) {
+    return (
+      <p role="status" className="px-1 pt-1 text-sm text-win">
+        {t('remembered')}
+      </p>
+    );
+  }
+
+  if (!open) {
+    return (
+      <div className="px-1 pt-1">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+        >
+          {t('rememberRoad')}
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2 px-1 pt-2">
+    <form action={action} className="flex flex-wrap items-end gap-2 px-1 pt-1">
       <input type="hidden" name="from" value={from.id} />
       <input type="hidden" name="to" value={to.id} />
       <label className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="ps-label">{t('roadName')}</span>
+        <span className="ps-label text-ink-faint">{t('roadName')}</span>
         <input
           name="label"
           maxLength={40}
+          autoFocus
           placeholder={`${from.name} → ${to.name}`}
           autoComplete="off"
           className="h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base placeholder:text-ink-faint"
@@ -56,7 +87,6 @@ export function SaveRoad({ from, to }: { from: Station; to: Station }) {
       </label>
       <Saving label={t('remember')} />
       {state.error ? <p className="w-full text-sm text-loss">{t(`errors.${state.error}`)}</p> : null}
-      {state.ok ? <p className="w-full text-sm text-win">{t('remembered')}</p> : null}
     </form>
   );
 }

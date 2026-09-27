@@ -56,10 +56,15 @@ export function Journeys({ list, serverNow }: { list: Journey[]; serverNow: numb
 
   return (
     <>
-      <ul className="flex flex-col">
+      {/* Каждая поездка — свой блок, как на табло у SBB: сверху чем едешь,
+          посередине время и нитка, снизу мелочи. Плоский список строк читался
+          как таблица, в которой всё одинаковое; блок даёт поездке границу, а
+          нитка внутри сразу показывает, сколько раз пересаживаться. */}
+      <ul className="flex flex-col gap-2">
         {list.map((journey, index) => {
           const mins = Math.round((journey.departs + journey.delay * 60_000 - now) / 60_000);
           const leaving = mounted && mins >= 0 && mins < 90;
+          const hours = Math.floor(journey.minutes / 60);
 
           return (
             <li key={`${journey.departs}-${index}`}>
@@ -67,49 +72,49 @@ export function Journeys({ list, serverNow }: { list: Journey[]; serverNow: numb
                 type="button"
                 onClick={() => setShown(journey)}
                 aria-haspopup="dialog"
-                className="group flex w-full items-center gap-4 border-b border-rule px-1 py-4 text-left transition-colors duration-drape ease-drape hover:bg-sunk"
+                className="w-full rounded-block border-2 border-rule bg-canvas p-4 text-left transition-colors duration-drape ease-drape hover:border-ink hover:bg-sunk"
               >
-                {/* Время — самое крупное на строке: за ним и приходят. */}
-                <span className="flex shrink-0 items-baseline gap-2">
-                  <span className="text-xl font-medium tabular-nums text-ink">
-                    {clock.format(journey.departs)}
-                  </span>
-                  <span aria-hidden="true" className="text-ink-faint">
-                    ·
-                  </span>
-                  <span className="text-xl font-medium tabular-nums text-ink-muted">
-                    {clock.format(journey.arrives)}
-                  </span>
-                </span>
-
-                <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="text-sm text-ink-muted">{t('rides', { min: journey.minutes })}</span>
-                  {/* Пересадки называются, только когда они есть: «без пересадок»
-                      на каждой второй строке — шум, который нечем отличить. */}
-                  {journey.transfers > 0 ? (
-                    <span className="text-sm text-ink">{t('transfers', { count: journey.transfers })}</span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {journey.legs.map((leg, i) => (
+                    <Badge key={`${leg.line}-${i}`}>{leg.line}</Badge>
+                  ))}
+                  {journey.legs[0]?.head ? (
+                    <span className="min-w-0 truncate text-sm text-ink-muted">
+                      {t('towards', { head: journey.legs[0].head })}
+                    </span>
                   ) : null}
                   {journey.delay > 0 ? (
                     <span className="text-sm font-medium text-loss">{t('delay', { min: journey.delay })}</span>
                   ) : null}
+                  {leaving ? (
+                    <span className="ps-label ms-auto shrink-0 text-ink-faint">
+                      {mins === 0 ? t('now') : t('leavesIn', { min: mins })}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="text-2xl font-medium tabular-nums leading-none text-ink">
+                    {clock.format(journey.departs)}
+                  </span>
+                  <MiniThread transfers={journey.transfers} />
+                  <span className="text-2xl font-medium tabular-nums leading-none text-ink">
+                    {clock.format(journey.arrives)}
+                  </span>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
+                  {journey.platform ? <span>{t('platform', { platform: journey.platform })}</span> : null}
+                  <span>{t('transfers', { count: journey.transfers })}</span>
                   {index === 0 && leaving ? (
                     <span className="ps-label text-ink-faint">{t('soonest')}</span>
                   ) : null}
-                </span>
-
-                <span className="hidden shrink-0 items-center gap-1 sm:flex">
-                  {journey.legs.map((leg, i) => (
-                    <Badge key={`${leg.line}-${i}`}>{leg.line}</Badge>
-                  ))}
-                </span>
-
-                <span className="w-16 shrink-0 text-right">
-                  {leaving ? (
-                    <span className="ps-label normal-case text-ink-faint">
-                      {mins === 0 ? t('now') : t('in', { min: mins })}
-                    </span>
-                  ) : null}
-                </span>
+                  <span className="ms-auto shrink-0">
+                    {hours > 0
+                      ? t('ridesLong', { h: hours, min: journey.minutes % 60 })
+                      : t('rides', { min: journey.minutes })}
+                  </span>
+                </div>
               </button>
             </li>
           );
@@ -137,6 +142,39 @@ export function Journeys({ list, serverNow }: { list: Journey[]; serverNow: numb
       </AnimatePresence>
     </>
   );
+}
+
+/**
+ * Маршрут одной чертой: точка — линия — точка, и по пустой точке на каждую
+ * пересадку. Это то же самое, что нитка в окне, ужатое до одной строки: сколько
+ * раз выходить, видно, не открывая поездку.
+ */
+function MiniThread({ transfers }: { transfers: number }) {
+  return (
+    <span className="flex min-w-0 flex-1 items-center" aria-hidden="true">
+      <Pip solid />
+      {Array.from({ length: Math.max(0, transfers) }).map((_, i) => (
+        <span key={i} className="flex min-w-0 flex-1 items-center">
+          <Wire />
+          <Pip />
+        </span>
+      ))}
+      <Wire />
+      <Pip solid />
+    </span>
+  );
+}
+
+function Pip({ solid = false }: { solid?: boolean }) {
+  return (
+    <span
+      className={`block h-2 w-2 shrink-0 rounded-full border-2 border-ink ${solid ? 'bg-ink' : 'bg-canvas'}`}
+    />
+  );
+}
+
+function Wire() {
+  return <span className="h-0.5 min-w-0 flex-1 bg-rule" />;
 }
 
 function Badge({ children }: { children: React.ReactNode }) {

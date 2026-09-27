@@ -24,20 +24,26 @@ type Query = { from?: string; to?: string; at?: string; mode?: string; board?: s
 /**
  * Поезда: как отсюда попасть туда.
  *
- * Страница держится на трёх блоках, и это её второй заход. Первый разложил
- * всё по шести одинаковым белым карточкам в столбик — заголовок, поиск,
- * результат, табло, дороги, станция, — и владелец сказал ровно то, что видно:
- * монотонно, и не понять, где что. Карточка перестаёт что-либо значить, когда
- * их шесть подряд.
+ * Третий заход по виду, и каждый предыдущий чинил то, на что жаловался
+ * владелец. Сперва было шесть одинаковых белых карточек в столбик — «монотонно,
+ * не понять, где что». Потом стало три, и жалоба сменилась на точную: «у нас
+ * выглядит сложнее, чем у SBB», и ещё — «нахрена внизу опять выбери станцию».
  *
- * Теперь так:
+ * Обе верные, и обе про одно: страница спрашивала бланком. Сайт, где задачи
+ * живут листочками на булавках, не должен выглядеть анкетой.
  *
- *   1. **панель** — заголовок, переключатель «маршрут / табло» и то, чем
- *      спрашивают. Одна на всё, что человек делает руками;
- *   2. **ответ** — лежит прямо на странице, без своей рамки. Он и так
- *      отделён: панель над ним плотная, а он воздушный;
- *   3. **своё** — сохранённые дороги и домашняя станция вместе, потому что
- *      это одно и то же по смыслу: что сайт про тебя помнит.
+ * Сейчас так:
+ *
+ *   1. **панель** — заголовок, переключатель «маршрут / табло» и сам маршрут,
+ *      нарисованный точками и линией, а не двумя полями в рамках;
+ *   2. **ответ** — блоками, как на табло у SBB: чем едешь, время с ниткой,
+ *      мелочи снизу. Плоский список строк читался таблицей;
+ *   3. **своё** — тихим хвостом под ответом, без карточки.
+ *
+ * Домашняя станция переехала на вкладку табло. На поиске станции выбирают и
+ * так, двумя полями, и третье поле внизу спрашивало о том же в третий раз;
+ * табло — единственное место, где вопрос «какая станция твоя» стоит сам по
+ * себе.
  *
  * Выбранное живёт в адресной строке — станции, время, режим, вкладка, станция
  * табло, — по той же причине, что масштаб календаря: ссылку можно бросить в
@@ -121,48 +127,64 @@ export default async function TrainsPage({
       </section>
 
       {onBoard ? (
-        <section className="animate-rise-in flex flex-col gap-3 px-2 [animation-delay:60ms] sm:px-3">
-          <p className="ps-label normal-case text-ink-faint">{boardStation?.name ?? t('boardStation')}</p>
-          <Suspense key={boardStop} fallback={<Waiting text={t('asking')} />}>
-            <BoardFor stop={boardStop} serverNow={serverNow} />
-          </Suspense>
-        </section>
-      ) : from && to ? (
-        <section className="animate-rise-in flex flex-col gap-3 px-2 [animation-delay:60ms] sm:px-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="ps-label normal-case text-ink-faint">
-              {from.name} → {to.name}
-            </p>
-            <p className="ps-label text-ink-faint">{arriving ? t('arriveBy') : t('leaveAt')}</p>
-          </div>
+        <>
+          <section className="animate-rise-in flex flex-col gap-3 px-2 [animation-delay:60ms] sm:px-3">
+            <p className="ps-label normal-case text-ink-faint">{boardStation?.name ?? t('boardStation')}</p>
+            <Suspense key={boardStop} fallback={<Waiting text={t('asking')} />}>
+              <BoardFor stop={boardStop} serverNow={serverNow} />
+            </Suspense>
+          </section>
 
-          <Suspense fallback={<Waiting text={t('asking')} />}>
-            <Found from={from.id} to={to.id} at={at} arriving={arriving} serverNow={serverNow} />
-          </Suspense>
+          {/* Домашняя станция живёт тут, а не на поиске. На поиске станции
+              выбирают и так, двумя полями, и третье поле внизу спрашивало о
+              том же в третий раз. Табло — единственное место, где вопрос
+              «какая станция твоя» стоит сам по себе. */}
+          <section
+            id="station"
+            className="animate-rise-in flex scroll-mt-20 flex-col gap-3 border-t border-rule-soft px-2 pt-6 [animation-delay:120ms] sm:px-3"
+          >
+            <div className="flex flex-col gap-1">
+              <p className="ps-label">{t('homeTitle')}</p>
+              <p className="text-sm text-ink-muted">{t('homeHint')}</p>
+            </div>
+            <HomeStation station={home} />
+          </section>
+        </>
+      ) : (
+        <>
+          {from && to ? (
+            <section className="animate-rise-in flex flex-col gap-3 px-2 [animation-delay:60ms] sm:px-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="ps-label normal-case text-ink-faint">
+                  {from.name} → {to.name}
+                </p>
+                <p className="ps-label text-ink-faint">{arriving ? t('arriveBy') : t('leaveAt')}</p>
+              </div>
 
-          <SaveRoad from={from} to={to} />
-        </section>
-      ) : null}
+              <Suspense fallback={<Waiting text={t('asking')} />}>
+                <Found from={from.id} to={to.id} at={at} arriving={arriving} serverNow={serverNow} />
+              </Suspense>
 
-      <section
-        id="roads"
-        className="block-card animate-rise-in flex scroll-mt-20 flex-col gap-5 px-6 py-6 [animation-delay:120ms] sm:px-8"
-      >
-        <div className="flex flex-col gap-1">
-          <p className="ps-label">{t('roadsTitle')}</p>
-          <p className="text-sm text-ink-muted">{t('roadsHint')}</p>
-        </div>
+              <SaveRoad from={from} to={to} />
+            </section>
+          ) : null}
 
-        <Roads roads={roads} />
+          {/* Список дорог — тихий, без своей карточки: сами дороги нажимаются
+              наверху, кружками, а тут они только переименовываются и удаляются.
+              Пустой список вовсе не рисуется: заводить его нечем, пока не нашёл
+              первый маршрут. */}
+          {roads.length > 0 ? (
+            <section
+              id="roads"
+              className="animate-rise-in flex scroll-mt-20 flex-col gap-3 border-t border-rule-soft px-2 pt-6 [animation-delay:120ms] sm:px-3"
+            >
+              <p className="ps-label">{t('roadsTitle')}</p>
+              <Roads roads={roads} />
+            </section>
+          ) : null}
+        </>
+      )}
 
-        <div id="station" className="flex scroll-mt-20 flex-col gap-3 border-t border-rule pt-5">
-          <div className="flex flex-col gap-1">
-            <p className="ps-label">{t('homeTitle')}</p>
-            <p className="text-sm text-ink-muted">{t('homeHint')}</p>
-          </div>
-          <HomeStation station={home} />
-        </div>
-      </section>
     </div>
   );
 }

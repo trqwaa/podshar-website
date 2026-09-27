@@ -357,7 +357,6 @@
     "boardEmpty": "hier fährt gerade nichts ab",
     "show": "zeigen",
     "roadsTitle": "deine strecken",
-    "roadsHint": "die, die du ständig fährst. den namen kannst du jederzeit ändern",
     "roadName": "name",
     "remember": "merken",
     "remembered": "gemerkt",
@@ -376,6 +375,9 @@
     "wait": "{min} min umsteigen",
     "close": "schliessen",
     "tripHint": "{from} → {to}, {min} min fahrt",
+    "leavesIn": "in {min} min",
+    "ridesLong": "{h} std {min} min fahrt",
+    "rememberRoad": "strecke merken",
     "errors": {
       "invalid": "irgendwas stimmt nicht",
       "notYours": "das ist nicht deine strecke",
