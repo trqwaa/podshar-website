@@ -33,7 +33,7 @@ function Saving({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="h-11 shrink-0 rounded border-2 border-ink px-5 text-base font-medium text-ink transition-colors duration-drape ease-drape hover:bg-sunk disabled:opacity-40"
+      className="h-11 shrink-0 rounded border-2 border-ink px-5 text-base font-medium text-ink ps-press hover:bg-sunk disabled:opacity-40"
     >
       {label}
     </button>
@@ -66,7 +66,7 @@ export function SaveRoad({ from, to }: { from: Station; to: Station }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex items-center gap-2 rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+          className="flex items-center gap-2 rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted ps-press hover:bg-sunk hover:text-ink"
         >
           <BookmarkIcon />
           {t('rememberRoad')}
@@ -87,7 +87,7 @@ export function SaveRoad({ from, to }: { from: Station; to: Station }) {
           autoFocus
           placeholder={`${from.name} → ${to.name}`}
           autoComplete="off"
-          className="h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base placeholder:text-ink-faint"
+          className="h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none ps-press focus:border-ink sm:text-base placeholder:text-ink-faint"
         />
       </label>
       <Saving label={t('remember')} />
@@ -165,7 +165,7 @@ export function RoadRow({
               onClick={() => setEditing(true)}
               aria-label={t('rename')}
               title={t('rename')}
-              className="grid h-8 w-8 place-items-center rounded-full border-2 border-transparent text-ink-faint transition-colors duration-drape ease-drape hover:border-rule hover:text-ink"
+              className="grid h-8 w-8 place-items-center rounded-full border-2 border-transparent text-ink-faint ps-press hover:border-rule hover:text-ink"
             >
               <PencilIcon />
             </button>
@@ -175,7 +175,7 @@ export function RoadRow({
                 type="submit"
                 aria-label={t('forget')}
                 title={t('forget')}
-                className="grid h-8 w-8 place-items-center rounded-full border-2 border-transparent text-ink-faint transition-colors duration-drape ease-drape hover:border-rule hover:text-loss"
+                className="grid h-8 w-8 place-items-center rounded-full border-2 border-transparent text-ink-faint ps-press hover:border-rule hover:text-loss"
               >
                 <TrashIcon />
               </button>
@@ -199,7 +199,7 @@ export function RoadRow({
             maxLength={40}
             autoFocus
             aria-label={t('rename')}
-            className="h-11 min-w-0 flex-1 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base"
+            className="h-11 min-w-0 flex-1 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none ps-press focus:border-ink sm:text-base"
           />
           <Saving label={t('save')} />
         </form>
@@ -208,7 +208,7 @@ export function RoadRow({
         // где видно все варианты, а не только ближайший.
         <Link
           href={`/trains?from=${road.fromId}&to=${road.toId}`}
-          className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 transition-colors duration-drape ease-drape"
+          className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 ps-press"
         >
           {next ? (
             <>
@@ -268,7 +268,7 @@ export function MakeHome({ station, isHome }: { station: Station | null; isHome:
           {t('isHome')}
         </p>
         <input type="hidden" name="stop" value="" />
-        <button type="submit" className="ps-label text-ink-faint transition-colors hover:text-loss">
+        <button type="submit" className="ps-label text-ink-faint ps-press hover:text-loss">
           {t('dropHome')}
         </button>
       </form>
@@ -280,7 +280,7 @@ export function MakeHome({ station, isHome }: { station: Station | null; isHome:
       <input type="hidden" name="stop" value={station.id} />
       <button
         type="submit"
-        className="flex items-center gap-2 rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+        className="flex items-center gap-2 rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted ps-press hover:bg-sunk hover:text-ink"
       >
         <HomeIcon />
         {t('makeHome')}

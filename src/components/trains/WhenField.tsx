@@ -83,8 +83,8 @@ export function WhenField({
         aria-haspopup="dialog"
         className={
           bare
-            ? 'flex w-full items-center gap-3 rounded-block px-5 py-4 text-start text-base text-ink transition-colors duration-drape ease-drape hover:bg-sunk'
-            : 'flex h-11 items-center gap-2 rounded border-2 border-rule bg-canvas px-3 text-base text-ink transition-colors duration-drape ease-drape hover:bg-sunk'
+            ? 'flex w-full items-center gap-3 rounded-block px-5 py-4 text-start text-base text-ink ps-press hover:bg-sunk'
+            : 'flex h-11 items-center gap-2 rounded border-2 border-rule bg-canvas px-3 text-base text-ink ps-press hover:bg-sunk'
         }
       >
         <svg viewBox="0 0 16 16" className={`${bare ? 'h-5 w-5' : 'h-4 w-4'} shrink-0 text-ink-faint`} fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
@@ -122,7 +122,7 @@ export function WhenField({
               type="button"
               onClick={() => onChange({ arrive: !arrive })}
               aria-pressed={arrive}
-              className="ps-label flex w-fit items-center gap-1.5 text-ink-muted transition-colors duration-drape ease-drape hover:text-ink"
+              className="ps-label flex w-fit items-center gap-1.5 text-ink-muted ps-press hover:text-ink"
             >
               {arrive ? t('arriveBy') : t('leaveAt')}
               <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -135,7 +135,7 @@ export function WhenField({
               onChange={(event) => onChange({ clock: event.target.value })}
               // Браузер дорисовывает к полю времени свой крестик и стрелки:
               // очищается тут не час, а весь выбор, кнопкой «сейчас» ниже.
-              className="h-11 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
+              className="h-11 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none ps-press focus:border-ink sm:text-base [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
             />
           </div>
 
@@ -146,14 +146,14 @@ export function WhenField({
                 onChange({ day: '', clock: '', arrive: false });
                 setRound((n) => n + 1);
               }}
-              className="ps-label text-ink-faint transition-colors hover:text-ink"
+              className="ps-label text-ink-faint ps-press hover:text-ink"
             >
               {t('nowInstead')}
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="ps-label text-ink-faint transition-colors hover:text-ink"
+              className="ps-label text-ink-faint ps-press hover:text-ink"
             >
               {t('close')}
             </button>

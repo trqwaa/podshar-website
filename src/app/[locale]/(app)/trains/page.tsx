@@ -210,12 +210,15 @@ export default async function TrainsPage({
                       arriving ? '&mode=arrive' : ''
                     }&more=${more + 1}`}
                     scroll={false}
-                    className="rounded-full border-2 border-rule px-4 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+                    className="rounded-full border-2 border-rule px-4 py-1.5 text-sm text-ink-muted ps-press hover:bg-sunk hover:text-ink"
                   >
                     {t('later')}
                   </Link>
                 ) : null}
-                <SaveRoad from={from} to={to} />
+                {/* `key` по концам: у блока есть своё состояние («запомнил»),
+                    и без ключа оно переезжало на следующий найденный маршрут —
+                    кнопки не было, а надпись уверяла, что дорога уже сохранена. */}
+                <SaveRoad key={`${from.id}-${to.id}`} from={from} to={to} />
               </div>
             </section>
           ) : null}
@@ -252,7 +255,7 @@ function Tab({
     <Link
       href={href}
       aria-current={on ? 'page' : undefined}
-      className={`flex h-11 items-center gap-2 rounded border-2 px-4 text-base transition-colors duration-drape ease-drape ${
+      className={`flex h-11 items-center gap-2 rounded border-2 px-4 text-base ps-press ${
         on ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
       }`}
     >

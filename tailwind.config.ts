@@ -105,7 +105,9 @@ const config: Config = {
         drape: 'cubic-bezier(0.22, 1, 0.36, 1)'
       },
       transitionDuration: {
-        drape: '420ms'
+        drape: '420ms',
+        // Отклик кнопки: быстрее шторы, иначе нажатие кажется незасчитанным.
+        180: '180ms'
       },
       keyframes: {
         'wisp-drift': {

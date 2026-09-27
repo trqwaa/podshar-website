@@ -107,6 +107,16 @@ export function PinIcon(props: IconProps) {
   );
 }
 
+/** Часы — то, чем уже ездили. У SBB в списке своих стоит ровно он. */
+export function ClockIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <circle cx="8" cy="8" r="5.6" />
+      <path d="M8 4.8V8l2.2 1.5" />
+    </Frame>
+  );
+}
+
 /** Крестик — убрать из списка. */
 export function CrossIcon(props: IconProps) {
   return (

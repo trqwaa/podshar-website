@@ -24,7 +24,7 @@ export function Hint({ children, label }: { children: React.ReactNode; label: st
         onClick={() => setOpen((was) => !was)}
         aria-expanded={open}
         aria-label={label}
-        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 text-[0.6875rem] font-medium leading-none transition-colors duration-drape ease-drape ${
+        className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 text-[0.6875rem] font-medium leading-none ps-press ${
           open ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-faint hover:border-ink hover:text-ink'
         }`}
       >

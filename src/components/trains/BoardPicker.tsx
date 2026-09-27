@@ -31,7 +31,7 @@ export function BoardPicker({ station }: { station: Station | null }) {
       <button
         type="submit"
         disabled={!picked?.id}
-        className="h-11 rounded border-2 border-ink bg-ink px-6 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30"
+        className="h-11 rounded border-2 border-ink bg-ink px-6 text-base font-medium text-canvas ps-press disabled:cursor-not-allowed disabled:opacity-30"
       >
         {t('show')}
       </button>

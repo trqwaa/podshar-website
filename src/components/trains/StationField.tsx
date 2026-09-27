@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { CrossIcon, PinIcon } from '@/components/Icons';
+import { ClockIcon, CrossIcon } from '@/components/Icons';
 import type { Station } from '@/lib/types';
 
 /**
@@ -218,8 +218,8 @@ export function StationField({
         // 16px на телефоне: меньше — и айфон зумит страницу при тапе.
         className={
           bare
-            ? 'w-full border-b-2 border-rule bg-transparent pb-1 text-[1.0625rem] font-medium text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-lg placeholder:font-normal placeholder:text-ink-faint'
-            : 'h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base placeholder:text-ink-faint'
+            ? 'w-full border-b-2 border-rule bg-transparent pb-1 text-[1.0625rem] font-medium text-ink outline-none ps-press focus:border-ink sm:text-lg placeholder:font-normal placeholder:text-ink-faint'
+            : 'h-11 w-full rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none ps-press focus:border-ink sm:text-base placeholder:text-ink-faint'
         }
         value={text}
         onChange={(event) => typed(event.target.value)}
@@ -239,18 +239,18 @@ export function StationField({
         <ul
           id={listId}
           role="listbox"
-          className="animate-pop-in absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border-2 border-ink bg-canvas"
+          className="animate-pop-in absolute left-0 right-0 top-full z-30 mt-2 max-h-80 overflow-y-auto rounded-block border-2 border-ink bg-canvas"
         >
           {/* Заголовок только у своих: он объясняет, откуда взялся список,
               который появился раньше, чем человек что-то набрал. */}
           {!typing && options.length ? (
-            <li className="ps-label border-b-2 border-rule-soft px-3 py-2 text-ink-faint">
+            <li className="ps-label border-b-2 border-rule-soft px-4 py-2.5 text-ink-faint">
               {t('yourStations')}
             </li>
           ) : null}
 
           {options.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-ink-faint">{t('looking')}</li>
+            <li className="px-4 py-3 text-base text-ink-faint">{t('looking')}</li>
           ) : (
             options.map((choice, index) => (
               <li
@@ -258,7 +258,7 @@ export function StationField({
                 id={`${optionId}-${index}`}
                 role="option"
                 aria-selected={index === cursor}
-                className={`flex items-center border-b border-rule-soft last:border-b-0 transition-colors duration-drape ease-drape ${
+                className={`group flex items-center border-b border-rule-soft last:border-b-0 ps-press ${
                   index === cursor ? 'bg-sunk' : 'hover:bg-sunk'
                 }`}
               >
@@ -274,7 +274,7 @@ export function StationField({
                     index === cursor ? 'text-ink' : 'text-ink-muted'
                   }`}
                 >
-                  <PinIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
+                  <ClockIcon className="h-4 w-4 shrink-0 text-ink-faint" />
                   <span className="truncate">{choice.name}</span>
                 </button>
 
@@ -289,7 +289,7 @@ export function StationField({
                     }}
                     aria-label={t('hideStation')}
                     title={t('hideStation')}
-                    className="grid h-8 w-8 shrink-0 place-items-center text-ink-faint transition-colors duration-drape ease-drape hover:text-loss"
+                    className="me-2 grid h-8 w-8 shrink-0 place-items-center text-ink-faint opacity-0 ps-press hover:text-loss focus-visible:opacity-100 group-hover:opacity-100"
                   >
                     <CrossIcon className="h-3.5 w-3.5" />
                   </button>

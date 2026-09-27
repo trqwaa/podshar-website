@@ -83,17 +83,33 @@ export function SearchForm({
         go();
       }}
     >
-      {/* Каждому своё поле — свой блок. Владелец про это сказал прямо: всё в
-          одной рамке читается кашей, и волосяные линии внутри неё не спасают.
-          Раскладка — по его же наброску: широкий блок с маршрутом сверху, под
-          ним два рядом, снизу полоса готовых дорог.
+      {/* Концы маршрута — один блок, поля друг под другом, как у SBB. Рядом
+          они смотрелись двумя независимыми вопросами; в столбик это один
+          вопрос с двумя концами, и точки с пунктиром между ними говорят это
+          без единого слова. Оттуда же и то, что список станций падает во всю
+          ширину блока, накрывая второе поле: он и есть сейчас главное.
 
-          `z-30` — списки станций всплывают отсюда и должны лежать поверх
-          соседних блоков, а не под ними. */}
-      <div className="block-card relative z-30 flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-end sm:gap-3 sm:px-6">
-        <div className="flex min-w-0 flex-1 items-end gap-3">
-          <Dot />
-          <StationField name="from" label={t('from')} station={a} onPick={setA} suggest={known} bare />
+          `z-30` — список всплывает отсюда и должен лежать поверх соседних
+          блоков, а не под ними. */}
+      <div className="block-card relative z-30 flex items-stretch gap-3 px-5 py-4 sm:gap-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-end gap-3">
+            <Dot />
+            <StationField name="from" label={t('from')} station={a} onPick={setA} suggest={known} bare />
+          </div>
+
+          {/* Пунктир между точками: нитка, та же, что потом покажет поездку. */}
+          <div className="flex items-center gap-3 py-1.5">
+            <span className="flex w-3 shrink-0 justify-center" aria-hidden="true">
+              <span className="h-4 w-0 border-l-2 border-dotted border-rule" />
+            </span>
+            <span className="h-px flex-1 bg-rule-soft" />
+          </div>
+
+          <div className="flex items-end gap-3">
+            <Dot hollow />
+            <StationField name="to" label={t('to')} station={b} onPick={setB} suggest={known} bare />
+          </div>
         </div>
 
         <button
@@ -103,28 +119,14 @@ export function SearchForm({
             setA(b);
             setB(was);
           }}
-          className="grid h-10 w-10 shrink-0 place-items-center self-center rounded-full border-2 border-rule text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink sm:mb-0 sm:self-end"
+          className="grid h-10 w-10 shrink-0 place-items-center self-center rounded-full border-2 border-rule text-ink-muted ps-press hover:bg-sunk hover:text-ink"
           aria-label={t('swap')}
           title={t('swap')}
         >
-          <svg
-            viewBox="0 0 16 16"
-            // Стрелки показывают ту сторону, в которую концы поменяются
-            // местами: на телефоне поля друг под другом, на столе — рядом.
-            className="h-4 w-4 sm:-rotate-90"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            aria-hidden="true"
-          >
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
             <path d="M4.5 2.5v11M4.5 13.5 2 11M11.5 13.5v-11M11.5 2.5 14 5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-
-        <div className="flex min-w-0 flex-1 items-end gap-3">
-          <Dot hollow />
-          <StationField name="to" label={t('to')} station={b} onPick={setB} suggest={known} bare />
-        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -145,7 +147,7 @@ export function SearchForm({
         <button
           type="submit"
           disabled={!ready}
-          className="flex items-center justify-center gap-2 rounded-block border-2 border-ink bg-ink px-8 py-4 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30 sm:py-0"
+          className="flex items-center justify-center gap-2 rounded-block border-2 border-ink bg-ink px-8 py-4 text-base font-medium text-canvas ps-press disabled:cursor-not-allowed disabled:opacity-30 sm:py-0"
         >
           <SearchIcon className="h-5 w-5" />
           {t('search')}
@@ -215,7 +217,7 @@ function Quick({ onClick, children }: { onClick: () => void; children: React.Rea
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+      className="rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted ps-press hover:bg-sunk hover:text-ink"
     >
       {children}
     </button>
