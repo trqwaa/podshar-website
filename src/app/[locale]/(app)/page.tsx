@@ -1,4 +1,6 @@
 import { Suspense } from 'react';
+
+import { HardHatIcon } from '@/components/Icons';
 import { getTranslations } from 'next-intl/server';
 
 import { Greeting } from '@/components/Greeting';
@@ -150,7 +152,10 @@ export default async function HomePage({
           то, что каждый соберёт себе сам, или под новости сайта. Решение от
           27 сентября 2026; пока честно написано, что здесь стройка. */}
       <section className="block-card animate-rise-in flex flex-col gap-2 p-6 [animation-delay:300ms] md:col-span-4">
-        <p className="ps-label">{t('slotLabel')}</p>
+        <p className="ps-label flex items-center gap-2">
+          <HardHatIcon className="h-4 w-4 text-ink-faint" />
+          {t('slotLabel')}
+        </p>
         <p className="text-base leading-relaxed text-ink-muted">{t('slotHint')}</p>
       </section>
 

@@ -232,6 +232,14 @@ export type JourneyQuery = {
   /** `when` — это когда надо быть на месте, а не когда выезжать. */
   arriving?: boolean;
   limit?: number;
+  /**
+   * Какая порция. 0 — ближайшие, 1 и 2 — то, что идёт позже.
+   *
+   * Замерено 27 сентября 2026: страницы 0, 1 и 2 дают разные отрезки
+   * (13:06, 14:44, 15:44), а третья и дальше повторяют вторую. Значит три
+   * порции — это всё, что источник умеет, и просить больше нечего.
+   */
+  page?: number;
 };
 
 /**
@@ -247,6 +255,7 @@ export async function journeys(q: JourneyQuery): Promise<Journey[]> {
     to: q.to,
     limit: String(q.limit ?? 6)
   };
+  if (q.page) params.page = String(Math.min(2, Math.max(0, q.page)));
 
   if (q.when) {
     const parts = new Intl.DateTimeFormat('en-CA', {

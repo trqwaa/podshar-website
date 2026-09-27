@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 
 import { useRouter } from '@/i18n/routing';
 import type { Station } from '@/lib/types';
+import { SearchIcon } from '@/components/Icons';
 import { StationField } from './StationField';
 import { WhenField } from './WhenField';
 
@@ -136,8 +137,9 @@ export function SearchForm({
         <button
           type="submit"
           disabled={!ready}
-          className="h-11 w-full rounded border-2 border-ink bg-ink px-6 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30 sm:ms-auto sm:w-auto"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded border-2 border-ink bg-ink px-6 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30 sm:ms-auto sm:w-auto"
         >
+          <SearchIcon />
           {t('search')}
         </button>
       </div>

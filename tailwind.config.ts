@@ -136,6 +136,19 @@ const config: Config = {
           '0%, 70%, 100%': { transform: 'translateY(0)', opacity: '0.3' },
           '35%': { transform: 'translateY(-4px)', opacity: '0.85' }
         },
+        // Панель, которая выпрыгивает из кнопки: чуть меньше, чуть выше и
+        // прозрачная — за 220 мс на месте. Дольше делает её дверью, короче
+        // превращает в мигание.
+        'pop-in': {
+          from: { opacity: '0', transform: 'translateY(-6px) scale(0.97)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' }
+        },
+        // Колонка с расписанным путём приезжает сбоку — оттуда, куда на неё и
+        // смотрят, нажав поездку слева.
+        'slide-in': {
+          from: { opacity: '0', transform: 'translateX(12px)' },
+          to: { opacity: '1', transform: 'translateX(0)' }
+        },
         // On and off, never in between: a caret that fades is a caret that looks
         // like it is being animated. This one looks like a cursor.
         'caret-blink': {
@@ -149,7 +162,9 @@ const config: Config = {
         breathe: 'breathe 3.6s cubic-bezier(0.45, 0, 0.55, 1) infinite',
         'sun-turn': 'sun-turn 48s linear infinite',
         'dot-hop': 'dot-hop 1.15s cubic-bezier(0.45, 0, 0.55, 1) infinite',
-        'caret-blink': 'caret-blink 1.05s steps(1, end) infinite'
+        'caret-blink': 'caret-blink 1.05s steps(1, end) infinite',
+        'pop-in': 'pop-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'slide-in': 'slide-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both'
       }
     }
   },

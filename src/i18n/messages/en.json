@@ -335,7 +335,6 @@
     "in": "{min} min",
     "now": "leaving",
     "title": "trains",
-    "kicker": "where to",
     "intro": "from, to and when. the station is picked from a list, not guessed.",
     "from": "from",
     "to": "to",
@@ -383,6 +382,8 @@
     "isHome": "this is your station",
     "dropHome": "unset",
     "whatIsThis": "what is this",
+    "heading": "where to?",
+    "later": "later ones",
     "errors": {
       "invalid": "something is off",
       "notYours": "that route is not yours",

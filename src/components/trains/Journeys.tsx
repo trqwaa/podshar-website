@@ -8,36 +8,51 @@ import { Modal } from '@/components/Modal';
 import type { Journey } from '@/lib/types';
 
 /**
- * Найденные поездки.
+ * Найденные поездки: список слева, расписанный путь справа.
  *
- * Строки лежат прямо на странице, без своей белой карточки. Шесть одинаковых
- * карточек подряд читаются как лента, в которой ничего не различить, — а тут
- * и так шесть почти одинаковых строк, и единственное, что их отличает, это
- * время и пересадки. Пусть различает оно, а не рамка.
+ * Раскладка взята у SBB, и по делу: выбранная поездка не прячется в окне, а
+ * стоит рядом со списком, так что «а следующая как?» — это взгляд вбок, а не
+ * закрыть-открыть. Список остаётся на месте, и видно, из чего выбираешь.
  *
- * Поездка раскрывается **окном поверх страницы**, а не гармошкой внутри
- * списка. Разворот на месте сдвигал всё, что ниже, и читать нитку маршрута
- * приходилось, придерживая глазами место, откуда она выехала. В окне нитка
- * получает целый экран, а список остаётся там, где его оставили.
+ * Колонки появляются с `lg`. На телефоне их негде поставить, поэтому там то же
+ * содержимое показывается окном поверх страницы. Ширина узнаётся после
+ * монтирования, и это безопасно: до первого нажатия показывать нечего, значит
+ * и расходиться серверной разметке не с чем.
  *
- * Часы пишутся по Цюриху и на сервере, и в браузере, поэтому «18:04» совпадает
- * и гидратация молчит. «Через семь минут» существует только после
- * монтирования: это другое число каждую минуту, и написанное на сервере оно
- * было бы ошибкой гидратации.
+ * Часы пишутся по Цюриху на обеих сторонах, поэтому «18:04» совпадает. «Через
+ * семь минут» живёт только после монтирования: это другое число каждую минуту,
+ * и написанное на сервере оно было бы ошибкой гидратации.
  */
 export function Journeys({ list, serverNow }: { list: Journey[]; serverNow: number }) {
   const t = useTranslations('trains');
   const locale = useLocale();
   const [now, setNow] = useState(serverNow);
   const [mounted, setMounted] = useState(false);
-  const [shown, setShown] = useState<Journey | null>(null);
+  const [wide, setWide] = useState(false);
+  const [chosen, setChosen] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
     setNow(Date.now());
     const tick = setInterval(() => setNow(Date.now()), 15_000);
-    return () => clearInterval(tick);
+
+    const media = window.matchMedia('(min-width: 1024px)');
+    const follow = () => setWide(media.matches);
+    follow();
+    media.addEventListener('change', follow);
+
+    return () => {
+      clearInterval(tick);
+      media.removeEventListener('change', follow);
+    };
   }, []);
+
+  // На широком экране правая колонка не должна пустовать: SBB тоже раскрывает
+  // первую поездку сразу, и это верно — пустая колонка выглядит сломанной, а
+  // не ждущей.
+  useEffect(() => {
+    if (wide && chosen === null && list.length) setChosen(0);
+  }, [wide, chosen, list.length]);
 
   const clock = useMemo(
     () =>
@@ -54,77 +69,104 @@ export function Journeys({ list, serverNow }: { list: Journey[]; serverNow: numb
     return <p className="px-1 text-base font-medium text-ink-muted">{t('nothingFound')}</p>;
   }
 
+  const shown = chosen === null ? null : (list[chosen] ?? null);
+  const ride = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    return hours > 0 ? t('ridesLong', { h: hours, min: minutes % 60 }) : t('rides', { min: minutes });
+  };
+
   return (
     <>
-      {/* Каждая поездка — свой блок, как на табло у SBB: сверху чем едешь,
-          посередине время и нитка, снизу мелочи. Плоский список строк читался
-          как таблица, в которой всё одинаковое; блок даёт поездке границу, а
-          нитка внутри сразу показывает, сколько раз пересаживаться. */}
-      <ul className="flex flex-col gap-2">
-        {list.map((journey, index) => {
-          const mins = Math.round((journey.departs + journey.delay * 60_000 - now) / 60_000);
-          const leaving = mounted && mins >= 0 && mins < 90;
-          const hours = Math.floor(journey.minutes / 60);
+      <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+        <ul className="flex flex-col gap-2">
+          {list.map((journey, index) => {
+            const mins = Math.round((journey.departs + journey.delay * 60_000 - now) / 60_000);
+            const leaving = mounted && mins >= 0 && mins < 90;
+            const open = wide && chosen === index;
 
-          return (
-            <li key={`${journey.departs}-${index}`}>
-              <button
-                type="button"
-                onClick={() => setShown(journey)}
-                aria-haspopup="dialog"
-                className="w-full rounded-block border-2 border-rule bg-canvas p-4 text-left transition-colors duration-drape ease-drape hover:border-ink hover:bg-sunk"
+            return (
+              <li
+                key={`${journey.departs}-${index}`}
+                className="animate-rise-in"
+                // Лесенкой, а не все разом: список так читается сверху вниз, а
+                // не вспыхивает. Дальше десятой карточки задержку не растим —
+                // ждать своей очереди полсекунды уже раздражает.
+                style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
               >
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  {journey.legs.map((leg, i) => (
-                    <Badge key={`${leg.line}-${i}`}>{leg.line}</Badge>
-                  ))}
-                  {journey.legs[0]?.head ? (
-                    <span className="min-w-0 truncate text-sm text-ink-muted">
-                      {t('towards', { head: journey.legs[0].head })}
+                <button
+                  type="button"
+                  onClick={() => setChosen(index)}
+                  aria-haspopup={wide ? undefined : 'dialog'}
+                  aria-current={open ? 'true' : undefined}
+                  className={`w-full rounded-block border-2 bg-canvas p-4 text-left transition-colors duration-drape ease-drape hover:bg-sunk ${
+                    open ? 'border-ink' : 'border-rule hover:border-ink'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {journey.legs.map((leg, i) => (
+                      <Badge key={`${leg.line}-${i}`}>{leg.line}</Badge>
+                    ))}
+                    {journey.legs[0]?.head ? (
+                      <span className="min-w-0 truncate text-sm text-ink-muted">
+                        {t('towards', { head: journey.legs[0].head })}
+                      </span>
+                    ) : null}
+                    {journey.delay > 0 ? (
+                      <span className="text-sm font-medium text-loss">{t('delay', { min: journey.delay })}</span>
+                    ) : null}
+                    {leaving ? (
+                      <span className="ps-label ms-auto shrink-0 text-ink-faint">
+                        {mins === 0 ? t('now') : t('leavesIn', { min: mins })}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="text-2xl font-medium tabular-nums leading-none text-ink">
+                      {clock.format(journey.departs)}
                     </span>
-                  ) : null}
-                  {journey.delay > 0 ? (
-                    <span className="text-sm font-medium text-loss">{t('delay', { min: journey.delay })}</span>
-                  ) : null}
-                  {leaving ? (
-                    <span className="ps-label ms-auto shrink-0 text-ink-faint">
-                      {mins === 0 ? t('now') : t('leavesIn', { min: mins })}
+                    <MiniThread transfers={journey.transfers} />
+                    <span className="text-2xl font-medium tabular-nums leading-none text-ink">
+                      {clock.format(journey.arrives)}
                     </span>
-                  ) : null}
-                </div>
+                  </div>
 
-                <div className="mt-3 flex items-center gap-3">
-                  <span className="text-2xl font-medium tabular-nums leading-none text-ink">
-                    {clock.format(journey.departs)}
-                  </span>
-                  <MiniThread transfers={journey.transfers} />
-                  <span className="text-2xl font-medium tabular-nums leading-none text-ink">
-                    {clock.format(journey.arrives)}
-                  </span>
-                </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
+                    {journey.platform ? <span>{t('platform', { platform: journey.platform })}</span> : null}
+                    <span>{t('transfers', { count: journey.transfers })}</span>
+                    <span className="ms-auto shrink-0">{ride(journey.minutes)}</span>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
 
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-                  {journey.platform ? <span>{t('platform', { platform: journey.platform })}</span> : null}
-                  <span>{t('transfers', { count: journey.transfers })}</span>
-                  {index === 0 && leaving ? (
-                    <span className="ps-label text-ink-faint">{t('soonest')}</span>
-                  ) : null}
-                  <span className="ms-auto shrink-0">
-                    {hours > 0
-                      ? t('ridesLong', { h: hours, min: journey.minutes % 60 })
-                      : t('rides', { min: journey.minutes })}
-                  </span>
-                </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+        {/* Правая колонка. `sticky` — чтобы при длинном списке путь оставался
+            перед глазами, а не уезжал вверх вместе с ним. */}
+        {wide && shown ? (
+          <aside
+            // `key` по выбранной поездке — чтобы приезд отыгрывался заново на
+            // каждый выбор, а не один раз за жизнь колонки.
+            key={chosen}
+            className="animate-slide-in rounded-block border-2 border-rule bg-canvas p-5 lg:sticky lg:top-24"
+          >
+            <p className="text-lg font-medium leading-tight text-ink">
+              {shown.legs[0]?.from ?? '?'} → {shown.legs[shown.legs.length - 1]?.to ?? '?'}
+            </p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {clock.format(shown.departs)} → {clock.format(shown.arrives)}, {ride(shown.minutes)}
+            </p>
+            <div className="mt-4 border-t border-rule-soft pt-4">
+              <Thread journey={shown} clock={clock} />
+            </div>
+          </aside>
+        ) : null}
+      </div>
 
-      {/* Без `AnimatePresence` окно исчезает мгновенно и не отыгрывает уход —
-          та же причина, по которой в неё завёрнуты патчи и погода. */}
+      {/* На телефоне колонку ставить некуда — там то же самое окном. */}
       <AnimatePresence>
-        {shown ? (
+        {!wide && shown ? (
           <Modal
             key="trip"
             title={`${shown.legs[0]?.from ?? '?'} → ${shown.legs[shown.legs.length - 1]?.to ?? '?'}`}
@@ -134,7 +176,7 @@ export function Journeys({ list, serverNow }: { list: Journey[]; serverNow: numb
               min: shown.minutes
             })}
             close={t('close')}
-            onClose={() => setShown(null)}
+            onClose={() => setChosen(null)}
           >
             <Thread journey={shown} clock={clock} />
           </Modal>
@@ -144,10 +186,17 @@ export function Journeys({ list, serverNow }: { list: Journey[]; serverNow: numb
   );
 }
 
+function Badge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded border border-rule px-1.5 py-0.5 text-xs font-medium text-ink-muted">
+      {children}
+    </span>
+  );
+}
+
 /**
  * Маршрут одной чертой: точка — линия — точка, и по пустой точке на каждую
- * пересадку. Это то же самое, что нитка в окне, ужатое до одной строки: сколько
- * раз выходить, видно, не открывая поездку.
+ * пересадку. Сколько раз выходить, видно, не открывая поездку.
  */
 function MiniThread({ transfers }: { transfers: number }) {
   return (
@@ -177,20 +226,12 @@ function Wire() {
   return <span className="h-0.5 min-w-0 flex-1 bg-rule" />;
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded border border-rule px-1.5 py-0.5 text-xs font-medium text-ink-muted">
-      {children}
-    </span>
-  );
-}
-
 /**
  * Нитка маршрута: точки станций, линия поезда между ними, разрывы на пересадках.
  *
  * Рисуется рамками и заливками, без теней — как и всё остальное на сайте.
- * Левая колонка фиксированной ширины держит вертикаль: без неё точки разъезжа-
- * ются, когда у станций разной длины названия.
+ * Левая колонка фиксированной ширины держит вертикаль: без неё точки
+ * разъезжаются, когда у станций разной длины названия.
  */
 function Thread({ journey, clock }: { journey: Journey; clock: Intl.DateTimeFormat }) {
   const t = useTranslations('trains');

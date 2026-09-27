@@ -93,7 +93,7 @@ export function WhenField({
         <div
           role="dialog"
           aria-label={t('when')}
-          className="absolute start-0 top-full z-30 mt-1 flex w-[min(20rem,calc(100vw-2.5rem))] flex-col gap-3 rounded-block border-2 border-ink bg-surface p-3"
+          className="animate-pop-in absolute start-0 top-full z-30 mt-1 flex w-[min(20rem,calc(100vw-2.5rem))] flex-col gap-3 rounded-block border-2 border-ink bg-surface p-3"
         >
           <DayField
             key={round}

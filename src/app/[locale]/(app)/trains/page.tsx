@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 
 import { Hint } from '@/components/Hint';
+import { BoardIcon, RouteIcon } from '@/components/Icons';
 import { Board } from '@/components/trains/Board';
 import { BoardPicker } from '@/components/trains/BoardPicker';
 import { Journeys } from '@/components/trains/Journeys';
@@ -21,7 +22,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return { title: t('title') };
 }
 
-type Query = { from?: string; to?: string; at?: string; mode?: string; board?: string; view?: string };
+type Query = {
+  from?: string;
+  to?: string;
+  at?: string;
+  mode?: string;
+  board?: string;
+  view?: string;
+  /** Сколько лишних порций поездок подгрузить: 0, 1 или 2. */
+  more?: string;
+};
 
 /**
  * Поезда: как отсюда попасть туда.
@@ -81,6 +91,7 @@ export default async function TrainsPage({
   const arriving = query.mode === 'arrive';
   const at = typeof query.at === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(query.at) ? query.at : '';
 
+  const more = Math.min(2, Math.max(0, Number(query.more) || 0));
   const onBoard = query.view === 'board';
   // Табло: что попросили, иначе станция поиска, иначе своя, иначе HB.
   const asked = pickStop(query.board);
@@ -108,22 +119,28 @@ export default async function TrainsPage({
   const backToRoute = from && to ? `/trains?from=${from.id}&to=${to.id}` : '/trains';
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-3 sm:p-4">
-      <section className="block-card animate-rise-in flex flex-col gap-6 px-6 py-6 sm:px-8">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-3 sm:p-4">
+      {/* `relative z-20` — не украшение: списки станций и панель «когда»
+          всплывают внутри этой карточки, а секции ниже идут в потоке после
+          неё и рисовались поверх. Панель открывалась и оказывалась под
+          первой же найденной поездкой. */}
+      <section className="block-card animate-rise-in relative z-20 flex flex-col gap-6 px-6 py-6 sm:px-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <p className="ps-label">{t('kicker')}</p>
-            <h1 className="text-greeting font-medium leading-none text-ink">{t('title')}</h1>
+            {/* Над заголовком — название раздела, а не пересказ заголовка: «куда
+                едем» дважды подряд читалось как заикание. */}
+            <p className="ps-label">{t('title')}</p>
+            <h1 className="text-greeting font-medium leading-none text-ink">{t('heading')}</h1>
           </div>
 
           {/* Две вкладки — ссылками, а не состоянием: обе половины считаются на
               сервере, и обе должны жить в адресе. Вид тот же, что у масштабов
               календаря, — на сайте это уже язык «выбери одно из». */}
           <nav className="flex shrink-0 items-center gap-1" aria-label={t('kicker')}>
-            <Tab href={backToRoute} on={!onBoard}>
+            <Tab href={backToRoute} on={!onBoard} icon={<RouteIcon />}>
               {t('tabRoute')}
             </Tab>
-            <Tab href={`/trains?view=board&board=${boardStop}`} on={onBoard}>
+            <Tab href={`/trains?view=board&board=${boardStop}`} on={onBoard} icon={<BoardIcon />}>
               {t('boardTitle')}
             </Tab>
           </nav>
@@ -178,10 +195,30 @@ export default async function TrainsPage({
               </p>
 
               <Suspense fallback={<Waiting text={t('asking')} />}>
-                <Found from={from.id} to={to.id} at={at} arriving={arriving} serverNow={serverNow} />
+                <Found
+                  from={from.id}
+                  to={to.id}
+                  at={at}
+                  arriving={arriving}
+                  more={more}
+                  serverNow={serverNow}
+                />
               </Suspense>
 
-              <SaveRoad from={from} to={to} />
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                {more < 2 ? (
+                  <Link
+                    href={`/trains?from=${from.id}&to=${to.id}${at ? `&at=${at}` : ''}${
+                      arriving ? '&mode=arrive' : ''
+                    }&more=${more + 1}`}
+                    scroll={false}
+                    className="rounded-full border-2 border-rule px-4 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+                  >
+                    {t('later')}
+                  </Link>
+                ) : null}
+                <SaveRoad from={from} to={to} />
+              </div>
             </section>
           ) : null}
 
@@ -202,15 +239,26 @@ export default async function TrainsPage({
   );
 }
 
-function Tab({ href, on, children }: { href: string; on: boolean; children: React.ReactNode }) {
+function Tab({
+  href,
+  on,
+  icon,
+  children
+}: {
+  href: string;
+  on: boolean;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}
       aria-current={on ? 'page' : undefined}
-      className={`grid h-11 place-items-center rounded border-2 px-4 text-base transition-colors duration-drape ease-drape ${
+      className={`flex h-11 items-center gap-2 rounded border-2 px-4 text-base transition-colors duration-drape ease-drape ${
         on ? 'border-ink bg-ink text-canvas' : 'border-rule text-ink-muted hover:bg-sunk hover:text-ink'
       }`}
     >
+      {icon}
       {children}
     </Link>
   );
@@ -251,19 +299,34 @@ async function Found({
   to,
   at,
   arriving,
+  more,
   serverNow
 }: {
   from: string;
   to: string;
   at: string;
   arriving: boolean;
+  more: number;
   serverNow: number;
 }) {
   const t = await getTranslations('trains');
   const when = at ? zurich(at) : null;
 
   try {
-    const list = await journeys({ from, to, when, arriving });
+    // Порции идут параллельно и склеиваются: каждая лежит в своём кеше, и
+    // «ещё» второй раз стоит одного нового запроса, а не всех заново.
+    const pages = await Promise.all(
+      Array.from({ length: more + 1 }, (_, page) => journeys({ from, to, when, arriving, page }))
+    );
+    const list: typeof pages[number] = [];
+    for (const page of pages) {
+      for (const journey of page) {
+        if (!list.some((had) => had.departs === journey.departs && had.arrives === journey.arrives)) {
+          list.push(journey);
+        }
+      }
+    }
+    list.sort((a, b) => a.departs - b.departs);
     return <Journeys list={list} serverNow={serverNow} />;
   } catch (error) {
     console.warn('[podshar] SBB не ответили на поиск:', error instanceof Error ? error.message : error);

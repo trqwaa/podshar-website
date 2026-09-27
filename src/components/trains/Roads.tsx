@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { BookmarkIcon, HomeIcon, PencilIcon, TrashIcon } from '@/components/Icons';
 import { Link } from '@/i18n/routing';
 import { removeRoad, renameRoad, saveRoad, setHomeStation } from '@/lib/travel/actions';
 import type { Journey, SavedRoad, Station } from '@/lib/types';
@@ -65,8 +66,9 @@ export function SaveRoad({ from, to }: { from: Station; to: Station }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+          className="flex items-center gap-2 rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
         >
+          <BookmarkIcon />
           {t('rememberRoad')}
         </button>
       </div>
@@ -155,17 +157,27 @@ export function RoadRow({
 
         {editing ? null : (
           <div className="flex shrink-0 items-center gap-3">
+            {/* Значками, а не словами: две подписи в углу карточки спорили с
+                названием дороги за внимание. Слово никуда не делось — оно в
+                `aria-label` и во всплывающей подсказке. */}
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="ps-label text-ink-faint transition-colors hover:text-ink"
+              aria-label={t('rename')}
+              title={t('rename')}
+              className="grid h-8 w-8 place-items-center rounded-full border-2 border-transparent text-ink-faint transition-colors duration-drape ease-drape hover:border-rule hover:text-ink"
             >
-              {t('rename')}
+              <PencilIcon />
             </button>
             <form action={remove}>
               <input type="hidden" name="id" value={road.id} />
-              <button type="submit" className="ps-label text-ink-faint transition-colors hover:text-loss">
-                {t('forget')}
+              <button
+                type="submit"
+                aria-label={t('forget')}
+                title={t('forget')}
+                className="grid h-8 w-8 place-items-center rounded-full border-2 border-transparent text-ink-faint transition-colors duration-drape ease-drape hover:border-rule hover:text-loss"
+              >
+                <TrashIcon />
               </button>
             </form>
           </div>
@@ -251,7 +263,10 @@ export function MakeHome({ station, isHome }: { station: Station | null; isHome:
   if (isHome && !state.station) {
     return (
       <form action={action} className="flex flex-wrap items-center gap-3">
-        <p className="text-sm text-ink-muted">{t('isHome')}</p>
+        <p className="flex items-center gap-2 text-sm text-ink-muted">
+          <HomeIcon className="h-4 w-4 text-ink" />
+          {t('isHome')}
+        </p>
         <input type="hidden" name="stop" value="" />
         <button type="submit" className="ps-label text-ink-faint transition-colors hover:text-loss">
           {t('dropHome')}
@@ -265,8 +280,9 @@ export function MakeHome({ station, isHome }: { station: Station | null; isHome:
       <input type="hidden" name="stop" value={station.id} />
       <button
         type="submit"
-        className="rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
+        className="flex items-center gap-2 rounded-full border-2 border-rule px-3 py-1.5 text-sm text-ink-muted transition-colors duration-drape ease-drape hover:bg-sunk hover:text-ink"
       >
+        <HomeIcon />
         {t('makeHome')}
       </button>
       {state.error ? <p className="text-sm text-loss">{t(`errors.${state.error}`)}</p> : null}

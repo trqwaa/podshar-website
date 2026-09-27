@@ -199,7 +199,7 @@ export function StationField({
         <ul
           id={listId}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border-2 border-ink bg-canvas"
+          className="animate-pop-in absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border-2 border-ink bg-canvas"
         >
           {options.length === 0 ? (
             <li className="px-3 py-2 text-sm text-ink-faint">{t('looking')}</li>

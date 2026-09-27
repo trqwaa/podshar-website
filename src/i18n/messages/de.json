@@ -335,7 +335,6 @@
     "in": "{min} min",
     "now": "fährt ab",
     "title": "züge",
-    "kicker": "wohin",
     "intro": "von, nach und wann. die station wird aus einer liste gewählt, nicht geraten.",
     "from": "von",
     "to": "nach",
@@ -383,6 +382,8 @@
     "isHome": "das ist deine station",
     "dropHome": "entfernen",
     "whatIsThis": "was ist das",
+    "heading": "wohin?",
+    "later": "spätere",
     "errors": {
       "invalid": "irgendwas stimmt nicht",
       "notYours": "das ist nicht deine strecke",
