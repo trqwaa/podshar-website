@@ -286,8 +286,7 @@
     "footerLove": "mit liebe gemacht von drei süssen mistkerlen",
     "footerTelegram": "unsere Telegram-Gruppe",
     "footerRights": "© 2026 podshar · alle rechte verspottet, mistkerle vorbehalten",
-    "slotLabel": "gerade im umbau",
-    "slotHint": "hier steht später, was du selbst hinstellst, oder die neuigkeiten. die züge sind in ihren eigenen bereich gezogen"
+    "slotSoon": "bald"
   },
   "weather": {
     "label": "wetter",
@@ -384,6 +383,8 @@
     "whatIsThis": "was ist das",
     "heading": "wohin?",
     "later": "spätere",
+    "yourStations": "deine stationen",
+    "hideStation": "aus der liste nehmen",
     "errors": {
       "invalid": "irgendwas stimmt nicht",
       "notYours": "das ist nicht deine strecke",

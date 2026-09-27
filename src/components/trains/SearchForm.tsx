@@ -77,13 +77,20 @@ export function SearchForm({
 
   return (
     <form
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault();
         go();
       }}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-3">
+      {/* Каждому своё поле — свой блок. Владелец про это сказал прямо: всё в
+          одной рамке читается кашей, и волосяные линии внутри неё не спасают.
+          Раскладка — по его же наброску: широкий блок с маршрутом сверху, под
+          ним два рядом, снизу полоса готовых дорог.
+
+          `z-30` — списки станций всплывают отсюда и должны лежать поверх
+          соседних блоков, а не под ними. */}
+      <div className="block-card relative z-30 flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-end sm:gap-3 sm:px-6">
         <div className="flex min-w-0 flex-1 items-end gap-3">
           <Dot />
           <StationField name="from" label={t('from')} station={a} onPick={setA} suggest={known} bare />
@@ -120,37 +127,40 @@ export function SearchForm({
         </div>
       </div>
 
-      {/* Когда ехать — одной кнопкой. Три контрола подряд превращали карточку
-          поиска в панель приборов, а она должна читаться как визитка. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <WhenField
-          day={day}
-          clock={clock}
-          arrive={arrive}
-          onChange={(next) => {
-            if (next.day !== undefined) setDay(next.day);
-            if (next.clock !== undefined) setClock(next.clock);
-            if (next.arrive !== undefined) setArrive(next.arrive);
-          }}
-        />
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="block-card relative z-20 min-w-0 flex-1">
+          <WhenField
+            day={day}
+            clock={clock}
+            arrive={arrive}
+            bare
+            onChange={(next) => {
+              if (next.day !== undefined) setDay(next.day);
+              if (next.clock !== undefined) setClock(next.clock);
+              if (next.arrive !== undefined) setArrive(next.arrive);
+            }}
+          />
+        </div>
 
         <button
           type="submit"
           disabled={!ready}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded border-2 border-ink bg-ink px-6 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30 sm:ms-auto sm:w-auto"
+          className="flex items-center justify-center gap-2 rounded-block border-2 border-ink bg-ink px-8 py-4 text-base font-medium text-canvas transition-opacity duration-drape ease-drape disabled:cursor-not-allowed disabled:opacity-30 sm:py-0"
         >
-          <SearchIcon />
+          <SearchIcon className="h-5 w-5" />
           {t('search')}
         </button>
       </div>
 
-      {!ready && (a?.id || b?.id) ? <p className="text-sm text-ink-faint">{t('pickBoth')}</p> : null}
+      {!ready && (a?.id || b?.id) ? (
+        <p className="px-2 text-sm text-ink-faint sm:px-3">{t('pickBoth')}</p>
+      ) : null}
 
       {/* Дом и свои — «подставить и сразу искать»: человек, нажавший «домой»,
           пришёл за поездом, а не за заполненной формой. Сохранённых дорог тут
           нет намеренно: они лежат ниже карточками и показывают время сами. */}
       {anyQuick ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-rule-soft pt-4">
+        <div className="block-card flex flex-wrap items-center gap-2 px-5 py-4 sm:px-6">
           <span className="ps-label me-1 text-ink-faint">{t('quick')}</span>
 
           {home ? (
@@ -175,7 +185,6 @@ export function SearchForm({
               {t('toFriend', { name: friend.name })}
             </Quick>
           ))}
-
         </div>
       ) : null}
     </form>

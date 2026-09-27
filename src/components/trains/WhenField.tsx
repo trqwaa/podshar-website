@@ -25,7 +25,8 @@ export function WhenField({
   day,
   clock,
   arrive,
-  onChange
+  onChange,
+  bare = false
 }: {
   /** «ГГГГ-ММ-ДД» или пусто — «сейчас». */
   day: string;
@@ -33,6 +34,8 @@ export function WhenField({
   clock: string;
   arrive: boolean;
   onChange: (next: { day?: string; clock?: string; arrive?: boolean }) => void;
+  /** Без своей рамки: кнопка становится половиной блока, а не коробкой в коробке. */
+  bare?: boolean;
 }) {
   const t = useTranslations('trains');
   const locale = useLocale();
@@ -78,22 +81,29 @@ export function WhenField({
         onClick={() => setOpen((was) => !was)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="flex h-11 items-center gap-2 rounded border-2 border-rule bg-canvas px-3 text-base text-ink transition-colors duration-drape ease-drape hover:bg-sunk"
+        className={
+          bare
+            ? 'flex w-full items-center gap-3 rounded-block px-5 py-4 text-start text-base text-ink transition-colors duration-drape ease-drape hover:bg-sunk'
+            : 'flex h-11 items-center gap-2 rounded border-2 border-rule bg-canvas px-3 text-base text-ink transition-colors duration-drape ease-drape hover:bg-sunk'
+        }
       >
-        <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-ink-faint" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+        <svg viewBox="0 0 16 16" className={`${bare ? 'h-5 w-5' : 'h-4 w-4'} shrink-0 text-ink-faint`} fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
           <circle cx="8" cy="8" r="6.2" />
           <path d="M8 4.6V8l2.4 1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {/* Строчными, как все подписи на сайте: `Intl` отдаёт день недели
             строчным сам, а поднимать первую букву руками — против тона. */}
-        <span>{label}</span>
+        <span className="flex min-w-0 flex-col">
+          {bare ? <span className="ps-label text-ink-faint">{t('when')}</span> : null}
+          <span className="truncate">{label}</span>
+        </span>
       </button>
 
       {open ? (
         <div
           role="dialog"
           aria-label={t('when')}
-          className="animate-pop-in absolute start-0 top-full z-30 mt-1 flex w-[min(20rem,calc(100vw-2.5rem))] flex-col gap-3 rounded-block border-2 border-ink bg-surface p-3"
+          className="animate-pop-in absolute start-0 top-full z-40 mt-1 flex w-[min(20rem,calc(100vw-2.5rem))] flex-col gap-3 rounded-block border-2 border-ink bg-surface p-3"
         >
           <DayField
             key={round}

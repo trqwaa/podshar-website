@@ -97,6 +97,25 @@ export function BoardIcon(props: IconProps) {
   );
 }
 
+/** Булавка на карте — станция в списке своих. */
+export function PinIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <path d="M8 14s4.4-4.2 4.4-7.4A4.4 4.4 0 0 0 3.6 6.6C3.6 9.8 8 14 8 14Z" />
+      <circle cx="8" cy="6.5" r="1.5" />
+    </Frame>
+  );
+}
+
+/** Крестик — убрать из списка. */
+export function CrossIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <path d="m4.6 4.6 6.8 6.8M11.4 4.6l-6.8 6.8" />
+    </Frame>
+  );
+}
+
 /** Каска строителя — «тут ещё стройка». */
 export function HardHatIcon(props: IconProps) {
   return (

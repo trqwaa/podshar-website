@@ -120,23 +120,22 @@ export default async function TrainsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-3 sm:p-4">
-      {/* `relative z-20` — не украшение: списки станций и панель «когда»
-          всплывают внутри этой карточки, а секции ниже идут в потоке после
-          неё и рисовались поверх. Панель открывалась и оказывалась под
-          первой же найденной поездкой. */}
-      <section className="block-card animate-rise-in relative z-20 flex flex-col gap-6 px-6 py-6 sm:px-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      {/* Шапка стоит на странице, а не в рамке: она ничего не спрашивает, ей
+          нечего обводить. `relative z-20` на всей группе — списки станций и
+          панель «когда» всплывают внутри неё, а секции ниже идут в потоке
+          после и рисовались поверх. */}
+      <div className="animate-rise-in relative z-20 flex flex-col gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-4 px-2 sm:px-3">
           <div className="flex flex-col gap-1">
-            {/* Над заголовком — название раздела, а не пересказ заголовка: «куда
-                едем» дважды подряд читалось как заикание. */}
+            {/* Над заголовком — название раздела, а не пересказ заголовка:
+                «куда едем» дважды подряд читалось как заикание. */}
             <p className="ps-label">{t('title')}</p>
             <h1 className="text-greeting font-medium leading-none text-ink">{t('heading')}</h1>
           </div>
 
           {/* Две вкладки — ссылками, а не состоянием: обе половины считаются на
-              сервере, и обе должны жить в адресе. Вид тот же, что у масштабов
-              календаря, — на сайте это уже язык «выбери одно из». */}
-          <nav className="flex shrink-0 items-center gap-1" aria-label={t('kicker')}>
+              сервере, и обе должны жить в адресе. */}
+          <nav className="flex shrink-0 items-center gap-1" aria-label={t('title')}>
             <Tab href={backToRoute} on={!onBoard} icon={<RouteIcon />}>
               {t('tabRoute')}
             </Tab>
@@ -151,8 +150,7 @@ export default async function TrainsPage({
         ) : (
           // `key` по концам маршрута — не украшение. Состояние формы заводится
           // от свойств один раз, при монтировании; без ключа переход по
-          // сохранённой дороге менял адрес, а поля оставались пустыми, и
-          // казалось, что нажатие не сработало.
+          // сохранённой дороге менял адрес, а поля оставались пустыми.
           <SearchForm
             key={`${from?.id ?? ''}-${to?.id ?? ''}`}
             from={from}
@@ -164,7 +162,7 @@ export default async function TrainsPage({
             known={known}
           />
         )}
-      </section>
+      </div>
 
       {onBoard ? (
         <>

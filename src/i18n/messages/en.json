@@ -286,8 +286,7 @@
     "footerLove": "made with love by three lovely bastards",
     "footerTelegram": "our Telegram group",
     "footerRights": "© 2026 podshar · all rights ridiculed, bastards reserved",
-    "slotLabel": "under works for now",
-    "slotHint": "this will hold whatever you put here, or the site news. trains moved to their own section"
+    "slotSoon": "soon"
   },
   "weather": {
     "label": "weather",
@@ -384,6 +383,8 @@
     "whatIsThis": "what is this",
     "heading": "where to?",
     "later": "later ones",
+    "yourStations": "your stations",
+    "hideStation": "remove from the list",
     "errors": {
       "invalid": "something is off",
       "notYours": "that route is not yours",

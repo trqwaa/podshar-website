@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { CrossIcon, PinIcon } from '@/components/Icons';
 import type { Station } from '@/lib/types';
 
 /**
@@ -26,6 +27,27 @@ import type { Station } from '@/lib/types';
 
 const WAIT_MS = 220;
 const MIN_CHARS = 2;
+
+/**
+ * Спрятанные подсказки — в браузере, а не в базе.
+ *
+ * Это удобство одного человека на одном устройстве: «не предлагай мне вокзал,
+ * которым я не езжу». Заводить ради него таблицу на общей базе было бы
+ * несоразмерно, а потерять список не страшно — он соберётся заново сам.
+ * Чтение и запись в `try`, потому что приватное окно и закрытые куки оба умеют
+ * бросать отсюда исключение.
+ */
+const HIDDEN_KEY = 'podshar.trains.hidden';
+
+function readHidden(): string[] {
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_KEY);
+    const list: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 export function StationField({
   name,
@@ -68,6 +90,23 @@ export function StationField({
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const [asking, setAsking] = useState(false);
+  const [hidden, setHidden] = useState<string[]>([]);
+
+  // Читается после монтирования: на сервере `localStorage` не существует, а
+  // разметка до первого нажатия всё равно одинаковая.
+  useEffect(() => setHidden(readHidden()), []);
+
+  function hide(id: string) {
+    setHidden((was) => {
+      const next = was.includes(id) ? was : [...was, id];
+      try {
+        window.localStorage.setItem(HIDDEN_KEY, JSON.stringify(next));
+      } catch {
+        // Приватное окно: спрятали на сессию, и это лучше, чем уронить поле.
+      }
+      return next;
+    });
+  }
 
   const box = useRef<HTMLDivElement>(null);
   // Станцию мог поменять кто-то снаружи — перевёртыш меняет местами оба поля.
@@ -145,7 +184,7 @@ export function StationField({
       setOpen(false);
       return;
     }
-    const list = typing ? found : (suggest ?? []);
+    const list = typing ? found : mine;
     if (!list.length) return;
 
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -162,7 +201,8 @@ export function StationField({
 
   // Пока не набрано двух букв — показываем свои станции, дальше уже найденные.
   const typing = text.trim().length >= MIN_CHARS && text !== station?.name;
-  const options = typing ? found : (suggest ?? []);
+  const mine = (suggest ?? []).filter((one) => !hidden.includes(one.id));
+  const options = typing ? found : mine;
   const showing = open && (options.length > 0 || (typing && asking));
 
   return (
@@ -201,11 +241,27 @@ export function StationField({
           role="listbox"
           className="animate-pop-in absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded border-2 border-ink bg-canvas"
         >
+          {/* Заголовок только у своих: он объясняет, откуда взялся список,
+              который появился раньше, чем человек что-то набрал. */}
+          {!typing && options.length ? (
+            <li className="ps-label border-b-2 border-rule-soft px-3 py-2 text-ink-faint">
+              {t('yourStations')}
+            </li>
+          ) : null}
+
           {options.length === 0 ? (
             <li className="px-3 py-2 text-sm text-ink-faint">{t('looking')}</li>
           ) : (
             options.map((choice, index) => (
-              <li key={choice.id} id={`${optionId}-${index}`} role="option" aria-selected={index === cursor}>
+              <li
+                key={choice.id}
+                id={`${optionId}-${index}`}
+                role="option"
+                aria-selected={index === cursor}
+                className={`flex items-center border-b border-rule-soft last:border-b-0 transition-colors duration-drape ease-drape ${
+                  index === cursor ? 'bg-sunk' : 'hover:bg-sunk'
+                }`}
+              >
                 <button
                   type="button"
                   // `onPointerDown`, а не `onClick`: клик приходит уже после
@@ -214,12 +270,30 @@ export function StationField({
                     event.preventDefault();
                     pick(choice);
                   }}
-                  className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
-                    index === cursor ? 'bg-ink/8 text-ink' : 'text-ink-muted hover:bg-ink/5 hover:text-ink'
+                  className={`flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors ${
+                    index === cursor ? 'text-ink' : 'text-ink-muted'
                   }`}
                 >
-                  {choice.name}
+                  <PinIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" />
+                  <span className="truncate">{choice.name}</span>
                 </button>
+
+                {/* Крестик только у своих: найденное в SBB прятать бессмысленно,
+                    оно и так исчезнет со следующей буквой. */}
+                {!typing ? (
+                  <button
+                    type="button"
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      hide(choice.id);
+                    }}
+                    aria-label={t('hideStation')}
+                    title={t('hideStation')}
+                    className="grid h-8 w-8 shrink-0 place-items-center text-ink-faint transition-colors duration-drape ease-drape hover:text-loss"
+                  >
+                    <CrossIcon className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
               </li>
             ))
           )}

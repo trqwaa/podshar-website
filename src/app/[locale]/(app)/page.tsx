@@ -149,14 +149,14 @@ export default async function HomePage({
 
       {/* Слот под сменный блок. Поезда отсюда уехали в свой раздел — держать
           их тут вторым экземпляром незачем, а место владелец хочет отдать под
-          то, что каждый соберёт себе сам, или под новости сайта. Решение от
-          27 сентября 2026; пока честно написано, что здесь стройка. */}
-      <section className="block-card animate-rise-in flex flex-col gap-2 p-6 [animation-delay:300ms] md:col-span-4">
-        <p className="ps-label flex items-center gap-2">
-          <HardHatIcon className="h-4 w-4 text-ink-faint" />
-          {t('slotLabel')}
-        </p>
-        <p className="text-base leading-relaxed text-ink-muted">{t('slotHint')}</p>
+          то, что каждый соберёт себе сам, или под новости сайта.
+
+          Знаком, а не абзацем: каска понятна с одного взгляда и не просит
+          себя читать, а под ней одно слово. Объяснять пустое место длиннее,
+          чем оно того стоит, — значит делать вид, что там что-то есть. */}
+      <section className="block-card animate-rise-in flex flex-col items-center justify-center gap-3 p-8 [animation-delay:300ms] md:col-span-4">
+        <HardHatIcon className="h-14 w-14 text-ink-faint" />
+        <p className="ps-label text-ink-faint">{t('slotSoon')}</p>
       </section>
 
       {/* Quote of the day. The one place on the page allowed to have a voice,
