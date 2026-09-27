@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { DayField } from '@/components/calendar/DayField';
 import { useRouter } from '@/i18n/routing';
-import type { SavedRoad, Station } from '@/lib/types';
+import type { Station } from '@/lib/types';
 import { StationField } from './StationField';
 
 /**
@@ -36,8 +36,7 @@ export function SearchForm({
   at,
   arriving,
   home,
-  friends,
-  roads
+  friends
 }: {
   from: Station | null;
   to: Station | null;
@@ -46,29 +45,26 @@ export function SearchForm({
   arriving: boolean;
   home: Station | null;
   friends: { name: string; station: Station }[];
-  roads: SavedRoad[];
 }) {
   const t = useTranslations('trains');
   const router = useRouter();
 
   const [a, setA] = useState<Station | null>(from);
   const [b, setB] = useState<Station | null>(to);
+  const [day, setDay] = useState(at.slice(0, 10));
   const [clock, setClock] = useState(at.slice(11, 16));
   const [arrive, setArrive] = useState(arriving);
-  const form = useRef<HTMLFormElement>(null);
+  // Сброс дня — это пересоздание поля календаря: день оно ведёт у себя, и
+  // единственный честный способ вернуть его в «не выбрано» — собрать заново.
+  const [round, setRound] = useState(0);
 
   const ready = Boolean(a?.id && b?.id && a.id !== b.id);
-  const anyQuick = Boolean(home) || friends.length > 0 || roads.length > 0;
+  const anyQuick = Boolean(home) || friends.length > 0;
 
   function go(next?: { from?: Station | null; to?: Station | null }) {
     const one = next?.from !== undefined ? next.from : a;
     const two = next?.to !== undefined ? next.to : b;
     if (!one?.id || !two?.id || one.id === two.id) return;
-
-    // День лежит в скрытом поле `DayField`, а не в состоянии: свой компонент
-    // календаря ведёт его сам, и читать его через форму дешевле, чем добавлять
-    // ему обратный вызов ради одного места.
-    const day = String(new FormData(form.current ?? undefined).get('day') ?? '');
 
     const params = new URLSearchParams({ from: one.id, to: two.id });
     // Выбран день без часа — берём текущий по Цюриху: человек, ткнувший
@@ -80,7 +76,6 @@ export function SearchForm({
 
   return (
     <form
-      ref={form}
       className="flex flex-col gap-6"
       onSubmit={(event) => {
         event.preventDefault();
@@ -124,19 +119,45 @@ export function SearchForm({
         </div>
       </div>
 
-      {/* День, час и сторона отсчёта — тише самого маршрута: их трогают редко. */}
-      <div className="flex flex-wrap items-end gap-x-2 gap-y-3">
-        <DayField name="day" label={t('day')} value={at.slice(0, 10)} clearable />
+      {/* День, час и сторона отсчёта — тише самого маршрута: их трогают редко.
+          По умолчанию тут вообще нечего трогать: без дня поиск идёт «сейчас».
 
-        <label className="flex flex-col gap-1">
-          <span className="ps-label text-ink-faint">{t('clock')}</span>
-          <input
-            type="time"
-            value={clock}
-            onChange={(event) => setClock(event.target.value)}
-            className="h-11 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base"
-          />
-        </label>
+          Час появляется, **только когда назван день**. Отдельно от дня он не
+          значил ничего — поиск его просто не читал, — но поле висело и просило
+          заполнить. А крестика «очистить» у дня нет намеренно: два крестика
+          подряд, свой и браузерный, мозолили глаза сильнее, чем помогали.
+          Вместо них одно слово «сейчас», которое возвращает всё как было. */}
+      <div className="flex flex-wrap items-end gap-x-2 gap-y-3">
+        <DayField key={round} name="day" label={t('day')} value={day} onPick={setDay} />
+
+        {day ? (
+          <label className="flex flex-col gap-1">
+            <span className="ps-label text-ink-faint">{t('clock')}</span>
+            <input
+              type="time"
+              value={clock}
+              onChange={(event) => setClock(event.target.value)}
+              // Браузер дорисовывает к полю времени свой крестик и стрелки.
+              // Крестик тут лишний: очищается не час, а весь выбор, кнопкой
+              // «сейчас» рядом.
+              className="h-11 rounded border-2 border-rule bg-canvas px-3 text-[1rem] text-ink outline-none transition-colors duration-drape ease-drape focus:border-ink sm:text-base [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
+            />
+          </label>
+        ) : null}
+
+        {day ? (
+          <button
+            type="button"
+            onClick={() => {
+              setDay('');
+              setClock('');
+              setRound((n) => n + 1);
+            }}
+            className="ps-label h-11 px-1 text-ink-faint transition-colors hover:text-ink"
+          >
+            {t('nowInstead')}
+          </button>
+        ) : null}
 
         <div className="ms-1 flex items-end gap-1" role="group" aria-label={t('when')}>
           <Toggle on={!arrive} onClick={() => setArrive(false)}>
@@ -158,8 +179,9 @@ export function SearchForm({
 
       {!ready && (a?.id || b?.id) ? <p className="text-sm text-ink-faint">{t('pickBoth')}</p> : null}
 
-      {/* Готовые дороги. Каждая — «подставить и сразу искать»: человек, нажавший
-          «домой», пришёл за поездом, а не за заполненной формой. */}
+      {/* Дом и свои — «подставить и сразу искать»: человек, нажавший «домой»,
+          пришёл за поездом, а не за заполненной формой. Сохранённых дорог тут
+          нет намеренно: они лежат ниже карточками и показывают время сами. */}
       {anyQuick ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-rule-soft pt-4">
           <span className="ps-label me-1 text-ink-faint">{t('quick')}</span>
@@ -187,20 +209,6 @@ export function SearchForm({
             </Quick>
           ))}
 
-          {roads.map((road) => (
-            <Quick
-              key={road.id}
-              onClick={() => {
-                const one = { id: road.fromId, name: road.fromName };
-                const two = { id: road.toId, name: road.toName };
-                setA(one);
-                setB(two);
-                go({ from: one, to: two });
-              }}
-            >
-              {road.label || `${road.fromName} → ${road.toName}`}
-            </Quick>
-          ))}
         </div>
       ) : null}
     </form>

@@ -4,7 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { Board } from '@/components/trains/Board';
 import { BoardPicker } from '@/components/trains/BoardPicker';
 import { Journeys } from '@/components/trains/Journeys';
-import { HomeStation, Roads, SaveRoad } from '@/components/trains/Roads';
+import { MakeHome, SaveRoad } from '@/components/trains/Roads';
+import { SavedRoads } from '@/components/trains/SavedRoads';
 import { SearchForm } from '@/components/trains/SearchForm';
 import { Link } from '@/i18n/routing';
 import { readSession } from '@/lib/auth/session';
@@ -114,15 +115,7 @@ export default async function TrainsPage({
         {onBoard ? (
           <BoardPicker station={boardStation} />
         ) : (
-          <SearchForm
-            from={from}
-            to={to}
-            at={at}
-            arriving={arriving}
-            home={home}
-            friends={friends}
-            roads={roads}
-          />
+          <SearchForm from={from} to={to} at={at} arriving={arriving} home={home} friends={friends} />
         )}
       </section>
 
@@ -135,19 +128,15 @@ export default async function TrainsPage({
             </Suspense>
           </section>
 
-          {/* Домашняя станция живёт тут, а не на поиске. На поиске станции
-              выбирают и так, двумя полями, и третье поле внизу спрашивало о
-              том же в третий раз. Табло — единственное место, где вопрос
-              «какая станция твоя» стоит сам по себе. */}
+          {/* Станция спрашивается один раз — наверху. Здесь только «сделать
+              своей»: человек уже смотрит на её табло, второе такое же поле
+              внизу спрашивало о том же ещё раз. */}
           <section
             id="station"
-            className="animate-rise-in flex scroll-mt-20 flex-col gap-3 border-t border-rule-soft px-2 pt-6 [animation-delay:120ms] sm:px-3"
+            className="animate-rise-in flex scroll-mt-20 flex-col gap-2 border-t border-rule-soft px-2 pt-5 [animation-delay:120ms] sm:px-3"
           >
-            <div className="flex flex-col gap-1">
-              <p className="ps-label">{t('homeTitle')}</p>
-              <p className="text-sm text-ink-muted">{t('homeHint')}</p>
-            </div>
-            <HomeStation station={home} />
+            <p className="text-sm text-ink-muted">{t('homeHint')}</p>
+            <MakeHome station={boardStation} isHome={Boolean(home && boardStation && home.id === boardStation.id)} />
           </section>
         </>
       ) : (
@@ -169,19 +158,16 @@ export default async function TrainsPage({
             </section>
           ) : null}
 
-          {/* Список дорог — тихий, без своей карточки: сами дороги нажимаются
-              наверху, кружками, а тут они только переименовываются и удаляются.
-              Пустой список вовсе не рисуется: заводить его нечем, пока не нашёл
-              первый маршрут. */}
-          {roads.length > 0 ? (
-            <section
-              id="roads"
-              className="animate-rise-in flex scroll-mt-20 flex-col gap-3 border-t border-rule-soft px-2 pt-6 [animation-delay:120ms] sm:px-3"
-            >
-              <p className="ps-label">{t('roadsTitle')}</p>
-              <Roads roads={roads} />
-            </section>
-          ) : null}
+          {/* Дороги показывают ближайший поезд сами — ради этого их и
+              сохраняют. Закладка, которая только заполняет форму, экономит два
+              нажатия и не стоит того, чтобы её заводить. */}
+          <section
+            id="roads"
+            className="animate-rise-in flex scroll-mt-20 flex-col gap-3 border-t border-rule-soft px-2 pt-6 [animation-delay:120ms] sm:px-3"
+          >
+            <p className="ps-label">{t('roadsTitle')}</p>
+            <SavedRoads roads={roads} serverNow={serverNow} />
+          </section>
         </>
       )}
 

@@ -28,13 +28,22 @@ export function DayField({
   name,
   label,
   value,
-  clearable = false
+  clearable = false,
+  onPick
 }: {
   name: string;
   label: string;
   value: string;
   /** Необязательное поле можно и опустошить — у «по» это единственный способ убрать конец. */
   clearable?: boolean;
+  /**
+   * Позвать, когда день сменился.
+   *
+   * Формам, которые отправляются обычным способом, это не нужно — значение
+   * уезжает скрытым полем. Нужно тем, у кого от выбранного дня зависит что-то
+   * рядом: в поездах час спрашивается, только когда день назван.
+   */
+  onPick?: (day: string) => void;
 }) {
   const t = useTranslations('calendar');
   const locale = useLocale() as Locale;
@@ -105,7 +114,10 @@ export function DayField({
         {clearable && day ? (
           <button
             type="button"
-            onClick={() => setDay('')}
+            onClick={() => {
+              setDay('');
+              onPick?.('');
+            }}
             aria-label={t('clear')}
             className="grid h-11 w-11 shrink-0 place-items-center rounded border-2 border-rule text-base leading-none text-ink-muted transition-colors hover:bg-sunk hover:text-ink"
           >
@@ -140,6 +152,7 @@ export function DayField({
                   type="button"
                   onClick={() => {
                     setDay(key);
+                    onPick?.(key);
                     setOpen(false);
                   }}
                   className={`grid h-10 place-items-center rounded border-2 text-base tabular-nums transition-colors ${
