@@ -9,17 +9,23 @@ import type { Departure, TrainRow } from '@/lib/types';
  *
  * Built on what the schema already had: every user may point at a `Location`
  * through `homeLocationId`, and a location carries an SBB stop id. Each person
- * sets theirs once on the profile page; this reads them and asks SBB for the
+ * sets theirs once in the trains section; this reads them and asks SBB for the
  * next few connections from HB. No migration.
+ *
+ * This is now read by exactly one caller: the dog's timetable lookup
+ * (`assistant/lookup.ts`), which answers "when is the next train" for whoever
+ * is in the chat. The homepage tile it was written for moved into `/trains` as
+ * a search, and the general SBB layer lives in `lib/sbb.ts` — richer, and with
+ * its own caching. Nothing here should grow: new train work belongs there.
  *
  * transport.opendata.ch, because it needs no key — the same reasoning as the
  * weather, and fenced the same way (`lib/weather.ts` has the long version):
- * cached for a minute, streamed in behind Suspense, and a failure is a row that
- * says SBB did not answer rather than an error. A minute is the right cache for
- * a departure board: long enough that three people reloading do not hammer it,
- * short enough that the train on screen is still in the station. The tile picks
- * the first connection still in the future itself, so a cached answer that has
- * gone a minute stale shows the next train, not one that has left.
+ * cached for a minute, and a failure is a row that says SBB did not answer
+ * rather than an error. A minute is the right cache for a departure board: long
+ * enough that three people reloading do not hammer it, short enough that the
+ * train on screen is still in the station. The caller picks the first
+ * connection still in the future itself, so a cached answer that has gone a
+ * minute stale shows the next train, not one that has left.
  */
 
 /** Zürich HB — where every row starts, and the stop the seed calls home. */
@@ -120,29 +126,8 @@ export async function getTrains(): Promise<TrainRow[]> {
   );
 }
 
-/**
- * A typed name, resolved to a station — for the profile form.
- *
- * The first match is taken, and the form says out loud which station it
- * found. "Oerlikon" becoming "Zürich Oerlikon" is the right guess; the one time
- * it guesses wrong, the person sees it immediately and types more.
- */
-export async function findStation(
-  query: string
-): Promise<{ id: string; name: string; latitude: number; longitude: number } | null> {
-  // Station names do not move: a day's cache is generous and still harmless.
-  const data = await sbb('locations', { query, type: 'station' }, 86_400);
-  const station = (Array.isArray(data?.stations) ? data.stations : []).find(
-    (s: { id?: unknown; name?: unknown }) => s?.id && typeof s?.name === 'string'
-  );
-  if (!station) return null;
-
-  return {
-    id: String(station.id),
-    name: station.name,
-    // SBB's WGS84 "x" is the latitude and "y" the longitude — the reverse of
-    // what the letters suggest.
-    latitude: Number(station.coordinate?.x) || 0,
-    longitude: Number(station.coordinate?.y) || 0
-  };
-}
+// Здесь стоял `findStation`: набранное имя → первая станция из ответа SBB, для
+// формы в профиле. Формы больше нет, а сам подход с тех пор запрещён — «станция
+// выбирается из списка, а не угадывается»: поле, бравшее первое совпадение,
+// молча подставляло чужую станцию. Тому, что пришло на замену, нужен весь
+// список — это `searchStations` в `lib/sbb.ts`.

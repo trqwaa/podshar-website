@@ -541,7 +541,7 @@
     "going": "gut, ich bring dich zu {place}",
     "hello": "ja hallo. was willst du",
     "home": {
-      "here": "die startseite. roter knopf, datum, wetter, wer hier rumlungert, züge vom HB, ein gedanke",
+      "here": "die startseite. roter knopf, datum, wetter, wer hier rumlungert, ein gedanke",
       "greeting": "das bin ich beim grüssen, jeden tag anders",
       "reactor": "der ПХ-knopf, da steht nicht drücken. du hast gedrückt 😈",
       "today": "datum und uhr. das datum ist für alle gleich, die uhr ist deine",
@@ -550,8 +550,7 @@
       "patches": "die version unten im menü. drück drauf, da ist die ganze patch-liste",
       "weather": "wetter in zürich, eins für alle. schirme gibts keine",
       "presence": "wer gerade auf der seite ist. die anderen, und wann sie weg waren",
-      "trains": "der nächste zug vom HB zu jeder station. deine im profil eintragen",
-      "drawer": "das menü. fünf leere zeilen, noch keine bereiche",
+      "drawer": "das menü. alle bereiche sind da, die version steht unten",
       "dog": "ich bin der mops. ich kenne hier alles, hier ist nix, verdammt"
     },
     "patches": {
@@ -566,7 +565,7 @@
       "add": "der hinzufügen-knopf. name und tag, der rest nach lust. das datumsfeld ist unseres, nicht das vom browser"
     },
     "profile": {
-      "here": "dein profil. name, handle, mail, station, dota, brawl, passwort, zeichen",
+      "here": "dein profil. name, handle, mail, dota, brawl, passwort, zeichen",
       "identity": "der name ist für uns, mit dem handle meldest du dich an",
       "avatar": "acht zeichen. keine fotos, dafür nichts hochzuladen",
       "security": "passwort. änderst du es, fliegen alle anderen geräte raus",

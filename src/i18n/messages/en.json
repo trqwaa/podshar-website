@@ -541,7 +541,7 @@
     "going": "fine, taking you to {place}",
     "hello": "yeah, hello. what do you want",
     "home": {
-      "here": "the home page. a red button, the date, the weather, who is loitering, trains from HB, a thought",
+      "here": "the home page. a red button, the date, the weather, who is loitering, a thought",
       "greeting": "that is me saying hello, a new line every day",
       "reactor": "the ПХ button, says do not press. you pressed it 😈",
       "today": "date and clock. the date is shared, the clock is your machine",
@@ -550,8 +550,7 @@
       "patches": "the version at the bottom of the drawer. press it, the whole patch list is there",
       "weather": "zurich weather, one for all of us. no umbrellas handed out",
       "presence": "who is on the site right now. the rest, and when they dropped off",
-      "trains": "the next train from HB to each of your stations. set yours in the profile",
-      "drawer": "the menu. five empty rows, no sections yet",
+      "drawer": "the menu. every section is in there, the version at the bottom",
       "dog": "i am the pug. i know everything here, there is bugger all here"
     },
     "patches": {
@@ -566,7 +565,7 @@
       "add": "the add button. a name and a day, the rest if you feel like it. the date picker is ours, not the browser's"
     },
     "profile": {
-      "here": "your profile. name, handle, email, station, dota, brawl, password, mark",
+      "here": "your profile. name, handle, email, dota, brawl, password, mark",
       "identity": "the name is for us, the handle is for signing in",
       "avatar": "eight marks. no photos, nothing to upload either",
       "security": "password. change it and every other device drops",

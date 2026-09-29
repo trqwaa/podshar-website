@@ -108,13 +108,6 @@ export const HOME: Place = {
         'who is here', "who's here", 'loiter', 'online', 'wer ist da', 'wer hier', 'rumlung'
       ]
     },
-    {
-      id: 'trains',
-      terms: [
-        'поезд', 'электричк', 'вокзал', 'станци', 'потяг', 'станці', 'sbb', 'hb',
-        'train', 'station', 'zug', 'bahnhof'
-      ]
-    },
     { id: 'drawer', terms: ['меню', 'шторк', 'menu', 'menü', 'навигац', 'навігац'] },
     { id: 'dog', terms: ['мопс', 'собак', 'пёс', 'пес', 'mops', 'pug', 'hund', 'ты кто', 'кто ты', 'ти хто', 'хто ти', 'who are you'] }
   ]
@@ -252,12 +245,17 @@ export const NAV_GROUPS: NavGroup[] = [
         // `дорог` тут нет: оно сидит внутри «дорого» и «дорогой», а термины
         // сверяются как подстроки. Тот же капкан, что `rain` внутри `train`.
         // Понятие ловится словом `маршрут`, а `дорог` осталось элементу.
+        //
+        // `station` приехало сюда, когда у главной убрали элемент `trains`:
+        // англоязычное «which station is mine» совпадало только там, и после
+        // удаления ушло бы в `guide.lost`. У места его не было потому, что
+        // раньше его перехватывала главная.
         terms: [
           'поезд', 'потяг', 'электричк', 'вокзал', 'станци', 'станці', 'перрон',
           'табло', 'маршрут', 'ехать', 'їхати', 'свалить', 'доеха', 'доїха',
           'опозда', 'запізн',
-          'sbb', 'hb', 'trains', 'train ', 'by train', 'zug', 'bahn', 'bahnhof',
-          'fahrplan', 'abfahrt', 'departure', 'timetable'
+          'sbb', 'hb', 'trains', 'train ', 'by train', 'station', 'zug', 'bahn',
+          'bahnhof', 'fahrplan', 'abfahrt', 'departure', 'timetable'
         ],
         elements: [
           { id: 'search', terms: ['найти', 'знайти', 'маршрут', 'откуда', 'куда', 'звідки', 'куди', 'search', 'route', 'suche', 'verbindung'] },
