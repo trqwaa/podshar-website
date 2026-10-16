@@ -244,18 +244,36 @@ async function readWeather(when: string): Promise<string> {
   if (!weather) return 'the weather provider did not answer — say you cannot see it.';
 
   const deg = (n: number) => `${Math.round(n)}°`;
+  // The same words the panel uses: a low and a high, and four moments of the
+  // day. "10°…21°" left the dog to guess which end was the morning, the same
+  // way it left the people reading the tile.
+  const describe = (day: (typeof weather.days)[number]) => {
+    const parts = (['night', 'morning', 'day', 'evening'] as const)
+      .flatMap((name) => {
+        const part = day.parts[name];
+        return part ? [`${name === 'day' ? 'afternoon' : name} ${deg(part.temp)} ${part.condition}`] : [];
+      })
+      .join(', ');
+    const wet =
+      day.precip >= 0.1
+        ? `rain or snow ${Math.round(day.rain)}%, ${day.precip} mm`
+        : `rain or snow ${Math.round(day.rain)}%`;
+    const wind = day.wind !== null ? `, wind up to ${Math.round(day.wind)} km/h` : '';
+    return `low ${deg(day.min)}, high ${deg(day.max)}, ${day.condition}; ${parts}; ${wet}${wind}`;
+  };
+
+  const today = weather.days[0];
   const now =
     `WEATHER IN ZURICH right now: ${deg(weather.temp)}, feels like ${deg(weather.feels)}, ` +
     `${weather.condition}${weather.isDay ? '' : ', at night'}. ` +
-    `Today ${deg(weather.min)}…${deg(weather.max)}, chance of rain or snow ${Math.round(weather.rain)}%.`;
+    (today
+      ? `Today: ${describe(today)}.`
+      : `Today low ${deg(weather.min)}, high ${deg(weather.max)}, chance of rain or snow ${Math.round(weather.rain)}%.`);
 
   if (when !== 'week') return now;
-  if (weather.days.length === 0) return `${now}\nNo forecast beyond today came back.`;
+  if (weather.days.length <= 1) return `${now}\nNo forecast beyond today came back.`;
 
-  const rows = weather.days.map(
-    (day) =>
-      `${day.date} ${deg(day.min)}…${deg(day.max)} ${day.condition}, rain ${Math.round(day.rain)}%`
-  );
+  const rows = weather.days.slice(1).map((day) => `${day.date}: ${describe(day)}`);
   return `${now}\nTHE WEEK AHEAD:\n${rows.join('\n')}`;
 }
 

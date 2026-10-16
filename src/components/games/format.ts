@@ -26,6 +26,21 @@ export function ago(at: Date, locale: string, now = Date.now()): string {
 export const modeName = (mode: string | null | undefined) =>
   mode ? mode.replace(/([a-z])([A-Z0-9])/g, '$1 $2').toLowerCase() : '';
 
+/**
+ * Режим словами самой игры на языке страницы: «горячая зона», «hotzone»,
+ * «hot zone». Игра переводит режимы, и кто играет на русском, «hot zone» в
+ * ней не видит. Названия — из `gamesBoard.brawlModes`, официальные, как на
+ * страницах SeeMeta на этих языках; украинских в игре нет, они наши.
+ * Незнакомый режим — через `modeName`: новый режим не должен ронять строку.
+ */
+export function brawlMode(
+  t: { (key: string): string; has: (key: string) => boolean },
+  mode: string | null | undefined
+): string {
+  if (!mode) return '';
+  return t.has(`brawlModes.${mode}`) ? t(`brawlModes.${mode}`) : modeName(mode);
+}
+
 export const percent = (value: number, locale: string) =>
   new Intl.NumberFormat(locale, {
     style: 'percent',

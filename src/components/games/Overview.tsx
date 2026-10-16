@@ -12,10 +12,10 @@ import {
   ResultChip,
   metaRankName
 } from '@/components/games/bits';
-import { ago, count, modeName } from '@/components/games/format';
+import { ago, brawlMode, count } from '@/components/games/format';
 import { Link } from '@/i18n/routing';
 import type { Locale } from '@/i18n/routing';
-import { brawlMeta, brawlMetaList } from '@/lib/brawl-meta';
+import { brawlMeta, brawlMetaList, mapNamer } from '@/lib/brawl-meta';
 import { dotaMeta, metaList } from '@/lib/dota-meta';
 import { brawler, dotaHero } from '@/lib/game-catalog';
 import { boardFor, totals, type BoardMatch } from '@/lib/games-board';
@@ -30,9 +30,12 @@ import { dayKey } from '@/lib/calendar/scales';
  * Всё остальное — на полной странице игры, куда ведёт кнопка внизу карточки.
  */
 export async function Overview({ locale, userId }: { locale: Locale; userId: string }) {
-  const [t, board] = await Promise.all([
+  const [t, board, mapName] = await Promise.all([
     getTranslations({ locale, namespace: 'gamesBoard' }),
-    boardFor(userId)
+    boardFor(userId),
+    // Карта в журнале боёв приходит по-английски — называем её так, как её
+    // видит в игре тот, кто смотрит.
+    mapNamer(locale)
   ]);
   const since = zurichMidnight(dayKey(new Date()));
   const today = (m: BoardMatch[]) => m.filter((x) => x.at >= since);
@@ -171,7 +174,7 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
                 return {
                   icon: <BrawlerIcon brawler={b} size={26} />,
                   name: b.name,
-                  detail: [modeName(p.mode), p.map].filter(Boolean).join(' · '),
+                  detail: [brawlMode(t, p.mode), mapName(p.map)].filter(Boolean).join(' · '),
                   right: m.ratingDelta !== null ? <Delta value={m.ratingDelta} /> : null
                 };
               }}
@@ -179,7 +182,7 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
           </>
         )}
 
-        <BrawlPeek label={t('metaTop50')} empty={t('brawlMetaNone')} locale={locale} />
+        <BrawlPeek label={t('metaBrawl')} empty={t('brawlMetaMissing')} locale={locale} />
 
         <div className="mt-auto flex flex-wrap gap-2">
           <ActionLink href="/games?view=brawl">{t('fullBrawl')}</ActionLink>
@@ -425,7 +428,7 @@ async function BrawlPeek({
           ? brawlMetaList(meta)
               .slice(0, 3)
               .map((b) => ({
-                key: b.id,
+                key: b.id || b.slug,
                 icon: <BrawlerIcon brawler={b} size={26} />,
                 name: b.name,
                 winRate: b.winRate
@@ -444,7 +447,7 @@ function Peek({
 }: {
   label: string;
   empty: string;
-  items: { key: number; icon: React.ReactNode; name: string; winRate: number }[];
+  items: { key: number | string; icon: React.ReactNode; name: string; winRate: number }[];
   locale: string;
 }) {
   return (

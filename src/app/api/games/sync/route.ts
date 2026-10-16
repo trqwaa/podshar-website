@@ -1,10 +1,9 @@
-import { NextResponse, after } from 'next/server';
+import { NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/db';
 import { authConfigured, guestModeAllowed } from '@/lib/auth/config';
 import { readSession } from '@/lib/auth/session';
 import { currentBrawl, currentDota } from '@/lib/games';
-import { refreshBrawlMeta } from '@/lib/brawl-meta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,9 +17,9 @@ export const dynamic = 'force-dynamic';
  * решают `currentDota` и `currentBrawl` своими снимками, — так что три человека,
  * открывшие доску подряд, не утроят запросы к OpenDota.
  *
- * Страница зовёт это уже после отрисовки и по ответу перечитывает себя. Мета
- * бравла пересчитывается после ответа (`after`): это пятьдесят запросов к
- * Supercell, и ждать их тому, кто смотрит на доску, незачем.
+ * Страница зовёт это уже после отрисовки и по ответу перечитывает себя. Мету
+ * бравла здесь больше не считаем: с 1.17 она приходит с SeeMeta готовой, см.
+ * `lib/brawl-meta.ts`.
  *
  * POST и закрыт сессией по той же причине, что `/api/games`: запрос пишет в
  * базу, а отвечает про людей, чьи это дела.
@@ -39,10 +38,6 @@ export async function POST() {
         console.warn('[podshar] games sync:', error);
       })
     )
-  );
-
-  after(() =>
-    refreshBrawlMeta().catch((error) => console.warn('[podshar] brawl meta refresh:', error))
   );
 
   return NextResponse.json({ ok: true }, { headers: { 'cache-control': 'private, no-store' } });

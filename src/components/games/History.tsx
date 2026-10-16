@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import { BrawlerIcon, Delta, HeroIcon, Pct, ResultChip } from '@/components/games/bits';
-import { modeName } from '@/components/games/format';
+import { brawlMode } from '@/components/games/format';
 import type { Locale } from '@/i18n/routing';
 import { brawler, dotaHero } from '@/lib/game-catalog';
 import { totals, type BoardMatch } from '@/lib/games-board';
@@ -129,7 +129,7 @@ export async function History({
                 <span
                   className={`min-w-0 flex-1 truncate text-base text-ink ${game === 'DOTA2' ? 'font-medium normal-case' : ''}`}
                 >
-                  {game === 'DOTA2' ? name(g.key) : modeName(g.key)}
+                  {game === 'DOTA2' ? name(g.key) : brawlMode(t, g.key)}
                 </span>
                 <span className="text-sm tabular-nums text-ink-muted">
                   {g.wins}–{g.list.length - g.wins}

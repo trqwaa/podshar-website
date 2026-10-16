@@ -38,6 +38,33 @@ export type Condition =
   | 'showers'
   | 'thunder';
 
+/** One hour of the strip at the top of the panel. */
+export type HourForecast = {
+  /** `2026-10-16T14:00` — Zurich wall-clock time, exactly as the provider writes it. */
+  time: string;
+  temp: number;
+  condition: Condition;
+  isDay: boolean;
+  /** Chance of rain or snow in that hour, 0–100. */
+  rain: number;
+};
+
+/**
+ * One moment of a day: the temperature and the sky at a fixed hour.
+ *
+ * `15°…25°` on its own never said which was the morning and which the
+ * afternoon — that was the complaint that started this. Four fixed moments
+ * answer it in the words a forecast is read in: night, morning, day, evening.
+ */
+export type DayPart = { temp: number; condition: Condition; isDay: boolean; rain: number };
+
+/**
+ * The hour that stands for each part of the day: the middle of its six hours.
+ * Night is the small hours *of that date*, the way a printed forecast means it.
+ */
+export const PART_HOURS = { night: 3, morning: 9, day: 15, evening: 21 } as const;
+export type PartName = keyof typeof PART_HOURS;
+
 /** One row in the week: what a day looks like from a distance. */
 export type DayForecast = {
   /** `2026-09-23`, already in Zurich days — the provider is asked in that zone. */
@@ -47,6 +74,16 @@ export type DayForecast = {
   max: number;
   /** Chance of rain or snow at some point that day, 0–100. */
   rain: number;
+  /** How much falls over the whole day, in millimetres. */
+  precip: number;
+  /** Strongest sustained wind and strongest gust, km/h. `null` when not sent. */
+  wind: number | null;
+  gusts: number | null;
+  /** `07:45`, Zurich time. `null` when not sent. */
+  sunrise: string | null;
+  sunset: string | null;
+  /** Missing parts are left out rather than guessed — see `DayPart`. */
+  parts: Partial<Record<PartName, DayPart>>;
 };
 
 export type Weather = {
@@ -58,6 +95,18 @@ export type Weather = {
   max: number;
   /** Chance of rain or snow at some point today, 0–100. */
   rain: number;
+  /** Right now, km/h and percent. `null` when the provider leaves them out. */
+  wind: number | null;
+  gusts: number | null;
+  humidity: number | null;
+  /**
+   * The next twenty-four hours, starting with the one we are in.
+   *
+   * Sliced at render time, not when the answer was cached: the answer lives for
+   * fifteen minutes, and a strip that starts at the hour the cache was filled
+   * would show an hour that is already over.
+   */
+  hours: HourForecast[];
   /**
    * The week, today first.
    *
@@ -95,14 +144,43 @@ export function conditionOf(code: number): Condition {
 }
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const orNull = (v: unknown): number | null => (finite(v) ? v : null);
+
+/** `2026-10-16T07:45` → `07:45`. The provider already speaks Zurich time. */
+const clock = (v: unknown): string | null =>
+  typeof v === 'string' && /T\d{2}:\d{2}/.test(v) ? v.slice(v.indexOf('T') + 1, v.indexOf('T') + 6) : null;
+
+/** This hour in Zurich, written the way the provider writes its hours. */
+function zurichHour(at: Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Zurich',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23'
+    })
+      .formatToParts(at)
+      .map((p) => [p.type, p.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:00`;
+}
 
 export async function getWeather(): Promise<Weather | null> {
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.search = new URLSearchParams({
     latitude: String(HOME.latitude),
     longitude: String(HOME.longitude),
-    current: 'temperature_2m,apparent_temperature,weather_code,is_day',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    current:
+      'temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_gusts_10m,relative_humidity_2m',
+    daily:
+      'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,' +
+      'precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,sunrise,sunset',
+    // By the hour for the whole week: the strip reads the next day of it, and
+    // the four parts of every day in the panel are read off the same list.
+    // About seven kilobytes, once per fifteen minutes for everyone.
+    hourly: 'temperature_2m,precipitation_probability,weather_code,is_day',
     timezone: 'Europe/Zurich',
     // Seven, not one: the tile reads the first day and the panel behind it
     // reads all of them. One request serves both, and asking for six more days
@@ -136,6 +214,28 @@ export async function getWeather(): Promise<Weather | null> {
 
     const chance = today?.precipitation_probability_max?.[0];
 
+    // Hours first, because the days read their four parts out of them. Same
+    // rule as the week below: an hour that does not parse is dropped, and the
+    // panel shows what is left.
+    const hourly = data?.hourly;
+    const times: unknown[] = Array.isArray(hourly?.time) ? hourly.time : [];
+    const allHours: HourForecast[] = times.flatMap((time, i) => {
+      const temp = hourly?.temperature_2m?.[i];
+      const code = hourly?.weather_code?.[i];
+      if (typeof time !== 'string' || !finite(temp) || !finite(code)) return [];
+      const wet = hourly?.precipitation_probability?.[i];
+      return [
+        {
+          time,
+          temp,
+          condition: conditionOf(code),
+          isDay: hourly?.is_day?.[i] !== 0,
+          rain: finite(wet) ? wet : 0
+        }
+      ];
+    });
+    const byTime = new Map(allHours.map((h) => [h.time, h]));
+
     // The week is assembled defensively and separately from the numbers above:
     // a missing day must cost the panel that row, never the tile its
     // temperature. Anything that does not parse is dropped rather than rendered
@@ -147,8 +247,39 @@ export async function getWeather(): Promise<Weather | null> {
       const code = today?.weather_code?.[i];
       if (typeof date !== 'string' || !finite(min) || !finite(max) || !finite(code)) return [];
       const wet = today?.precipitation_probability_max?.[i];
-      return [{ date, condition: conditionOf(code), min, max, rain: finite(wet) ? wet : 0 }];
+      const fell = today?.precipitation_sum?.[i];
+
+      const parts: DayForecast['parts'] = {};
+      for (const [name, hour] of Object.entries(PART_HOURS) as [PartName, number][]) {
+        const at = byTime.get(`${date}T${String(hour).padStart(2, '0')}:00`);
+        if (at) {
+          parts[name] = { temp: at.temp, condition: at.condition, isDay: at.isDay, rain: at.rain };
+        }
+      }
+
+      return [
+        {
+          date,
+          condition: conditionOf(code),
+          min,
+          max,
+          rain: finite(wet) ? wet : 0,
+          precip: finite(fell) ? fell : 0,
+          wind: orNull(today?.wind_speed_10m_max?.[i]),
+          gusts: orNull(today?.wind_gusts_10m_max?.[i]),
+          sunrise: clock(today?.sunrise?.[i]),
+          sunset: clock(today?.sunset?.[i]),
+          parts
+        }
+      ];
     });
+
+    // From the hour we are in, twenty-four of them. If this hour is somehow
+    // not in the list (a clock far off, a provider answering for yesterday),
+    // the strip starts at the first hour still ahead rather than not at all.
+    const current = zurichHour(new Date());
+    const from = allHours.findIndex((h) => h.time >= current);
+    const hours = from < 0 ? [] : allHours.slice(from, from + 24);
 
     return {
       temp: now.temperature_2m,
@@ -159,6 +290,10 @@ export async function getWeather(): Promise<Weather | null> {
       max: today.temperature_2m_max[0],
       // Some forecast models leave this out; "no chance given" reads as dry.
       rain: finite(chance) ? chance : 0,
+      wind: orNull(now.wind_speed_10m),
+      gusts: orNull(now.wind_gusts_10m),
+      humidity: orNull(now.relative_humidity_2m),
+      hours,
       days
     };
   } catch (error) {

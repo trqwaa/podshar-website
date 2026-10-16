@@ -295,7 +295,7 @@
     "rain": "niederschlag {chance}%",
     "unavailable": "kein wetter gekommen. schau aus dem fenster",
     "weekTitle": "die woche",
-    "weekHint": "zürich, sieben tage voraus",
+    "weekHint": "zürich: jetzt, stündlich und die woche",
     "today": "heute",
     "conditions": {
       "clear": "klar",
@@ -308,6 +308,31 @@
       "snow": "schnee",
       "showers": "schauer",
       "thunder": "gewitter"
+    },
+    "more": "vorhersage",
+    "now": "jetzt",
+    "hoursTitle": "die nächsten 24 stunden",
+    "daysTitle": "tag für tag",
+    "facts": {
+      "feels": "gefühlt",
+      "wind": "wind",
+      "humidity": "luftfeuchte",
+      "sun": "sonne auf – unter"
+    },
+    "speed": "{speed} km/h",
+    "windGusts": "{speed} km/h, böen bis {gusts}",
+    "share": "{value}%",
+    "high": "max. {temp}°",
+    "low": "min. {temp}°",
+    "dry": "trocken",
+    "precip": "{mm, number} mm",
+    "windDay": "wind bis {speed} km/h",
+    "windDayGusts": "wind bis {speed} km/h, böen bis {gusts}",
+    "parts": {
+      "night": "nachts",
+      "morning": "morgens",
+      "day": "tagsüber",
+      "evening": "abends"
     }
   },
   "presence": {
@@ -412,7 +437,8 @@
   },
   "patches": {
     "title": "patches",
-    "hint": "neueste zuerst. kleinkram steht auch drin"
+    "hint": "neueste zuerst. kleinkram steht auch drin",
+    "build": "live: v{version} · build <sha>{id}</sha> vom {when}"
   },
   "calendar": {
     "title": "kalender",
@@ -584,11 +610,11 @@
       "here": "spiele. dota und brawl: deine matches, die meta, schande und ehre, und ein vergleich — wer heute was geholt hat",
       "overview": "die übersicht. deine letzten spiele, der tag bisher und drei meta-helden auf deinem rang",
       "compare": "vergleich. ihr drei, beide spiele, nur heute. dota geschätzt, brawl in echten trophäen",
-      "meta": "die meta. dota auf deinem rang, mit builds nach phase. brawl aus den top 50 der welt",
+      "meta": "die meta. dota auf deinem rang, mit builds nach phase. brawl: ranked, karte für karte, von seemeta",
       "shame": "schande. gewählt und verloren. und extra die, auf denen du persönlich verlierst",
       "honour": "ehre. auf wem man aufsteigt. sf und arc sind immer dabei, keine diskussion",
       "dota": "ganz dota. meta auf dem rang, builds, deine helden. rang oben umschalten",
-      "brawl": "ganz brawl. meta aus der weltspitze, selbst gezählt — woanders gibt es sie nicht"
+      "brawl": "ganz brawl. die ranked-tierliste und die besten auf jeder karte — zahlen von seemeta"
     },
     "trains": {
       "here": "züge. von, nach, wann — und unten die abfahrtstafel. die SBB-app kann zubleiben",
@@ -994,7 +1020,7 @@
     "peak": "rekord {peak, number}",
     "metaOn": "meta auf {rank}",
     "metaAllRanks": "meta, alle ränge",
-    "metaTop50": "meta der top 50 weltweit",
+    "metaBrawl": "ranked-meta",
     "fullDota": "ganz dota",
     "fullBrawl": "ganz brawl",
     "compareCta": "alle vergleichen",
@@ -1006,7 +1032,6 @@
     "you": "du",
     "sampleDota": "stichprobe: {matches, plural, one {# match} other {# matches}} auf {rank}",
     "sampleDotaAll": "stichprobe: {matches, plural, one {# match} other {# matches}} über alle ränge",
-    "sampleBrawl": "stichprobe: {battles, plural, one {# kampf} other {# kämpfe}} von {players, plural, one {dem weltbesten} other {# der weltbesten}}, gezählt {when}",
     "metaHint": "oft gewählt und gewinnt",
     "shameHint": "gewählt und verliert. finger weg",
     "honourHint": "nimm die und steig auf",
@@ -1029,7 +1054,6 @@
     "ownNone": "noch zu wenig spiele für ein urteil",
     "ownGames": "{games, plural, one {# spiel} other {# spiele}}",
     "metaMissing": "opendota hat nicht geantwortet. schau später wieder",
-    "brawlMetaNone": "die brawl-meta ist noch nicht gezählt. der server nimmt alle sechs stunden die top 50 der welt",
     "brawlOwnNote": "aus den kämpfen, die die seite bisher gesehen hat: {n}",
     "allRanks": "alle",
     "leastBad": "am wenigsten verloren",
@@ -1046,6 +1070,36 @@
     "weekHeroes": "diese woche am meisten",
     "rankedShort": "ranked",
     "trophiesN": "{n, plural, one {# trophäe} other {# trophäen}}",
-    "trophiesUnit": "{n, plural, one {trophäe} other {trophäen}}"
+    "trophiesUnit": "{n, plural, one {trophäe} other {trophäen}}",
+    "brawlSource": "laut <link>SeeMeta</link>: {battles, plural, one {# ranked-kampf} other {# ranked-kämpfe}} vom {from} bis {to}",
+    "brawlSourcePlain": "laut <link>SeeMeta</link>, ranked-modus",
+    "brawlMetaMissing": "seemeta hat nicht geantwortet. die brawl-meta kommt, sobald es antwortet",
+    "byMap": "nach karten",
+    "byMapHint": "ranked-karten und wer dort trägt. tipp auf eine karte",
+    "mapBattles": "{n, plural, one {# kampf} other {# kämpfe}}",
+    "bestModes": "beste modi",
+    "bestMaps": "beste karten",
+    "tier": "tier",
+    "brawlModes": {
+      "gemGrab": "juwelenjagd",
+      "brawlBall": "brawlball",
+      "heist": "tresorraub",
+      "hotZone": "hotzone",
+      "knockout": "knockout",
+      "bounty": "kopfgeldjagd",
+      "soloShowdown": "solo-showdown",
+      "duoShowdown": "duo-showdown",
+      "trioShowdown": "trio-showdown",
+      "basketBrawl": "basketbrawl",
+      "airHockey": "brawlhockey",
+      "brawlHockey": "brawlhockey",
+      "brawlArena": "brawlarena",
+      "knockout5V5": "knockout 5v5",
+      "brawlBall5V5": "brawlball 5v5",
+      "wipeout5V5": "eliminierung 5v5",
+      "deathmatch5v5": "eliminierung 5v5",
+      "wipeout": "eliminierung",
+      "deathmatch": "eliminierung"
+    }
   }
 }

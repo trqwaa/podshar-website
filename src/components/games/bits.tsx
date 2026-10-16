@@ -65,8 +65,7 @@ export function Pct({
   locale: string;
   className?: string;
 }) {
-  const pct = value * 100;
-  const tone = pct >= 51 ? 'text-win' : pct >= 45 ? 'text-amber' : 'text-loss';
+  const tone = { win: 'text-win', even: 'text-amber', loss: 'text-loss' }[winTone(value)];
   // Форматом языка страницы: запятая по-русски и по-немецки, точка по-английски.
   const text = new Intl.NumberFormat(locale, {
     style: 'percent',
@@ -79,6 +78,25 @@ export function Pct({
     </span>
   );
 }
+
+/**
+ * Буква тир-листа SeeMeta. S залита — её глаз и ищет; D и F цветом поражения;
+ * остальные рамкой, потише. Буквы не переводятся: так их пишут и в игре, и
+ * везде, где о ней говорят.
+ */
+export function TierBadge({ tier, label }: { tier: string; label: string }) {
+  // Вид — в `globals.css` по атрибуту `data-tier`: тот же значок стоит в
+  // таблицах карт, где на каждую ячейку класс не навесишь (см. `.ps-map-table`).
+  return (
+    <span data-tier={tier} aria-label={`${label} ${tier}`} className="shrink-0">
+      {tier}
+    </span>
+  );
+}
+
+/** Цвет винрейта: 51 и выше — победа, до 45 — поражение, между — жёлтый. Одно место для порогов. */
+export const winTone = (value: number): 'win' | 'even' | 'loss' =>
+  value * 100 >= 51 ? 'win' : value * 100 >= 45 ? 'even' : 'loss';
 
 /** Сколько очков пришло или ушло. «≈» — когда число оценка, а не факт. */
 export function Delta({ value, estimated }: { value: number | null; estimated?: boolean }) {

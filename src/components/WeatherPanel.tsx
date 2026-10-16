@@ -23,6 +23,7 @@ import { Modal } from '@/components/Modal';
  */
 export function WeatherPanel({
   label,
+  more,
   title,
   hint,
   close,
@@ -32,6 +33,12 @@ export function WeatherPanel({
 }: {
   /** The quiet line at the top of the card, and what the button is announced as. */
   label: string;
+  /**
+   * The word at the other end of that line that says there is more behind the
+   * tile. A hover alone said it only to a mouse; on a phone the tile looked
+   * like any other card, and the week behind it was found by accident.
+   */
+  more: string;
   title: string;
   hint: string;
   close: string;
@@ -55,7 +62,12 @@ export function WeatherPanel({
         // before it is pressed, and there is no icon to say it with.
         className={`block-card animate-rise-in flex w-full flex-col gap-4 p-6 text-left transition-colors duration-drape ease-drape [animation-delay:150ms] hover:bg-sunk ${className}`}
       >
-        <p className="ps-label">{label}</p>
+        <p className="flex items-baseline justify-between gap-3">
+          <span className="ps-label">{label}</span>
+          <span aria-hidden="true" className="ps-label">
+            {more}&nbsp;›
+          </span>
+        </p>
         {children}
       </button>
 

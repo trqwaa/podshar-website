@@ -1,6 +1,43 @@
+import { execSync } from 'node:child_process';
+
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+/**
+ * Which commit this build is, and when it was built.
+ *
+ * Shown under the patch list and sent as `X-Podshar-Build` on every response.
+ * Autodeploy once sat on three pushes for a day without a word (see CLAUDE.md),
+ * and the only way to tell was to build locally and compare stylesheet hashes.
+ * Now one look says which commit is live:
+ *
+ *   curl -sI https://podshar-website.vercel.app/ru/login | grep -i x-podshar-build
+ *
+ * Vercel hands the commit over as an environment variable during the build. A
+ * local build asks git instead. Neither answering is not a reason to fail the
+ * build, it is "unknown" on the screen.
+ *
+ * The repository is public, so the commit says nothing a reader of GitHub does
+ * not already know. That is the difference from `X-Powered-By`, which is turned
+ * off below: that one names a framework and its exploits, this one names a
+ * commit anyone can open.
+ */
+function buildInfo() {
+  let sha = process.env.VERCEL_GIT_COMMIT_SHA ?? '';
+  if (!sha) {
+    try {
+      sha = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim();
+    } catch {
+      sha = '';
+    }
+  }
+  return { sha: /^[0-9a-f]{7,40}$/.test(sha) ? sha : 'unknown', at: new Date().toISOString() };
+}
+
+const BUILD = buildInfo();
 
 /**
  * Security headers, on every response.
@@ -52,8 +89,16 @@ const nextConfig = {
   reactStrictMode: true,
   // The framework's own banner: it tells a scanner which exploits to try first.
   poweredByHeader: false,
+  // Inlined at build time, so the page shows the build it belongs to and not
+  // whatever a server happens to have in its environment later.
+  env: { PODSHAR_BUILD_SHA: BUILD.sha, PODSHAR_BUILD_AT: BUILD.at },
   async headers() {
-    return [{ source: '/:path*', headers: SECURITY_HEADERS }];
+    return [
+      {
+        source: '/:path*',
+        headers: [...SECURITY_HEADERS, { key: 'X-Podshar-Build', value: BUILD.sha.slice(0, 7) }]
+      }
+    ];
   },
   images: {
     // Scraped media is proxied through our own /api/media/[id] route so that we

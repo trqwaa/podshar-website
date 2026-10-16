@@ -1,270 +1,281 @@
 import 'server-only';
 
-import { prisma } from '@/lib/db';
-import { authConfigured } from '@/lib/auth/config';
-import { BRAWL, ask, battleTime } from '@/lib/games';
-import { brawler } from '@/lib/game-catalog';
+import { unstable_cache } from 'next/cache';
+
+import type { Locale } from '@/i18n/routing';
+import { UK_MAP_NAMES } from '@/lib/brawl-maps-uk';
+import { BRAWLERS, BRAWLER_ICONS } from '@/lib/game-catalog';
+import { parseHeader, parseMapsPage, parseTierPage, type SeeMetaRow } from '@/lib/seemeta';
 
 /**
- * Мета Brawl Stars — посчитанная нами, потому что взять её негде.
+ * Мета Brawl Stars — с SeeMeta: ранговые бои, по картам.
  *
- * Готовой статистики нет ни у кого, кто отдаёт её серверу. Supercell меты не
- * публикует вовсе. Brawlify публикует, но `api.brawlify.com` отвечает серверам
- * 403 — он за защитой от ботов, — а старый адрес `api.brawlapi.com` отдаёт
- * пустые `stats` у всех 1300 карт (проверено 24 сентября 2026: `dataUpdated: 0`
- * везде). То есть любая «мета бравла» на нашем сайте была бы либо выдумана,
- * либо украдена со страницы, которая этого не разрешает.
+ * Своя формула была дважды и дважды «не соответствовала действительности».
+ * В 1.0.0 — журналы топ-50 мира за двое суток: тысяча боёв и шум. В пробной
+ * 1.17 — обход журналов от наших аккаунтов и топов, честно со всех уровней, —
+ * но мета в бравле живёт на картах, а не в среднем по всем: бравлер, который
+ * тащит ограбление, сливает кристаллы, и общий винрейт врёт про обе карты.
+ * Владелец попросил 16 октября 2026: мету по картам ранкеда, и не считать, а
+ * взять там, где её уже посчитали.
  *
- * Поэтому считаем сами, из официального API: топ-50 мира и их журналы последних
- * боёв. Это около тысячи боёв и шести тысяч выходов бравлеров — честная выборка
- * «что играют и на чём выигрывают лучшие прямо сейчас». Не мета всех игроков,
- * а мета верха; на экране так и подписано.
+ * SeeMeta, потому что из проверенных он один подходит целиком: считает по
+ * настоящему ранговому режиму (1,13 млн боёв за месяц на 16 октября), отдельно
+ * по каждой карте, пересчитывает каждый день и пишет на странице, из скольких
+ * боёв и за какой период. Brawlify и noff.gg отвечают обычному запросу 403,
+ * у BrawlAPI статистика пустая, у Supercell её нет вовсе.
  *
- * Считается не чаще раза в шесть часов, в фоне, и ложится в `meta_hero_stats` —
- * таблицу, которая стояла в схеме с первого дня. Страница читает только её.
+ * Берём раз в шесть часов, в кеш Next, как мету доты с OpenDota: считать тут
+ * нечего, это готовая таблица, и в нашу базу ей незачем. Две страницы, около
+ * трёх мегабайт на всё, — сайту, который живёт на рекламе, это ничего не
+ * стоит, а на доске стоит ссылка на источник.
  */
 
-const TOP_PLAYERS = 50;
-const EVERY_MS = 6 * 3600 * 1000;
-/** Бои старше двух суток — уже не «сейчас»: баланс-патч мог выйти вчера. */
-const WINDOW_MS = 48 * 3600 * 1000;
-const BUDGET = 8000;
-const BRACKET = 'top50';
-/**
- * Служебная строка выборки. `pickRate` в ней — число боёв, `winRate` — число
- * опрошенных игроков. Отдельной таблицы под два числа не заводим: схема общая
- * на троих, а эти два числа нужны только чтобы честно подписать размер выборки.
- */
-const SAMPLE_KEY = '_sample';
-
-export const brawlMetaAvailable = () => Boolean(process.env.BRAWL_STARS_API_TOKEN);
-
-type Brawler = { id: number; name: string; hasIcon: boolean };
+const SEEMETA_ROOT = 'https://seemeta.com';
+export const SEEMETA = `${SEEMETA_ROOT}/en/brawl-stars`;
+const TTL = 6 * 3600;
+const BUDGET = 15_000;
+/** Сколько не ходить снова после сбоя: страница на три мегабайта не должна качаться на каждый показ. */
+const BACKOFF_MS = 10 * 60_000;
 
 /**
- * Пересчитать мету, если пора.
- *
- * Вызывается из фоновой синхронизации доски, после ответа. Сначала — «застолбить»
- * пересчёт под блокировкой: два человека, открывших доску одновременно, иначе
- * оба пошли бы опрашивать пятьдесят игроков, и Supercell увидел бы сто запросов
- * вместо пятидесяти.
+ * Порядок режимов на доске. Какие карты ранговые, решает не этот список, а
+ * подпись SeeMeta у карты («Ranked battles»): добавят в ранкед новый режим —
+ * его карты появятся сами, в конце.
  */
-export async function refreshBrawlMeta(): Promise<void> {
-  const token = process.env.BRAWL_STARS_API_TOKEN;
-  if (!token) return;
+const MODE_ORDER = ['gemGrab', 'brawlBall', 'heist', 'hotZone', 'knockout', 'bounty'];
 
-  const now = Date.now();
-  const claimed = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('podshar:brawl-meta'))`;
-    const last = await tx.metaHeroStat.findFirst({
-      where: { game: 'BRAWL_STARS', heroKey: SAMPLE_KEY, bracket: BRACKET },
-      orderBy: { capturedAt: 'desc' },
-      select: { capturedAt: true }
-    });
-    if (last && now - last.capturedAt.getTime() < EVERY_MS) return false;
-    // Застолбили: маркер с «сейчас» — пока выборка идёт, остальные её не начнут.
-    await tx.metaHeroStat.create({
-      data: {
-        game: 'BRAWL_STARS',
-        heroKey: SAMPLE_KEY,
-        bracket: BRACKET,
-        patch: `claim:${now}`,
-        winRate: 0,
-        pickRate: 0
-      }
-    });
-    return true;
-  });
-  if (!claimed) return;
+export type MetaBrawler = {
+  /** Наш номер из справочника. `0` — SeeMeta знает бравлера, которого у нас ещё нет. */
+  id: number;
+  slug: string;
+  name: string;
+  hasIcon: boolean;
+  /** Буква SeeMeta: S, A, B, C, D, F. */
+  tier: string;
+  winRate: number;
+  useRate: number;
+  picks: number;
+};
 
-  // Не вышло — метку не оставляем на шесть часов, а сдвигаем так, чтобы повтор
-  // был через полчаса. Иначе один неответивший Supercell (или протухший ключ)
-  // оставлял бы доску без меты до вечера, а первая выборка на проде — до утра.
-  const giveUp = async (why: string) => {
-    console.warn(`[podshar] brawl meta: ${why}, повтор через полчаса`);
-    await prisma.metaHeroStat
-      .updateMany({
-        where: {
-          game: 'BRAWL_STARS',
-          heroKey: SAMPLE_KEY,
-          bracket: BRACKET,
-          patch: `claim:${now}`
-        },
-        data: { capturedAt: new Date(now - EVERY_MS + 30 * 60_000) }
-      })
-      .catch(() => {});
-  };
+export type MetaMap = {
+  slug: string;
+  name: string;
+  mode: string;
+  battles: number;
+  brawlers: MetaBrawler[];
+};
 
-  const headers = { authorization: `Bearer ${token}` };
-  const top = await ask(`${BRAWL}/rankings/global/players?limit=${TOP_PLAYERS}`, 0, BUDGET, headers)
-    .then((r) => r.json())
-    .catch(() => null);
-  const tags: string[] = Array.isArray(top?.items)
-    ? top.items
-        .map((p: { tag?: unknown }) => p?.tag)
-        .filter((t: unknown): t is string => typeof t === 'string')
-    : [];
-  if (!tags.length) return giveUp('топ игроков не пришёл');
+export type TierBrawler = MetaBrawler & {
+  score: number | null;
+  /** `id` — режим так, как его пишет Supercell (`hotZone`): по нему он и переводится. */
+  modes: { id: string; name: string; tier: string; winRate: number }[];
+  maps: { name: string; verdict: string; winRate: number }[];
+};
 
-  // По восемь одновременно: быстрее, чем по одному, и вежливее, чем все пятьдесят разом.
-  const logs: unknown[] = [];
-  for (let i = 0; i < tags.length; i += 8) {
-    const batch = await Promise.all(
-      tags.slice(i, i + 8).map((tag) =>
-        ask(`${BRAWL}/players/${encodeURIComponent(tag)}/battlelog`, 0, BUDGET, headers)
-          .then((r) => r.json())
-          .then((log) => ({ tag, items: Array.isArray(log?.items) ? log.items : [] }))
-          .catch(() => null)
-      )
-    );
-    logs.push(...batch.filter(Boolean));
-  }
+export type BrawlMeta = {
+  battles: number | null;
+  /** Период данных, `2026-09-16` — строками: кеш Next хранит JSON, а не `Date`. */
+  from: string | null;
+  to: string | null;
+  fetchedAt: string;
+  maps: MetaMap[];
+  /** Весь тир-лист в порядке SeeMeta — по их оценке, лучший первым. */
+  tier: TierBrawler[];
+};
 
-  const seen = new Set<string>();
-  const tally = new Map<number, { games: number; wins: number }>();
-  let battles = 0;
+/**
+ * Имя → наш номер. SeeMeta пишет имена по-английски, как сама игра, и
+ * справочник тоже: сравниваем без регистра и знаков, чтобы «Mr. P», «8-Bit» и
+ * «Larry & Lawrie» сошлись. Проверено на всех 107 бравлерах 16 октября.
+ */
+const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+const BY_NAME = new Map(Object.entries(BRAWLERS).map(([id, b]) => [norm(b.name), Number(id)]));
 
-  for (const log of logs as { tag: string; items: unknown[] }[]) {
-    for (const item of log.items) {
-      const x = item as { battleTime?: unknown; battle?: Record<string, unknown> };
-      const at = battleTime(x?.battleTime);
-      const battle = x?.battle;
-      // Только командные бои с явным исходом: в «выживании» победитель один из
-      // десяти, и винрейт там значит другое. Смешивать — значит врать про обоих.
-      if (!at || now - at > WINDOW_MS || !battle || !Array.isArray(battle.teams)) continue;
-      if (battle.result !== 'victory' && battle.result !== 'defeat') continue;
-
-      const teams = battle.teams as { tag?: string; brawler?: { id?: number } }[][];
-      // Один и тот же бой лежит в журналах у всех топов, которые в нём были.
-      const key = `${at}:${teams
-        .flat()
-        .map((p) => p.tag)
-        .sort()
-        .join(',')}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      battles += 1;
-
-      const mine = teams.findIndex((team) => team.some((p) => p.tag === log.tag));
-      if (mine < 0) continue;
-      teams.forEach((team, i) => {
-        const won = (i === mine) === (battle.result === 'victory');
-        for (const p of team) {
-          const id = p?.brawler?.id;
-          if (typeof id !== 'number') continue;
-          const row = tally.get(id) ?? { games: 0, wins: 0 };
-          row.games += 1;
-          if (won) row.wins += 1;
-          tally.set(id, row);
-        }
-      });
-    }
-  }
-  if (!battles) return giveUp('ни одного подходящего боя');
-
-  const patch = new Date(now).toISOString().slice(0, 13);
-  await prisma.$transaction([
-    // Держим неделю выборок — хватит, чтобы однажды нарисовать, кто как рос.
-    prisma.metaHeroStat.deleteMany({
-      where: {
-        game: 'BRAWL_STARS',
-        bracket: BRACKET,
-        capturedAt: { lt: new Date(now - 7 * 86_400_000) }
-      }
-    }),
-    prisma.metaHeroStat.deleteMany({
-      where: {
-        game: 'BRAWL_STARS',
-        bracket: BRACKET,
-        heroKey: SAMPLE_KEY,
-        patch: { startsWith: 'claim:' }
-      }
-    }),
-    prisma.metaHeroStat.createMany({
-      skipDuplicates: true,
-      data: [
-        {
-          game: 'BRAWL_STARS',
-          heroKey: SAMPLE_KEY,
-          bracket: BRACKET,
-          patch,
-          winRate: logs.length,
-          pickRate: battles
-        },
-        ...[...tally].map(([id, t]) => ({
-          game: 'BRAWL_STARS' as const,
-          heroKey: String(id),
-          bracket: BRACKET,
-          patch,
-          winRate: t.wins / t.games,
-          // Доля боёв, где этот бравлер был хоть у кого-то из шестерых.
-          pickRate: t.games / battles
-        }))
-      ]
-    })
-  ]);
-  console.log(
-    `[podshar] brawl meta: ${battles} боёв у ${logs.length} игроков, ${tally.size} бравлеров`
-  );
-}
-
-export type MetaBrawler = Brawler & { winRate: number; pickRate: number; games: number };
-
-export type BrawlMeta = { battles: number; players: number; at: Date; brawlers: MetaBrawler[] };
-
-/** Последняя посчитанная выборка. `null` — ещё ни разу не считали. */
-export async function brawlMeta(): Promise<BrawlMeta | null> {
-  // Без базы — разработка без DATABASE_URL, где сайт нарочно открыт гостем.
-  // Остальная доска там честно пустая, и мета не должна ронять её запросом в
-  // базу, которой нет.
-  if (!authConfigured()) return null;
-  const sample = await prisma.metaHeroStat.findFirst({
-    where: {
-      game: 'BRAWL_STARS',
-      bracket: BRACKET,
-      heroKey: SAMPLE_KEY,
-      NOT: { patch: { startsWith: 'claim:' } }
-    },
-    orderBy: { capturedAt: 'desc' }
-  });
-  if (!sample) return null;
-
-  const rows = await prisma.metaHeroStat.findMany({
-    where: {
-      game: 'BRAWL_STARS',
-      bracket: BRACKET,
-      patch: sample.patch,
-      NOT: { heroKey: SAMPLE_KEY }
-    }
-  });
-
-  const battles = Math.round(sample.pickRate);
+function ours(row: SeeMetaRow): MetaBrawler {
+  const id = BY_NAME.get(norm(row.name)) ?? BY_NAME.get(norm(row.slug)) ?? 0;
   return {
-    battles,
-    players: Math.round(sample.winRate),
-    at: sample.capturedAt,
-    brawlers: rows.map((r) => {
-      const id = Number(r.heroKey);
-      return {
-        ...brawler(id),
-        winRate: r.winRate,
-        pickRate: r.pickRate,
-        games: Math.round(r.pickRate * battles)
-      };
-    })
+    id,
+    slug: row.slug,
+    name: row.name,
+    hasIcon: id > 0 && BRAWLER_ICONS.has(id),
+    tier: row.tier,
+    winRate: row.winRate,
+    useRate: row.useRate,
+    picks: row.picks
   };
 }
 
-/** Бравлеры, которых видели меньше чем в двадцати боях, в мету и в позор не попадают: это шум. */
-const MIN_GAMES = 20;
+async function page(url: string): Promise<string> {
+  const path = url.replace(SEEMETA_ROOT, '');
+  const response = await fetch(url, {
+    // Без кеша на самом запросе: страница тир-листа больше двух мегабайт, и
+    // кеш Next её всё равно не возьмёт. Кешируется разобранное, ниже.
+    cache: 'no-store',
+    // Тот же честный заголовок, что везде. Обычный `curl` SeeMeta не пускает,
+    // безголовый браузер тоже, а представившийся сайт — пускает.
+    headers: { 'user-agent': 'Mozilla/5.0 (compatible; podshar/1.0)' },
+    signal: AbortSignal.timeout(BUDGET)
+  });
+  if (!response.ok) throw new Error(`${path}: ответ ${response.status}`);
+  return response.text();
+}
 
-export const brawlMetaList = (m: BrawlMeta) =>
-  m.brawlers.filter((b) => b.games >= MIN_GAMES).sort((a, b) => b.winRate - a.winRate);
+async function load(): Promise<BrawlMeta> {
+  const [mapsHtml, tierHtml] = await Promise.all([
+    page(`${SEEMETA}/maps`),
+    page(`${SEEMETA}/tier-list`)
+  ]);
+  const header = parseHeader(tierHtml);
+  // Только карты рангового: на странице с 17 октября и вся ротация боёв за
+  // кубки, и новые режимы — у них подпись «Trophy battles». «Выживание»
+  // отсекается ещё и по режиму: в ранкеде его не бывает, а 16 октября SeeMeta
+  // подписывал его «Ranked battles», хотя считал по боям за кубки.
+  const maps = parseMapsPage(mapsHtml).filter(
+    (m) => m.ranked && m.battles > 0 && !/showdown/i.test(m.mode)
+  );
+  const tier = parseTierPage(tierHtml);
 
+  // Разметка чужая и может поменяться. Тогда лучше честное «не пришло» и
+  // строка в логе, чем доска с тремя картами, которая выглядит как настоящая.
+  // «Hot Zone» из карточки бравлера → `hotZone` с карты: без пробелов и регистра.
+  const rankedModes = new Map(maps.map((m) => [norm(m.mode), m.mode]));
+  const rankedMaps = new Set(maps.map((m) => m.name));
+  if (maps.length < 10 || tier.length < 50) {
+    throw new Error(`разобралось ${maps.length} карт и ${tier.length} бравлеров — разметка поменялась?`);
+  }
+
+  return {
+    battles: header.rankedBattles,
+    from: header.from,
+    to: header.to,
+    fetchedAt: new Date().toISOString(),
+    maps: maps.map((m) => ({
+      slug: m.slug,
+      name: m.name,
+      mode: m.mode,
+      battles: m.battles,
+      brawlers: m.rows.map(ours)
+    })),
+    // «Лучшие режимы и карты» у SeeMeta — по всем боям, вместе с «выживанием»
+    // и баскетом. Доска про ранкед, поэтому оставляем только его режимы и карты:
+    // режим «Gem Grab» сверяется с `gemGrab` карт без пробелов и регистра.
+    tier: tier.map((b) => ({
+      ...ours(b),
+      score: b.score,
+      modes: b.modes.flatMap((x) => {
+        const id = rankedModes.get(norm(x.name));
+        return id ? [{ ...x, id }] : [];
+      }),
+      maps: b.maps.filter((x) => rankedMaps.has(x.name))
+    }))
+  };
+}
+
+const cached = unstable_cache(load, ['seemeta-brawl', 'v2'], { revalidate: TTL });
+
+let failedAt = 0;
+
+/** Мета рангового с SeeMeta. `null` — не ответил или не разобрался; причина в логе. */
+export async function brawlMeta(): Promise<BrawlMeta | null> {
+  if (Date.now() - failedAt < BACKOFF_MS) return null;
+  try {
+    return await cached();
+  } catch (error) {
+    failedAt = Date.now();
+    console.warn('[podshar] seemeta:', error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/** Мета — верх их тир-листа, в их порядке: оценка уже учитывает и винрейт, и то, как часто берут. */
+export const brawlMetaList = (m: BrawlMeta, count = 15) => m.tier.slice(0, count);
+
+/**
+ * Позор — худший винрейт среди тех, кого реально берут (от 1% боёв), и только
+ * ниже половины: «играют и сливают», а не «никто не играет».
+ */
 export const brawlShameList = (m: BrawlMeta, count = 12) =>
-  m.brawlers
-    .filter((b) => b.games >= MIN_GAMES)
+  m.tier
+    .filter((b) => b.useRate >= 0.01 && b.winRate < 0.5)
     .sort((a, b) => a.winRate - b.winRate)
     .slice(0, count);
 
-export const brawlHonourList = (m: BrawlMeta, count = 10) => brawlMetaList(m).slice(0, count);
+/** Почёт — лучшие по их оценке, кто выигрывает чаще, чем проигрывает. */
+export const brawlHonourList = (m: BrawlMeta, count = 10) =>
+  m.tier.filter((b) => b.winRate > 0.5).slice(0, count);
+
+/** Карты рангового по режимам, в порядке `MODE_ORDER`, внутри — по числу боёв. */
+export function mapsByMode(m: BrawlMeta): { mode: string; maps: MetaMap[] }[] {
+  const modes = [...new Set(m.maps.map((x) => x.mode))].sort((a, b) => {
+    const at = (mode: string) => (MODE_ORDER.includes(mode) ? MODE_ORDER.indexOf(mode) : MODE_ORDER.length);
+    return at(a) - at(b);
+  });
+  return modes.map((mode) => ({
+    mode,
+    maps: m.maps.filter((x) => x.mode === mode).sort((a, b) => b.battles - a.battles)
+  }));
+}
+
+/**
+ * Названия карт на языке страницы — как их видит в игре тот, кто её читает.
+ *
+ * Двое из троих играют на русском, один на английском, и «Hard Rock Mine» на
+ * русской странице надо было переводить в голове в «Роковую шахту». Русские и
+ * немецкие названия — официальные, со страниц SeeMeta на этих языках: секции
+ * карт там с теми же `id`, что на английской, и сопоставляются один к одному.
+ * Украинского в игре нет — его словарь наш, см. `brawl-maps-uk.ts`.
+ *
+ * Отдельный кеш на сутки: названия не меняются, меняется только список карт,
+ * и три страницы раз в шесть часов ради них были бы лишними.
+ */
+type Names = Record<'ru' | 'de', Record<string, string>>;
+
+async function loadNames(): Promise<Names> {
+  const [en, ru, de] = await Promise.all(
+    ['en', 'ru', 'de'].map((lang) => page(`${SEEMETA_ROOT}/${lang}/brawl-stars/maps`))
+  );
+  const english = new Map(parseMapsPage(en).map((m) => [m.slug, m.name]));
+  const names: Names = { ru: {}, de: {} };
+  for (const [lang, html] of [['ru', ru], ['de', de]] as const) {
+    for (const m of parseMapsPage(html)) {
+      const original = english.get(m.slug);
+      if (original && m.name) names[lang][norm(original)] = m.name;
+    }
+  }
+  if (Object.keys(names.ru).length < 20 || Object.keys(names.de).length < 20) {
+    throw new Error(
+      `названий карт: ${Object.keys(names.ru).length} по-русски, ${Object.keys(names.de).length} по-немецки — разметка поменялась?`
+    );
+  }
+  return names;
+}
+
+const cachedNames = unstable_cache(loadNames, ['seemeta-map-names', 'v1'], {
+  revalidate: 24 * 3600
+});
+
+const UK = new Map(Object.entries(UK_MAP_NAMES).map(([en, uk]) => [norm(en), uk]));
+
+let namesFailedAt = 0;
+
+/**
+ * Функция «английское название → название на языке страницы». Не нашлось —
+ * английское: это настоящее имя карты, а не пустое место.
+ */
+export async function mapNamer(
+  locale: Locale
+): Promise<(english: string | null | undefined) => string> {
+  if (locale === 'en') return (english) => english ?? '';
+  if (locale === 'uk') return (english) => (english ? (UK.get(norm(english)) ?? english) : '');
+
+  let dict: Record<string, string> = {};
+  if (Date.now() - namesFailedAt >= BACKOFF_MS) {
+    try {
+      dict = (await cachedNames())[locale];
+    } catch (error) {
+      namesFailedAt = Date.now();
+      console.warn('[podshar] seemeta names:', error instanceof Error ? error.message : error);
+    }
+  }
+  return (english) => (english ? (dict[norm(english)] ?? english) : '');
+}

@@ -203,4 +203,65 @@
   .ps-rule {
     @apply border-t border-rule-soft;
   }
+
+  /*
+   * The ten best on a Brawl map. A table whose cells carry no classes at all:
+   * there are thirty maps and three hundred rows, each sent twice — as HTML and
+   * again as React's payload — and with a utility class on every cell the
+   * board weighed 800 KB. Columns: place, icon, name, tier, use rate, win rate.
+   */
+  .ps-map-table {
+    @apply w-full border-collapse text-sm tabular-nums;
+  }
+  .ps-map-table td {
+    @apply py-1 align-middle;
+  }
+  .ps-map-table td:nth-child(1) {
+    @apply w-6 pr-3 text-right text-ink-faint;
+  }
+  .ps-map-table td:nth-child(2) {
+    @apply w-10;
+  }
+  .ps-map-table td:nth-child(2) img {
+    @apply block h-7 w-7;
+  }
+  .ps-map-table td:nth-child(3) {
+    @apply max-w-0 truncate pr-2 text-base text-ink;
+  }
+  .ps-map-table td:nth-child(4) {
+    @apply w-8;
+  }
+  .ps-map-table td:nth-child(5) {
+    @apply w-14 text-right text-ink-muted;
+  }
+  .ps-map-table td:nth-child(6) {
+    @apply w-16 whitespace-nowrap text-right font-semibold;
+  }
+
+  /* A tier letter by data attribute, so a row carries one short attribute
+     instead of a dozen classes. Same look as `TierBadge`. */
+  [data-tier] {
+    @apply grid h-6 w-6 place-items-center rounded-sm border-2 border-rule text-xs font-semibold normal-case text-ink-muted;
+  }
+  [data-tier='S'] {
+    @apply border-ink bg-ink text-canvas;
+  }
+  [data-tier='A'] {
+    @apply border-ink text-ink;
+  }
+  [data-tier='D'],
+  [data-tier='F'] {
+    @apply border-loss/50 text-loss;
+  }
+
+  /* Win-rate colour by data attribute — the same thresholds as `Pct`. */
+  [data-tone='win'] {
+    @apply text-win;
+  }
+  [data-tone='even'] {
+    @apply text-amber;
+  }
+  [data-tone='loss'] {
+    @apply text-loss;
+  }
 }

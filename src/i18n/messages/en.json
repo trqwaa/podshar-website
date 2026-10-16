@@ -295,7 +295,7 @@
     "rain": "precipitation {chance}%",
     "unavailable": "no weather came through. try the window",
     "weekTitle": "the week ahead",
-    "weekHint": "zurich, seven days out",
+    "weekHint": "zurich: now, by the hour and the week",
     "today": "today",
     "conditions": {
       "clear": "clear",
@@ -308,6 +308,31 @@
       "snow": "snow",
       "showers": "showers",
       "thunder": "thunderstorm"
+    },
+    "more": "forecast",
+    "now": "now",
+    "hoursTitle": "next 24 hours",
+    "daysTitle": "day by day",
+    "facts": {
+      "feels": "feels like",
+      "wind": "wind",
+      "humidity": "humidity",
+      "sun": "sunrise – sunset"
+    },
+    "speed": "{speed} km/h",
+    "windGusts": "{speed} km/h, gusts to {gusts}",
+    "share": "{value}%",
+    "high": "high {temp}°",
+    "low": "low {temp}°",
+    "dry": "dry",
+    "precip": "{mm, number} mm",
+    "windDay": "wind up to {speed} km/h",
+    "windDayGusts": "wind up to {speed} km/h, gusts to {gusts}",
+    "parts": {
+      "night": "night",
+      "morning": "morning",
+      "day": "afternoon",
+      "evening": "evening"
     }
   },
   "presence": {
@@ -412,7 +437,8 @@
   },
   "patches": {
     "title": "patches",
-    "hint": "newest first. the small stuff is in here too"
+    "hint": "newest first. the small stuff is in here too",
+    "build": "live: v{version} · build <sha>{id}</sha>, {when}"
   },
   "calendar": {
     "title": "calendar",
@@ -584,11 +610,11 @@
       "here": "games. dota and brawl: your matches, the meta, shame and honour, and a compare button — who climbed what today",
       "overview": "the overview. your last games, the day so far, and three meta heroes at your rank",
       "compare": "compare. all three of you, both games, today only. dota as an estimate, brawl in real trophies",
-      "meta": "the meta. dota at your rank, with builds by phase. brawl from the world top 50",
+      "meta": "the meta. dota at your rank, with builds by phase. brawl: ranked, map by map, from seemeta",
       "shame": "shame. picked and losing. and separately, the ones you personally throw on",
       "honour": "honour. who to climb on. sf and arc are always there, not up for discussion",
       "dota": "all of dota. the meta at your rank, builds, your heroes. switch rank at the top",
-      "brawl": "all of brawl. the meta from the world top, counted by us — there's nowhere else to get it"
+      "brawl": "all of brawl. the ranked tier list and the best on every map — seemeta numbers"
     },
     "trains": {
       "here": "trains. from, to, when — and the station board below. no need to open the SBB app",
@@ -994,7 +1020,7 @@
     "peak": "best {peak, number}",
     "metaOn": "meta at {rank}",
     "metaAllRanks": "meta, all ranks",
-    "metaTop50": "top 50 world meta",
+    "metaBrawl": "ranked meta",
     "fullDota": "all of dota",
     "fullBrawl": "all of brawl",
     "compareCta": "compare everyone",
@@ -1006,7 +1032,6 @@
     "you": "you",
     "sampleDota": "sample: {matches, plural, one {# match} other {# matches}} at {rank}",
     "sampleDotaAll": "sample: {matches, plural, one {# match} other {# matches}} across all ranks",
-    "sampleBrawl": "sample: {battles, plural, one {# battle} other {# battles}} from {players, plural, one {the world's best player} other {# of the world's best}}, counted {when}",
     "metaHint": "picked often, and winning",
     "shameHint": "picked, and losing. steer clear",
     "honourHint": "pick these and climb",
@@ -1029,7 +1054,6 @@
     "ownNone": "not enough games to judge yet",
     "ownGames": "{games, plural, one {# game} other {# games}}",
     "metaMissing": "opendota didn't answer. look again later",
-    "brawlMetaNone": "the brawl meta hasn't been counted yet. the server samples the world top 50 every six hours",
     "brawlOwnNote": "from the battles the site has seen so far: {n}",
     "allRanks": "all",
     "leastBad": "lost the least",
@@ -1046,6 +1070,36 @@
     "weekHeroes": "most played this week",
     "rankedShort": "ranked",
     "trophiesN": "{n, plural, one {# trophy} other {# trophies}}",
-    "trophiesUnit": "{n, plural, one {trophy} other {trophies}}"
+    "trophiesUnit": "{n, plural, one {trophy} other {trophies}}",
+    "brawlSource": "<link>SeeMeta</link> data: {battles, plural, one {# ranked battle} other {# ranked battles}}, {from} to {to}",
+    "brawlSourcePlain": "<link>SeeMeta</link> data, ranked mode",
+    "brawlMetaMissing": "seemeta didn't answer. the brawl meta shows up once it does",
+    "byMap": "by map",
+    "byMapHint": "ranked maps and who carries on them. tap a map",
+    "mapBattles": "{n, plural, one {# battle} other {# battles}}",
+    "bestModes": "best modes",
+    "bestMaps": "best maps",
+    "tier": "tier",
+    "brawlModes": {
+      "gemGrab": "gem grab",
+      "brawlBall": "brawl ball",
+      "heist": "heist",
+      "hotZone": "hot zone",
+      "knockout": "knockout",
+      "bounty": "bounty",
+      "soloShowdown": "solo showdown",
+      "duoShowdown": "duo showdown",
+      "trioShowdown": "trio showdown",
+      "basketBrawl": "basket brawl",
+      "airHockey": "brawl hockey",
+      "brawlHockey": "brawl hockey",
+      "brawlArena": "brawl arena",
+      "knockout5V5": "knockout 5v5",
+      "brawlBall5V5": "brawl ball 5v5",
+      "wipeout5V5": "wipeout 5v5",
+      "deathmatch5v5": "wipeout 5v5",
+      "wipeout": "wipeout",
+      "deathmatch": "wipeout"
+    }
   }
 }
