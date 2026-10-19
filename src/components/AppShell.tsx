@@ -8,6 +8,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { Modal } from './Modal';
 import { RightAIChat } from './RightAIChat';
 import { PodsharWordmark } from './PodsharMark';
+import { Pult, PultDot } from './Pult';
 import type { MemberProfile } from '@/lib/types';
 
 /**
@@ -50,6 +51,7 @@ export function AppShell({
 }) {
   const t = useTranslations('home');
   const tPatches = useTranslations('patches');
+  const tPult = useTranslations('pult');
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
 
@@ -189,6 +191,10 @@ export function AppShell({
               `PodsharWordmark`, because the same wordmark heads the login and
               join pages, where "home" is a page you are not allowed on yet and
               the click would land you back on the login screen. */}
+          {/* Справа — красная точка пульта и слово. Точка первой: она то, что
+              жмут, а слово — то, что читают. */}
+          <div className="flex items-center gap-1">
+          <PultDot label={tPult('open')} />
           <Link
             href="/"
             aria-label={t('goHome')}
@@ -198,6 +204,7 @@ export function AppShell({
           >
             <PodsharWordmark className="text-xs font-semibold text-ink-muted" />
           </Link>
+          </div>
         </header>
 
         {/* With the drawer open, the page beside it is a way out.
@@ -287,6 +294,9 @@ export function AppShell({
       </div>
 
       <RightAIChat />
+
+      {/* Пульт — над всем, включая мопса: он открывается поверх сайта целиком. */}
+      <Pult />
 
       {/* Last, and over everything: the dog is fixed at z-50 and a panel that
           slid under him would be a panel you cannot fully read. */}

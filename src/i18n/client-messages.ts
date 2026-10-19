@@ -53,7 +53,8 @@ export const SIGNED_IN = [
   'games',
   'calendar',
   'todos',
-  'profile'
+  'profile',
+  'pult'
 ] as const;
 
 type Tree = { [key: string]: string | Tree };

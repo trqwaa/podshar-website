@@ -136,3 +136,62 @@ export function HardHatIcon(props: IconProps) {
     </Frame>
   );
 }
+
+/** Листок календаря — даты. */
+export function CalendarIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <rect x="2.6" y="3.6" width="10.8" height="9.8" rx="1.4" />
+      <path d="M2.6 6.8h10.8M5.6 2.2v2.6M10.4 2.2v2.6" />
+    </Frame>
+  );
+}
+
+/** Записка с загнутым углом — задачи на доске. */
+export function NoteIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <path d="M3 2.8h10v6.6l-3.6 3.8H3z" />
+      <path d="M13 9.4H9.4v3.8" />
+    </Frame>
+  );
+}
+
+/** Геймпад — игры. */
+export function GamepadIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <path d="M4.8 4.6h6.4a3 3 0 0 1 2.9 2.3l.7 3.3a1.6 1.6 0 0 1-2.7 1.4L10.6 10H5.4l-1.5 1.6a1.6 1.6 0 0 1-2.7-1.4l.7-3.3a3 3 0 0 1 2.9-2.3Z" />
+      <path d="M5.4 6.6v2M4.4 7.6h2M10.6 7.2h.01M11.6 8.2h.01" />
+    </Frame>
+  );
+}
+
+/** Ярлык с номером — версии и патчи. */
+export function TagIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <path d="M2.6 2.6h5.2l5.6 5.6-5.2 5.2-5.6-5.6z" />
+      <circle cx="5.4" cy="5.4" r="0.9" />
+    </Frame>
+  );
+}
+
+/** Человек — профиль. */
+export function UserIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <circle cx="8" cy="5.4" r="2.6" />
+      <path d="M2.8 13.6a5.2 5.2 0 0 1 10.4 0" />
+    </Frame>
+  );
+}
+
+/** Облачко реплики — спросить мопса. */
+export function ChatIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <path d="M2.6 3.4h10.8v7.2H7.2l-3 2.4v-2.4H2.6z" />
+    </Frame>
+  );
+}

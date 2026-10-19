@@ -269,7 +269,7 @@
     "memberLabel": "who is this",
     "quoteLabel": "thought of the day",
     "patchesLabel": "what changed",
-    "pressCount": "{count} presses. still nothing",
+    "pressCount": "{count} presses. you live here now",
     "press": {
       "1": "really?",
       "2": "one more and it breaks",
@@ -569,7 +569,7 @@
     "home": {
       "here": "the home page. a red button, the date, the weather, who is loitering, a thought",
       "greeting": "that is me saying hello, a new line every day",
-      "reactor": "the ПХ button, says do not press. you pressed it 😈",
+      "reactor": "the ПХ button, says do not press. behind it is the whole site, one line 😈",
       "today": "date and clock. the date is shared, the clock is your machine",
       "member": "that is you. name, handle, a letter instead of a face",
       "quote": "thought of the day, one for all three. no depth",
@@ -1100,6 +1100,33 @@
       "deathmatch5v5": "wipeout 5v5",
       "wipeout": "wipeout",
       "deathmatch": "wipeout"
+    }
+  },
+  "pult": {
+    "title": "console",
+    "label": "console: the whole site",
+    "open": "open the console",
+    "placeholder": "where to?",
+    "close": "close",
+    "here": "you are here",
+    "soon": "soon",
+    "ask": "ask the pug",
+    "keys": "↑↓ pick · enter open · esc close · / or ctrl+k from anywhere",
+    "answers": {
+      "trainsNext": "home at {time} · {min, plural, =0 {leaving now} other {in # min}}",
+      "trainsNoStation": "no station picked",
+      "trainsAtHB": "you are at HB already",
+      "weather": "{temp}°, {condition}",
+      "here": "{names} here",
+      "nobody": "just you",
+      "calendarEmpty": "nothing today",
+      "calendarDone": "done for today",
+      "calendarNext": "{title} at {time}",
+      "calendarAllDay": "{title}, all day",
+      "calendarMore": "{first} · {n} more",
+      "todos": "shared: {shared} · yours: {mine}",
+      "games": "brawl meta: {name}",
+      "patches": "v{version} · {date}"
     }
   }
 }

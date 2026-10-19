@@ -8,6 +8,7 @@ import { usePathname, useRouter } from '@/i18n/routing';
 import { placeForPath } from '@/lib/navigation';
 import { AssistantAvatar } from './AssistantAvatar';
 import { AssistantLauncher } from './AssistantLauncher';
+import { PULT_ASK } from './Pult';
 
 type Message = { id: string; role: 'assistant' | 'user'; text: string };
 
@@ -184,8 +185,22 @@ function holdPointer(move: (e: PointerEvent) => void, letGo: () => void) {
  * the point of a drawer. This is a conversation held beside the page.
  */
 export function RightAIChat() {
+  // Набранное в пульте, что пульт не нашёл, — мопсу. `id`, чтобы тот же текст
+  // дважды подряд всё равно ушёл дважды.
+  const [ask, setAsk] = useState<{ id: number; text: string } | null>(null);
   const t = useTranslations('assistant');
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail;
+      if (!text) return;
+      setOpen(true);
+      setAsk({ id: Date.now(), text });
+    };
+    window.addEventListener(PULT_ASK, onAsk);
+    return () => window.removeEventListener(PULT_ASK, onAsk);
+  }, []);
   const panelRef = useRef<HTMLElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -724,6 +739,7 @@ export function RightAIChat() {
           }`}
         >
           <ChatBody
+            ask={ask}
             onClose={() => setOpen(false)}
             free={free}
             dragging={dragging}
@@ -742,6 +758,7 @@ export function RightAIChat() {
 }
 
 function ChatBody({
+  ask,
   onClose,
   free,
   dragging,
@@ -749,6 +766,8 @@ function ChatBody({
   onCornerGrab,
   onCornerKey
 }: {
+  /** Что прислал пульт. Новый `id` — новая отправка. */
+  ask: { id: number; text: string } | null;
   onClose: () => void;
   /** True while the panel is off the edge and can be moved. */
   free: boolean;
@@ -921,9 +940,17 @@ function ChatBody({
     field.style.height = `${Math.min(field.scrollHeight + border, MAX_FIELD)}px`;
   }, [input]);
 
-  async function send(e?: React.FormEvent) {
+  // Пульт прислал вопрос — уходит так же, как набранный здесь. Через ссылку на
+  // свежий `send`: функция пересоздаётся каждый рендер, а эффекту нужен только
+  // новый `id`.
+  const sendRef = useRef<typeof send | null>(null);
+  useEffect(() => {
+    if (ask) void sendRef.current?.(undefined, ask.text);
+  }, [ask]);
+
+  async function send(e?: React.FormEvent, fromPult?: string) {
     e?.preventDefault();
-    const text = input.trim();
+    const text = (fromPult ?? input).trim();
     if (!text || busy) return;
 
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', text }]);
@@ -1009,6 +1036,7 @@ function ChatBody({
       setTimeout(() => router.push(target), 600);
     }
   }
+  sendRef.current = send;
 
   return (
     <>

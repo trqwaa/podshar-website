@@ -12,6 +12,7 @@ import {
 } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { ReactorVines } from './ReactorVines';
+import { openPult, warmPult } from './Pult';
 
 /** Cursor distance in px at which the reactor is fully at rest. */
 const FALLOFF = 460;
@@ -105,6 +106,9 @@ export function PHButton() {
   const t = useTranslations('home');
   const reduceMotion = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
+  const coreRef = useRef<HTMLButtonElement>(null);
+  /** Когда последний раз просили пульт подгрузиться: не чаще раза в полминуты. */
+  const warmedAt = useRef(0);
   const [presses, setPresses] = useState(0);
   // Live shockwaves. The delay is stored per ring rather than derived from the
   // array index: rings retire out of order, so an index-based delay would be
@@ -155,8 +159,16 @@ export function PHButton() {
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      rawX.set(e.clientX - (r.left + r.width / 2));
-      rawY.set(e.clientY - (r.top + r.height / 2));
+      const x = e.clientX - (r.left + r.width / 2);
+      const y = e.clientY - (r.top + r.height / 2);
+      rawX.set(x);
+      rawY.set(y);
+      // Свечение просыпается, когда курсор подбирается, — в тот же момент
+      // пульт просит свои ответы. Пока рука дошла до кнопки, всё уже лежит.
+      if (Math.hypot(x, y) < FALLOFF * 0.6 && Date.now() - warmedAt.current > 30_000) {
+        warmedAt.current = Date.now();
+        warmPult();
+      }
     };
 
     // Pointer off the window returns the reactor to rest.
@@ -230,8 +242,25 @@ export function PHButton() {
   const auraScale = useTransform(lit, [0, 1], [0.9, 1.08]);
 
   const press = () => {
-    setPresses((n) => n + 1);
-    if (reduceMotion) return;
+    const next = presses + 1;
+    setPresses(next);
+
+    // Реплика этого нажатия становится первой строкой пульта, а сам пульт
+    // вылетает из ядра — на пике толчка, когда волна уже пошла, а не до неё:
+    // так видно, что это она снесла страницу.
+    const r = coreRef.current?.getBoundingClientRect();
+    const line = next <= PRESS_LINES ? t(`press.${next}`) : t('pressCount', { count: next });
+    const go = () =>
+      openPult(
+        r
+          ? { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2, line }
+          : { x: window.innerWidth / 2, y: window.innerHeight / 2, line }
+      );
+    if (reduceMotion) {
+      go();
+      return;
+    }
+    window.setTimeout(go, BURST_SECONDS * IMPULSE * 1000 + 60);
 
     // Keep only the tail: rings older than MAX_WAVES have long since faded, and
     // holding their ids just leaks state on a button that invites mashing.
@@ -376,7 +405,11 @@ export function PHButton() {
             exactly the seam the gradient is trying to hide, and cutting the
             object back into two. */}
         <motion.button
+          ref={coreRef}
           type="button"
+          // Палец не водит курсором над экраном: на телефоне подгрузка
+          // начинается с касания, на сотню миллисекунд раньше нажатия.
+          onPointerDown={warmPult}
           onPointerEnter={() => hover.set(1)}
           onPointerLeave={() => hover.set(0)}
           onClick={press}
