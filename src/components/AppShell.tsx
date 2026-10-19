@@ -8,7 +8,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { Modal } from './Modal';
 import { RightAIChat } from './RightAIChat';
 import { PodsharWordmark } from './PodsharMark';
-import { Pult, PultDot } from './Pult';
+import { Pult, PultDot, backToPult } from './Pult';
 import type { MemberProfile } from '@/lib/types';
 
 /**
@@ -167,6 +167,12 @@ export function AppShell({
             {isHome ? null : (
               <Link
                 href="/"
+                // Пришёл в раздел из пульта — «назад» возвращает в пульт, а не на
+                // главную: предыдущим действием был он. Иначе — на главную, как
+                // всегда (почему не `router.back()` — выше).
+                onClick={(e) => {
+                  if (backToPult(pathname)) e.preventDefault();
+                }}
                 aria-label={t('goBack')}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded border-2 border-rule text-ink transition-colors duration-drape ease-drape hover:bg-sunk"
               >

@@ -34,6 +34,10 @@ const config: Config = {
         accent: 'rgb(var(--accent) / <alpha-value>)',
         'accent-ink': 'rgb(var(--accent-ink) / <alpha-value>)',
         reactor: 'rgb(var(--reactor) / <alpha-value>)',
+        ice: 'rgb(var(--ice) / <alpha-value>)',
+        water: 'rgb(var(--water) / <alpha-value>)',
+        deep: 'rgb(var(--deep) / <alpha-value>)',
+        halo: 'rgb(var(--halo) / <alpha-value>)',
         // Исход матча. Значение, а не оттенок палитры — см. globals.css.
         win: 'rgb(var(--win) / <alpha-value>)',
         loss: 'rgb(var(--loss) / <alpha-value>)',

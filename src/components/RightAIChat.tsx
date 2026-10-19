@@ -194,9 +194,9 @@ export function RightAIChat() {
   useEffect(() => {
     const onAsk = (e: Event) => {
       const text = (e as CustomEvent<string>).detail;
-      if (!text) return;
       setOpen(true);
-      setAsk({ id: Date.now(), text });
+      // Пусто — это слой мопса на дне айсберга: просто позвать, без вопроса.
+      if (text) setAsk({ id: Date.now(), text });
     };
     window.addEventListener(PULT_ASK, onAsk);
     return () => window.removeEventListener(PULT_ASK, onAsk);

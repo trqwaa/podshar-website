@@ -66,6 +66,21 @@
        порог для обычного текста. Кубок на нём выглядит скорее бронзовым, чем
        золотым, и это осознанный обмен: нечитаемая цифра хуже тусклой чаши. */
     --amber: 138 100 16; /* #8a6410 */
+
+    /* Айсберг пульта. Цвета предмета, а не оформления, — как бумага
+       листочков: лёд и вода такие при любой палитре. Слоёв в айсберге сколько
+       угодно, а цветов воды два: поверхность и дно; всё между ними — смесь
+       `color-mix` в OKLab (`PultScene.tsx`), поэтому новый раздел не требует
+       нового цвета.
+
+       Дно почти чёрное, но синее, а не графитовое: это вода, и у самого дна
+       она должна оставаться водой. Нимб — тёплое золото: в небе над айсбергом
+       это единственный тёплый цвет, и только на нимбах, лучах и искрах; текстом
+       он не бывает, поэтому контраст ему не нужен. */
+    --ice: 246 250 252; /* #f6fafc  лёд над водой */
+    --water: 214 230 238; /* #d6e6ee  вода у поверхности */
+    --deep: 16 28 40; /* #101c28  дно Марианской впадины */
+    --halo: 226 190 104; /* #e2be68  нимбы, лучи, искры */
   }
 
   /* ---- Option B — "Paper" ----------------------------------------------- */
@@ -263,5 +278,109 @@
   }
   [data-tone='loss'] {
     @apply text-loss;
+  }
+}
+
+/*
+ * Движение пульта-айсберга (`Pult.tsx`, `PultScene.tsx`).
+ *
+ * Здесь, а не в `tailwind.config`: часть анимаций задаётся инлайн-стилем
+ * (у каждого ангела свой темп), а Tailwind выпускает `@keyframes` только для
+ * классов, которые увидел в коде. Всё — `transform` и `opacity`, и всё гасит
+ * общее правило `prefers-reduced-motion` выше.
+ */
+@keyframes cloud-drift {
+  to {
+    transform: translateX(var(--drift, 150vw));
+  }
+}
+
+@keyframes angel-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes wing-flap {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.5);
+  }
+}
+
+@keyframes ray-sway {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.65);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Ровно на один период волны (120 px): шов не виден. */
+@keyframes swell {
+  to {
+    transform: translateX(-120px);
+  }
+}
+
+@keyframes crack-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Отколотая часть слоя: в единицах растянутого SVG, где высота слоя — 100. */
+@keyframes calve {
+  to {
+    transform: translate(1.5px, 9px);
+    opacity: 0.85;
+  }
+}
+
+@keyframes shard-sink {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+@keyframes ice-shudder {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
   }
 }

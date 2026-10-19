@@ -5,7 +5,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { usePathname, useRouter } from '@/i18n/routing';
-import { ALL_PLACES, type Place } from '@/lib/navigation';
+import { sharedDayIndex } from '@/lib/day';
+import { ALL_PLACES, HOME, type Place } from '@/lib/navigation';
 import {
   CalendarIcon,
   ChatIcon,
@@ -17,36 +18,57 @@ import {
   TagIcon,
   UserIcon
 } from './Icons';
+import {
+  CrackLine,
+  DARK_FROM,
+  IceSlice,
+  IceTip,
+  Shards,
+  Sky,
+  Waterline,
+  crackThrough,
+  depthOf,
+  icebergFor,
+  seeded,
+  waterAt
+} from './PultScene';
 
 /**
  * Пульт: весь сайт за кнопкой, на которой написано «не нажимать».
  *
- * Кнопку жмут — главная разлетается, и под ней одна строка ввода и все разделы.
- * Шутка кнопки при этом не теряется: её реплика («серьёзно?», «я предупреждал»)
- * становится первой строкой пульта. Сюжет, который раньше обрывался на
- * «ничего не происходит», получает развязку.
+ * Кнопку жмут — главная разлетается, и под ней айсберг. Строка ввода стоит на
+ * линии воды; над водой небо — рай, как просил владелец: свет из-за облаков,
+ * облака, над ними ангелы. Под водой разделы слоями льда, и чем глубже, тем
+ * нишевее: поезда у поверхности, «трэп-хаус» в темноте, на самом дне, ровно на
+ * −10 994 м, живёт мопс. Рисунок и вся геометрия — в `PultScene.tsx`.
  *
- * Механика — от командных строк вроде Spotlight: одно поле и список, самый
- * короткий путь куда угодно. Своё здесь три вещи:
+ * Шутка кнопки не теряется: её реплика («серьёзно?», «я предупреждал»)
+ * становится первой строкой пульта.
  *
- *   - строка отвечает, а не только ведёт: справа живой ответ раздела
+ * Механика — от командных строк вроде Spotlight: одно поле, самый короткий путь
+ * куда угодно. Своё здесь:
+ *
+ *   - слой отвечает, а не только ведёт: под названием живой ответ раздела
  *     (`/api/pult`) — когда поезд, что сегодня, сколько на доске;
- *   - ищет по тем же словам, по которым мопс понимает, куда вести
- *     (`navigation.ts`), и прощает раскладку: «gjtplf» — это «поезда»;
- *   - что не нашлось — уходит мопсу последней строкой.
+ *   - поиск не перестраивает айсберг, а подсвечивает найденные слои: лёд
+ *     остаётся целым, тусклеет то, что не подошло;
+ *   - ищет по словам, по которым мопс понимает, куда вести (`navigation.ts`),
+ *     и прощает раскладку: «gjtplf» — это «поезда»;
+ *   - что не нашлось — уходит мопсу строкой у самой поверхности;
+ *   - выбранный слой трескается, и трещина успевает пробежать до перехода.
  *
- * Список разделов берётся из `navigation.ts` целиком, поэтому новый раздел
- * появляется здесь сам. Будущие — серым, со словом «скоро», как в шторке.
+ * Список разделов берётся из `navigation.ts` целиком: новый раздел станет новым
+ * слоем сам, а шкала глубин пересчитается.
  *
  * Открывается отовсюду: кнопкой на главной, красной точкой в шапке, клавишей
- * `/` или Ctrl+K. Все пути — событием `podshar:pult` с точкой, из которой
- * разлетаться.
+ * `/` или Ctrl+K. «Назад» из раздела, в который пришли из пульта, возвращает в
+ * пульт с тем же набранным текстом.
  */
 
 export const PULT_OPEN = 'podshar:pult';
 /** Подгрузить ответы заранее: курсор подбирается к кнопке или точке. */
 export const PULT_WARM = 'podshar:pult-warm';
-/** Передать мопсу набранное. Слушает `RightAIChat`. */
+/** Передать мопсу набранное (или просто открыть его, если текста нет). Слушает `RightAIChat`. */
 export const PULT_ASK = 'podshar:ask';
 
 export type PultOrigin = {
@@ -57,16 +79,69 @@ export type PultOrigin = {
   r?: number;
   /** Реплика кнопки. Нет — просто «пульт». */
   line?: string;
+  /** Без красной волны: пульт возвращается, а не взрывается. */
+  quiet?: boolean;
 };
 
 export const openPult = (origin: PultOrigin) =>
   window.dispatchEvent(new CustomEvent<PultOrigin>(PULT_OPEN, { detail: origin }));
 export const warmPult = () => window.dispatchEvent(new Event(PULT_WARM));
 
-/** Порядок живых разделов, пока ничего не набрано: по тому, что нужно чаще. */
+// ─── Возврат «назад» в пульт ────────────────────────────────────────────────
+
+/**
+ * Откуда в раздел пришли из пульта. В `sessionStorage`, а не в состоянии
+ * истории: в `history.state` Next хранит своё дерево, и чужие поля там —
+ * способ однажды сломать ему навигацию.
+ */
+const RETURN_KEY = 'podshar:pult-return';
+/** Через полчаса «назад» уже не про пульт: человек давно занят другим. */
+const RETURN_TTL = 30 * 60_000;
+
+type Return = { from: string; to: string; query: string; at: number };
+
+function readReturn(): Return | null {
+  try {
+    const raw = window.sessionStorage.getItem(RETURN_KEY);
+    const value = raw ? (JSON.parse(raw) as Return) : null;
+    return value && Date.now() - value.at < RETURN_TTL ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeReturn(value: Return | null) {
+  try {
+    if (value) window.sessionStorage.setItem(RETURN_KEY, JSON.stringify(value));
+    else window.sessionStorage.removeItem(RETURN_KEY);
+  } catch {
+    // Приватное окно без хранилища: «назад» просто поведёт на главную, как раньше.
+  }
+}
+
+/**
+ * Стрелка «назад» в шапке. Если в этот раздел пришли из пульта — шаг назад по
+ * истории, и пульт откроется снова (его ловит `popstate`). Иначе — `false`, и
+ * стрелка ведёт на главную, как всегда: тогда в истории позади может быть
+ * чужой сайт, и `history.back()` увёл бы с Podshar.
+ */
+export function backToPult(pathname: string): boolean {
+  const back = readReturn();
+  if (!back || back.to !== pathname) return false;
+  window.history.back();
+  return true;
+}
+
+// ─── Порядок слоёв ──────────────────────────────────────────────────────────
+
+/** Живые разделы от самого будничного к самому редкому. */
 const ORDER = ['trains', 'calendar', 'todos', 'games', 'home', 'patches', 'profile'];
+/** Будущие — от понятного всем к понятному троим. На дне — свои шутки. */
+const DEEP_ORDER = ['gym', 'memes', 'gallery', 'music', 'wallOfShame', 'radar', 'geopolitics', 'traphouse', 'ballick'];
 /** Ответы свежие минуту: поезд за это время не успевает уйти незамеченным. */
 const FRESH_MS = 60_000;
+/** Сколько трещина бежит до перехода: столько, чтобы её успели увидеть. */
+const CRACK_MS = 380;
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 const ICONS: Record<string, (p: { className?: string }) => React.ReactElement> = {
@@ -94,13 +169,12 @@ const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g,
 const swapLayout = (s: string) => [...s].map((c) => SWAP.get(c) ?? c).join('');
 
 /** Насколько раздел похож на набранное. 0 — не похож. */
-function score(place: Place, label: string, answer: string | undefined, q: string): number {
+function score(label: string, terms: string[], answer: string | undefined, q: string): number {
   const name = norm(label);
   if (name.startsWith(q)) return 100;
   if (name.includes(q)) return 80;
 
   let best = 0;
-  const terms = [...place.terms, ...(place.elements ?? []).flatMap((e) => e.terms)];
   for (const raw of terms) {
     const term = norm(raw);
     if (!term) continue;
@@ -114,10 +188,26 @@ function score(place: Place, label: string, answer: string | undefined, q: strin
   return best;
 }
 
-type Row =
-  | { kind: 'place'; place: Place; label: string; answer?: string; here: boolean }
-  | { kind: 'soon'; place: Place; label: string }
-  | { kind: 'ask'; text: string };
+const termsOf = (p: Place) => [...p.terms, ...(p.elements ?? []).flatMap((e) => e.terms)];
+const DOG_TERMS = HOME.elements?.find((e) => e.id === 'dog')?.terms ?? [];
+
+/** Точка, из которой вылетать без кнопки: красная точка в шапке, если она есть. */
+function fromDot(): PultOrigin {
+  const dot = document.querySelector<HTMLElement>('[data-pult-dot]')?.getBoundingClientRect();
+  return dot && dot.width
+    ? { x: dot.left + dot.width / 2, y: dot.top + dot.height / 2, r: 6 }
+    : { x: window.innerWidth / 2, y: window.innerHeight / 3 };
+}
+
+type Band = {
+  key: string;
+  kind: 'place' | 'soon' | 'dog';
+  place?: Place;
+  label: string;
+  answer?: string;
+  here: boolean;
+  terms: string[];
+};
 
 export function Pult() {
   const t = useTranslations('pult');
@@ -125,11 +215,11 @@ export function Pult() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
-  const reduceMotion = useReducedMotion();
+  const still = Boolean(useReducedMotion());
 
   const [origin, setOrigin] = useState<PultOrigin | null>(null);
   const [query, setQuery] = useState('');
-  const [active, setActive] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(false);
   /**
@@ -138,12 +228,20 @@ export function Pult() {
    * новой странице нет, значило бы показывать дорогу в никуда.
    */
   const [leaving, setLeaving] = useState<'close' | 'nav'>('close');
-  /** Строка, в которую уже пошли: пока грузится страница, она отвечает. */
-  const [going, setGoing] = useState<number | null>(null);
+  /** Трещина в выбранном слое: какой слой и по какой линии. */
+  const [crack, setCrack] = useState<{ key: string; points: [number, number][]; seed: number } | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [deepBelow, setDeepBelow] = useState(false);
   const fetchedAt = useRef(0);
   const inflight = useRef(false);
   const field = useRef<HTMLInputElement | null>(null);
+  const sheet = useRef<HTMLDivElement | null>(null);
   const returnTo = useRef<HTMLElement | null>(null);
+  const poppedAt = useRef(0);
+  /** Вернулись на страницу, откуда шли из пульта, но «назад» ещё не пришёл. */
+  const pending = useRef<{ back: Return; until: number } | null>(null);
+  const rows = useRef(new Map<string, HTMLLIElement>());
+  const followActive = useRef(false);
 
   const load = useCallback(() => {
     if (inflight.current || Date.now() - fetchedAt.current < FRESH_MS) return;
@@ -167,20 +265,25 @@ export function Pult() {
   const open = origin !== null;
   const close = useCallback(() => setOrigin(null), []);
 
+  const show = useCallback(
+    (detail: PultOrigin, text = '') => {
+      returnTo.current = document.activeElement as HTMLElement | null;
+      setQuery(text);
+      setPicked(null);
+      setCrack(null);
+      setScrolled(false);
+      setLeaving('close');
+      setOrigin(detail);
+      load();
+    },
+    [load]
+  );
+
   // Все пути открыть — одно событие. Плюс клавиатура: `/` вне полей ввода и
   // Ctrl+K (⌘K) откуда угодно — так открываются такие строки везде, и рука
   // уже знает.
   useEffect(() => {
-    const onOpen = (e: Event) => {
-      const detail = (e as CustomEvent<PultOrigin>).detail;
-      returnTo.current = document.activeElement as HTMLElement | null;
-      setQuery('');
-      setActive(0);
-      setGoing(null);
-      setLeaving('close');
-      setOrigin(detail);
-      load();
-    };
+    const onOpen = (e: Event) => show((e as CustomEvent<PultOrigin>).detail);
     const onKey = (e: KeyboardEvent) => {
       if (origin) return;
       const target = e.target as HTMLElement | null;
@@ -189,38 +292,63 @@ export function Pult() {
       const combo = (e.key === 'k' || e.key === 'K' || e.key === 'л' || e.key === 'Л') && (e.metaKey || e.ctrlKey);
       if (combo || (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey)) {
         e.preventDefault();
-        // Из красной точки в шапке, если она на экране: всё вылетает из ядра.
-        const dot = document.querySelector<HTMLElement>('[data-pult-dot]')?.getBoundingClientRect();
-        openPult(
-          dot && dot.width
-            ? { x: dot.left + dot.width / 2, y: dot.top + dot.height / 2, r: 6 }
-            : { x: window.innerWidth / 2, y: window.innerHeight / 3 }
-        );
+        openPult(fromDot());
       }
+    };
+    // «Назад» в браузере. Порядок с эффектом смены страницы ниже не
+    // гарантирован: проверено, что Next рисует вернувшуюся страницу раньше,
+    // чем `popstate` доходит до слушателей, а при промахе кеша бывает и
+    // наоборот. Поэтому обе стороны ждут друг друга: событие отмечает время,
+    // а если страница уже сменилась и ждёт — открывает пульт само.
+    const onPop = () => {
+      poppedAt.current = Date.now();
+      const waiting = pending.current;
+      pending.current = null;
+      if (waiting && Date.now() < waiting.until) show({ ...fromDot(), quiet: true }, waiting.back.query);
     };
     window.addEventListener(PULT_OPEN, onOpen);
     window.addEventListener(PULT_WARM, load);
+    window.addEventListener('popstate', onPop);
     document.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener(PULT_OPEN, onOpen);
       window.removeEventListener(PULT_WARM, load);
+      window.removeEventListener('popstate', onPop);
       document.removeEventListener('keydown', onKey);
     };
-  }, [origin, load]);
+  }, [origin, load, show]);
 
-  // Ушли на другую страницу — пульт своё отработал.
+  // Сменилась страница. Ушли в раздел — пульт своё отработал и растворяется.
+  // Вернулись «назад» туда, откуда в раздел пришли из пульта, — пульт
+  // появляется снова, с тем же текстом: «назад» значит «к предыдущему
+  // действию», а предыдущим действием был пульт, а не главная.
   useEffect(() => {
     setLeaving('nav');
     setOrigin(null);
+    const back = readReturn();
+    if (!back) return;
+    if (pathname === back.to) return;
+    writeReturn(null);
+    if (pathname !== back.from) return;
+    if (Date.now() - poppedAt.current < 2000) {
+      // «Назад» пришёл раньше страницы.
+      show({ ...fromDot(), quiet: true }, back.query);
+    } else {
+      // Страница раньше «назад»: ждём событие чуть больше полсекунды. Пришли
+      // сюда обычной ссылкой — события не будет, и пульт не всплывёт.
+      pending.current = { back, until: Date.now() + 600 };
+    }
+    // `show` меняется вместе с языком; повод для перезапуска здесь — только
+    // смена страницы.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   // Прокрутка под пультом заперта на `html`, как у окон (`Modal`): на `body`
   // липкая шапка перестаёт липнуть.
   //
-  // `useLayoutEffect` и фокус сразу, без задержки. Было `useEffect` и фокус
-  // через 30 мс — и первые ~50 мс пульт уже стоял на экране, а клавиши шли
-  // мимо него: набравший «/» и сразу «кал» терял первую букву, Esc в этом окне
-  // не закрывал. Проверка поймала это через раз — нажимала быстрее человека.
+  // `useLayoutEffect` и фокус сразу, без задержки: с `useEffect` и фокусом
+  // через 30 мс первые ~50 мс пульт уже стоял на экране, а клавиши шли мимо
+  // него — набравший «/» и сразу «кал» терял первую букву.
   useLayoutEffect(() => {
     if (!open) return;
     const root = document.documentElement;
@@ -230,9 +358,7 @@ export function Pult() {
     root.style.overflow = 'hidden';
     if (gap > 0) document.body.style.paddingRight = `${gap}px`;
     field.current?.focus({ preventScroll: true });
-    // Esc — на всём документе, как у окон, а не только в строке: фокус бывает
-    // и на крестике, и после щелчка мимо строки, и пульт должен закрываться
-    // оттуда тоже.
+    // Esc — на всём документе, как у окон, а не только в строке.
     const onEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
     };
@@ -245,62 +371,116 @@ export function Pult() {
     };
   }, [open, close]);
 
-  const rows = useMemo<Row[]>(() => {
-    const q = norm(query);
-    const live = ALL_PLACES.filter((p) => p.status === 'live');
-    const planned = ALL_PLACES.filter((p) => p.status === 'planned');
-    const place = (p: Place): Row => ({
-      kind: 'place',
-      place: p,
-      label: tNav(p.labelKey),
-      answer: answers?.[p.id],
-      here: p.href === pathname
-    });
-
-    if (!q) {
-      const rank = (p: Place) => {
-        const i = ORDER.indexOf(p.id);
-        return i < 0 ? ORDER.length : i;
-      };
-      return [...live].sort((a, b) => rank(a) - rank(b)).map(place);
-    }
-
-    const swapped = swapLayout(q);
-    const best = (p: Place) => {
-      const label = tNav(p.labelKey);
-      const answer = answers?.[p.id];
-      return Math.max(score(p, label, answer, q), score(p, label, answer, swapped));
+  // Слои айсберга: живые, будущие, мопс. Порядок — глубина.
+  const bands = useMemo<Band[]>(() => {
+    const rank = (list: string[]) => (p: Place) => {
+      const i = list.indexOf(p.id);
+      return i < 0 ? list.length : i;
     };
-    const found = live
-      .map((p) => ({ p, s: best(p) }))
-      .filter((x) => x.s > 0)
-      .sort((a, b) => b.s - a.s)
-      .map((x) => place(x.p));
-    const soon = planned
-      .filter((p) => best(p) > 0)
-      .map((p): Row => ({ kind: 'soon', place: p, label: tNav(p.labelKey) }));
-    return [...found, ...soon, { kind: 'ask', text: query.trim() }];
-  }, [query, answers, pathname, tNav]);
+    const byOrder = rank(ORDER);
+    const byDepth = rank(DEEP_ORDER);
+    const live = ALL_PLACES.filter((p) => p.status === 'live').sort((a, b) => byOrder(a) - byOrder(b));
+    const deep = ALL_PLACES.filter((p) => p.status === 'planned').sort((a, b) => byDepth(a) - byDepth(b));
+    return [
+      ...live.map<Band>((p) => ({
+        key: p.id,
+        kind: 'place',
+        place: p,
+        label: tNav(p.labelKey),
+        answer: answers?.[p.id],
+        here: p.href === pathname,
+        terms: termsOf(p)
+      })),
+      ...deep.map<Band>((p) => ({ key: p.id, kind: 'soon', place: p, label: tNav(p.labelKey), here: false, terms: termsOf(p) })),
+      { key: 'dog', kind: 'dog', label: t('dog'), answer: t('dogHint'), here: false, terms: DOG_TERMS }
+    ];
+  }, [answers, pathname, tNav, t]);
 
-  // Стрелки ходят только по тому, что можно нажать: «скоро» пропускается.
-  const pickable = rows.map((row, i) => (row.kind === 'soon' ? -1 : i)).filter((i) => i >= 0);
-  const current = pickable.includes(active) ? active : (pickable[0] ?? 0);
+  // Айсберг на сегодня: форма меняется раз в сутки, одинаково у троих.
+  const berg = useMemo(() => icebergFor(bands.length, sharedDayIndex()), [bands.length]);
 
-  const activate = (index: number) => {
-    const row = rows[index];
-    if (!row || row.kind === 'soon') return;
-    if (row.kind === 'ask') {
-      if (!row.text) return;
+  const meters = useMemo(
+    () => new Intl.NumberFormat(locale, { style: 'unit', unit: 'meter', unitDisplay: 'short', maximumFractionDigits: 0 }),
+    [locale]
+  );
+
+  // Поиск подсвечивает слои, а не перестраивает айсберг.
+  const q = norm(query);
+  const scores = useMemo(() => {
+    const out = new Map<string, number>();
+    if (!q) return out;
+    const swapped = swapLayout(q);
+    for (const band of bands) {
+      const s = Math.max(score(band.label, band.terms, band.answer, q), score(band.label, band.terms, band.answer, swapped));
+      if (s > 0) out.set(band.key, s);
+    }
+    return out;
+  }, [q, bands]);
+
+  // Что можно выбрать стрелками, в порядке на экране: строка «спросить мопса»
+  // у поверхности, потом слои сверху вниз. «Скоро» не выбирается.
+  const pickable = useMemo(() => {
+    const keys = bands.filter((b) => b.kind !== 'soon' && (!q || scores.has(b.key))).map((b) => b.key);
+    return q ? ['ask', ...keys] : keys;
+  }, [bands, q, scores]);
+
+  // Без выбора — лучшее совпадение; ничего не нашлось — мопс.
+  const fallback = useMemo(() => {
+    if (!q) return pickable[0] ?? null;
+    let best: string | null = null;
+    let top = 0;
+    for (const key of pickable) {
+      const s = scores.get(key) ?? 0;
+      if (s > top) {
+        top = s;
+        best = key;
+      }
+    }
+    return best ?? 'ask';
+  }, [q, pickable, scores]);
+  const current = picked && pickable.includes(picked) ? picked : fallback;
+
+  // Выбор стрелками или набором уводит прокрутку к слою; наведение мышью — нет.
+  useEffect(() => {
+    if (!followActive.current || !current) return;
+    followActive.current = false;
+    rows.current.get(current)?.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+  }, [current, still]);
+
+  // Есть ли что листать вниз: тогда внизу подсказка «ниже — нишевее».
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = sheet.current;
+    setDeepBelow(Boolean(el && el.scrollHeight > el.clientHeight + 48));
+  }, [open, bands.length]);
+
+  const activate = (key: string | null) => {
+    if (!key || crack) return;
+    if (key === 'ask' || key === 'dog') {
       close();
-      window.dispatchEvent(new CustomEvent<string>(PULT_ASK, { detail: row.text }));
+      window.dispatchEvent(new CustomEvent<string>(PULT_ASK, { detail: key === 'ask' ? query.trim() : '' }));
       return;
     }
-    if (row.here) {
+    const index = bands.findIndex((b) => b.key === key);
+    const band = bands[index];
+    if (!band?.place || band.kind !== 'place') return;
+    if (band.here) {
       close();
       return;
     }
-    setGoing(index);
-    router.push(row.place.href);
+    const href = band.place.href;
+    writeReturn({ from: pathname, to: href, query, at: Date.now() });
+
+    if (still) {
+      router.push(href);
+      return;
+    }
+    // Трещина бежит, пока грузится страница: переход заранее запрошен, и
+    // `CRACK_MS` — это время, которое человек видит скол, а не ждёт сеть.
+    const seed = Date.now() % 2147483647;
+    setCrack({ key, points: crackThrough(berg.layers[index], seeded(seed)), seed });
+    router.prefetch(href);
+    window.setTimeout(() => router.push(href), CRACK_MS);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -308,16 +488,15 @@ export function Pult() {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       if (!pickable.length) return;
-      const at = pickable.indexOf(current);
+      const at = Math.max(0, pickable.indexOf(current ?? ''));
       const step = e.key === 'ArrowDown' ? 1 : -1;
-      setActive(pickable[(at + step + pickable.length) % pickable.length]);
+      followActive.current = true;
+      setPicked(pickable[(at + step + pickable.length) % pickable.length]);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       activate(current);
     }
   };
-
-  const soonLine = ALL_PLACES.filter((p) => p.status === 'planned').map((p) => tNav(p.labelKey));
 
   // Радиус, который накрывает всё окно из точки вылета: до дальнего угла.
   const cover = (o: PultOrigin) =>
@@ -330,6 +509,8 @@ export function Pult() {
       )
     ) + 8;
 
+  const last = bands.length - 1;
+
   return (
     // `custom` на `AnimatePresence`, а не на самом листе: у уходящего элемента
     // пропсы уже не обновить, а как уходить, решается в момент ухода.
@@ -338,9 +519,8 @@ export function Pult() {
         <div key="pult" className="fixed inset-0 z-[60]">
           {/* Волна. Красный круг вылетает из ядра чуть раньше листа, и между
               ними пробегает красное кольцо — та же ударная волна, что у
-              кнопки, только на этот раз она не гаснет у края, а сносит
-              страницу. Без анимации — сразу лист, без красного. */}
-          {reduceMotion ? null : (
+              кнопки, только на этот раз она сносит страницу. */}
+          {still || origin.quiet ? null : (
             <motion.div
               aria-hidden="true"
               className="absolute inset-0 bg-reactor"
@@ -364,20 +544,18 @@ export function Pult() {
           )}
 
           <motion.div
+            ref={sheet}
             role="dialog"
             aria-modal="true"
             aria-label={t('label')}
-            className="scroll-quiet absolute inset-0 overflow-y-auto overscroll-contain bg-canvas"
+            onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 40)}
+            className="scroll-quiet absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain bg-canvas"
             custom={leaving}
             variants={{
-              from: reduceMotion
-                ? { opacity: 0 }
-                : { clipPath: `circle(0px at ${origin.x}px ${origin.y}px)` },
-              open: reduceMotion
-                ? { opacity: 1 }
-                : { clipPath: `circle(${cover(origin)}px at ${origin.x}px ${origin.y}px)` },
+              from: still ? { opacity: 0 } : { clipPath: `circle(0px at ${origin.x}px ${origin.y}px)` },
+              open: still ? { opacity: 1 } : { clipPath: `circle(${cover(origin)}px at ${origin.x}px ${origin.y}px)` },
               gone: (how: 'close' | 'nav') =>
-                reduceMotion || how === 'nav'
+                still || how === 'nav'
                   ? { opacity: 0, transition: { duration: how === 'nav' ? 0.2 : 0.12 } }
                   : {
                       clipPath: `circle(0px at ${origin.x}px ${origin.y}px)`,
@@ -387,152 +565,260 @@ export function Pult() {
             initial="from"
             animate="open"
             exit="gone"
-            transition={reduceMotion ? { duration: 0.12 } : { duration: 0.56, ease: EASE, delay: 0.08 }}
+            transition={still ? { duration: 0.12 } : { duration: origin.quiet ? 0.42 : 0.56, ease: EASE, delay: origin.quiet ? 0 : 0.08 }}
           >
-            <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 pb-8 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 sm:pt-[12vh]">
-              <div className="flex items-center justify-between gap-4">
-                <p key={origin.line ?? 'title'} className="ps-label animate-rise-in text-ink-muted">
-                  {origin.line ?? t('title')}
-                </p>
-                <button
-                  type="button"
-                  onClick={close}
-                  aria-label={t('close')}
-                  className="ps-press grid h-10 w-10 shrink-0 place-items-center rounded border-2 border-rule text-ink-muted transition-colors duration-180 hover:border-ink hover:text-ink"
-                >
-                  <CrossIcon />
-                </button>
-              </div>
+            <div className="flex min-h-full flex-col">
+              {/* ── Небо ─────────────────────────────────────────────────── */}
+              <section className="relative isolate flex min-h-[clamp(16rem,38vh,24rem)] flex-col justify-end">
+                <Sky still={still} />
 
-              <div className="mt-4 border-b-2 border-ink pb-2">
-                <input
-                  ref={field}
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setActive(0);
-                  }}
-                  onKeyDown={onKeyDown}
-                  role="combobox"
-                  aria-expanded="true"
-                  aria-controls="pult-list"
-                  aria-autocomplete="list"
-                  aria-activedescendant={rows.length ? `pult-row-${current}` : undefined}
-                  aria-label={t('label')}
-                  placeholder={t('placeholder')}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="go"
-                  className="w-full bg-transparent text-3xl font-semibold leading-tight text-ink caret-reactor outline-none placeholder:text-ink-faint sm:text-4xl"
-                />
-              </div>
+                <div className="absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[44rem] items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6">
+                  <p key={origin.line ?? 'title'} className="ps-label animate-rise-in text-ink-muted">
+                    {origin.line ?? t('title')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={close}
+                    aria-label={t('close')}
+                    className="ps-press grid h-10 w-10 shrink-0 place-items-center rounded border-2 border-rule bg-canvas/70 text-ink-muted transition-colors duration-180 hover:border-ink hover:text-ink"
+                  >
+                    <CrossIcon />
+                  </button>
+                </div>
 
-              <ul id="pult-list" role="listbox" aria-label={t('label')} className="mt-4 flex flex-col">
-                {rows.map((row, index) => {
-                  const on = index === current && row.kind !== 'soon';
-                  const Icon =
-                    row.kind === 'place' ? ICONS[row.place.id] : row.kind === 'ask' ? ChatIcon : null;
-                  return (
-                    <li
-                      key={row.kind === 'ask' ? 'ask' : `${row.kind}-${row.place.id}`}
-                      id={`pult-row-${index}`}
-                      role="option"
-                      aria-selected={on}
-                      aria-disabled={row.kind === 'soon' || undefined}
-                      onPointerMove={() => row.kind !== 'soon' && index !== current && setActive(index)}
-                      onClick={() => activate(index)}
-                      // Лесенкой, как поездки в поездах: список читается сверху
-                      // вниз, а не вспыхивает. Начинается, когда лист уже накрыл
-                      // экран, — раньше строки проступали бы сквозь волну.
-                      style={{ animationDelay: `${160 + Math.min(index, 10) * 35}ms` }}
-                      className={`animate-rise-in flex min-h-12 items-center gap-3 rounded px-3 py-2.5 transition-colors duration-180 ${
-                        row.kind === 'soon' ? 'cursor-default' : 'cursor-pointer'
-                      } ${on ? 'bg-sunk' : ''}`}
-                    >
-                      {/* Где ты в списке, отмечает ядро: красная точка — тот же
-                          красный, что у кнопки, и больше нигде на этом листе. */}
+                {/* Верхушка и строка ввода — на одной оси с айсбергом: слева та же
+                    колонка, что у шкалы глубин, поэтому кончик над водой стоит
+                    ровно над телом под водой. */}
+                <div className="relative z-10 mx-auto flex w-full max-w-[40rem] px-3 sm:px-4">
+                  <span className="w-16 shrink-0" aria-hidden="true" />
+                  <div className="relative flex-1">
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 sm:h-24">
+                      <IceTip tip={berg.tip} />
+                    </div>
+                    <input
+                      ref={field}
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        setPicked(null);
+                        followActive.current = true;
+                      }}
+                      onKeyDown={onKeyDown}
+                      role="combobox"
+                      aria-expanded="true"
+                      aria-controls="pult-list"
+                      aria-autocomplete="list"
+                      aria-activedescendant={current ? `pult-${current}` : undefined}
+                      aria-label={t('label')}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      enterKeyHint="go"
+                      className={`relative w-full bg-transparent pb-1 text-center text-3xl font-semibold leading-tight text-ink outline-none sm:text-4xl ${
+                        query ? 'caret-reactor' : 'caret-transparent'
+                      }`}
+                    />
+                    {/* Пустое поле: «куда?» и красный курсор после него. Поле стоит
+                        по центру, и настоящий курсор в пустом поле встаёт в
+                        середину — посреди подсказки, «ку|да?», как сбой. */}
+                    {query ? null : (
                       <span
                         aria-hidden="true"
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-180 ${
-                          on || going === index ? 'bg-reactor' : 'bg-transparent'
-                        } ${going === index ? 'animate-pulse' : ''}`}
-                      />
-                      <span className={`shrink-0 ${row.kind === 'soon' ? 'text-ink-faint' : 'text-ink-muted'}`}>
-                        {Icon ? <Icon /> : <span className="block h-4 w-4" />}
+                        className="pointer-events-none absolute inset-x-0 bottom-1 flex items-center justify-center text-3xl font-semibold leading-tight text-ink/40 sm:text-4xl"
+                      >
+                        {t('placeholder')}
+                        <span className="ms-1 h-[0.9em] w-[3px] animate-caret-blink rounded-full bg-reactor" />
                       </span>
+                    )}
+                  </div>
+                </div>
+              </section>
 
-                      {/* Название и ответ — на одной линии букв, а не по
-                          середине: у них разный кегль, и по середине мелкий
-                          ответ проседал ниже названия. Значки — по середине,
-                          у них линии букв нет. */}
-                      {row.kind === 'ask' ? (
-                        <span className="flex min-w-0 flex-1 items-baseline gap-3">
-                          <span className="shrink-0 text-lg font-medium text-ink">{t('ask')}</span>
-                          <span className="ms-auto min-w-0 truncate text-right text-sm text-ink-muted">
-                            {row.text ? `«${row.text}»` : ''}
-                          </span>
+              <Waterline still={still} />
+
+              {/* ── Вода ─────────────────────────────────────────────────── */}
+              <ul
+                id="pult-list"
+                role="listbox"
+                aria-label={t('label')}
+                className={`relative ${crack && !still ? 'animate-[ice-shudder_0.16s_ease-in-out_2]' : ''}`}
+              >
+                {/* У самой поверхности, пока что-то набрано: спросить мопса. */}
+                {q ? (
+                  <li
+                    id="pult-ask"
+                    role="option"
+                    aria-selected={current === 'ask'}
+                    ref={(el) => {
+                      if (el) rows.current.set('ask', el);
+                      else rows.current.delete('ask');
+                    }}
+                    onPointerMove={() => current !== 'ask' && setPicked('ask')}
+                    onClick={() => activate('ask')}
+                    className="relative cursor-pointer"
+                    style={{ background: waterAt(0) }}
+                  >
+                    <div className="mx-auto flex max-w-[40rem] px-3 sm:px-4">
+                      <Gauge marked={current === 'ask'} dark={false} label="" />
+                      <p
+                        className={`flex min-h-11 flex-1 items-center justify-center gap-2 px-4 text-center text-sm transition-colors duration-180 ${
+                          current === 'ask' ? 'text-ink' : 'text-ink-muted'
+                        }`}
+                      >
+                        <ChatIcon className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 truncate">
+                          {t('ask')}: «{query.trim()}»
                         </span>
-                      ) : (
-                        <span className="flex min-w-0 flex-1 items-baseline gap-3">
-                          <span
-                            className={`shrink-0 text-lg font-medium ${
-                              row.kind === 'soon' ? 'text-ink-faint' : 'text-ink'
-                            }`}
+                        <span aria-hidden="true" className="ps-label shrink-0 text-ink-faint">
+                          ↵
+                        </span>
+                      </p>
+                    </div>
+                  </li>
+                ) : null}
+
+                {bands.map((band, i) => {
+                  const depth = i / Math.max(1, last);
+                  const dark = depth >= DARK_FROM;
+                  const on = current === band.key;
+                  const dim = q !== '' && !scores.has(band.key);
+                  const Icon = band.kind === 'dog' ? ChatIcon : ICONS[band.key];
+                  const cracked = crack?.key === band.key ? crack : null;
+                  return (
+                    <li
+                      key={band.key}
+                      id={`pult-${band.key}`}
+                      role="option"
+                      aria-selected={on}
+                      aria-disabled={band.kind === 'soon' || undefined}
+                      ref={(el) => {
+                        if (el) rows.current.set(band.key, el);
+                        else rows.current.delete(band.key);
+                      }}
+                      onPointerMove={() => band.kind !== 'soon' && !on && setPicked(band.key)}
+                      onClick={() => activate(band.key)}
+                      className={`relative ${band.kind === 'soon' ? 'cursor-default' : 'cursor-pointer'}`}
+                      style={{ background: waterAt(depth) }}
+                    >
+                      <div className="mx-auto flex max-w-[40rem] px-3 sm:px-4">
+                        <Gauge marked={on} dark={dark} label={`−${meters.format(depthOf(i, bands.length))}`} />
+                        <div className="relative flex-1">
+                          <IceSlice layer={berg.layers[i]} t={depth} lit={on} crack={cracked?.points ?? null} />
+                          {cracked && !still ? <Shards crack={cracked.points} t={depth} seed={cracked.seed + 1} /> : null}
+                          <div
+                            className={`relative flex flex-col items-center justify-center px-8 text-center transition-opacity duration-180 ${
+                              band.kind === 'soon' ? 'min-h-11 py-1.5' : band.kind === 'dog' ? 'min-h-20 py-3' : 'min-h-[4.25rem] py-2'
+                            } ${dim ? 'opacity-25' : cracked ? 'opacity-55' : ''}`}
                           >
-                            {row.label}
-                          </span>
-                          {row.kind === 'place' && row.here ? (
-                            <span className="ps-label shrink-0 text-ink-faint">{t('here')}</span>
-                          ) : null}
-                          <span className="ms-auto min-w-0 truncate text-right text-sm tabular-nums text-ink-muted">
-                            {row.kind === 'soon' ? (
-                              <span className="ps-label text-ink-faint">{t('soon')}</span>
-                            ) : row.answer ? (
-                              // Блоком, а не строчным: строчный блок внутри
-                              // обрезки добавлял строке нижний вынос, и ответ
-                              // на телефоне сидел ниже названия.
-                              <span key={row.answer} className="animate-rise-in block truncate">
-                                {row.answer}
+                            <span className="flex max-w-full items-center gap-2">
+                              {Icon ? (
+                                <Icon className={`h-4 w-4 shrink-0 ${dark ? 'text-surface/70' : 'text-ink-muted'}`} />
+                              ) : null}
+                              <span
+                                className={`truncate ${band.kind === 'soon' ? 'text-base' : 'text-lg'} font-medium ${
+                                  band.kind === 'soon'
+                                    ? dark
+                                      ? 'text-surface/60'
+                                      : 'text-ink/50'
+                                    : dark
+                                      ? 'text-surface'
+                                      : 'text-ink'
+                                }`}
+                              >
+                                {band.label}
                               </span>
-                            ) : loading && ORDER.includes(row.place.id) && row.place.id !== 'profile' ? (
-                              <span className="inline-block h-3 w-24 animate-pulse rounded-sm bg-rule-soft align-middle" />
+                              {band.here ? <span className="ps-label shrink-0 text-ink-faint">{t('here')}</span> : null}
+                              {band.kind === 'soon' ? (
+                                <span className={`ps-label shrink-0 ${dark ? 'text-surface/40' : 'text-ink/35'}`}>
+                                  {t('soon')}
+                                </span>
+                              ) : null}
+                            </span>
+                            {band.kind !== 'soon' ? (
+                              <span
+                                className={`mt-0.5 block max-w-full truncate text-sm tabular-nums ${
+                                  dark ? 'text-surface/70' : 'text-ink-muted'
+                                }`}
+                              >
+                                {band.answer ? (
+                                  <span key={band.answer} className="animate-rise-in block truncate">
+                                    {band.answer}
+                                  </span>
+                                ) : loading && band.kind === 'place' && band.key !== 'profile' ? (
+                                  <span className="my-1 inline-block h-3 w-28 animate-pulse rounded-sm bg-ink/10 align-middle" />
+                                ) : null}
+                              </span>
                             ) : null}
-                          </span>
-                        </span>
-                      )}
+                          </div>
+                          {cracked ? <CrackLine crack={cracked.points} seed={cracked.seed} /> : null}
+                        </div>
+                      </div>
                     </li>
                   );
                 })}
               </ul>
 
-              {/* Будущее одной строкой, пока ничего не набрано: девять серых
-                  строк «скоро» под живыми превратили бы пульт в оглавление. */}
-              {!query.trim() ? (
-                <p
-                  className="animate-rise-in mt-6 px-3 text-sm leading-relaxed text-ink-faint"
-                  style={{ animationDelay: `${160 + ORDER.length * 35}ms` }}
-                >
-                  <span className="ps-label me-2">{t('soon')}</span>
-                  {soonLine.map((name, i) => (
-                    // Название не рвётся пополам: «трэп-хаус» переносился по
-                    // дефису. Переносится только между названиями.
-                    // Разделитель снаружи: внутри неразрывного куска он
-                    // склеивал всю строку в одну, и она уезжала за край.
-                    <span key={name}>
-                      <span className="whitespace-nowrap">{name}</span>
-                      {i < soonLine.length - 1 ? ' · ' : ''}
-                    </span>
-                  ))}
-                </p>
-              ) : null}
-
-              <p className="ps-label mt-auto hidden pt-10 text-ink-faint sm:block">{t('keys')}</p>
+              {/* ── Дно: дальше только тьма и подсказка по клавишам. ───────── */}
+              <div className="flex flex-1 items-end justify-center bg-deep px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-10">
+                <p className="ps-label hidden text-surface/40 sm:block">{t('keys')}</p>
+              </div>
             </div>
           </motion.div>
+
+          {/* «Ниже — нишевее»: айсберг уходит за нижний край, и это надо
+              сказать, пока человек не начал листать. Исчезает с первой
+              прокруткой и пока что-то набрано. */}
+          <AnimatePresence>
+            {deepBelow && !scrolled && !q ? (
+              <motion.p
+                key="deeper"
+                aria-hidden="true"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0, transition: { delay: 0.9, duration: 0.4 } }}
+                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                className="ps-label pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-deep/85 px-3 py-1.5 text-surface"
+              >
+                {t('deeper')} ↓
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
         </div>
       ) : null}
     </AnimatePresence>
+  );
+}
+
+/**
+ * Шкала глубин слева от айсберга: линия, засечка и метры.
+ *
+ * Линия рисуется по куску в каждом слое и собирается в одну, а красная точка —
+ * ядро кнопки, которое показывает, где ты, — переезжает между слоями общим
+ * `layoutId`: framer сам ведёт её от слоя к слою, как стрелку эхолота.
+ */
+function Gauge({ marked, dark, label }: { marked: boolean; dark: boolean; label: string }) {
+  return (
+    <div aria-hidden="true" className="relative w-16 shrink-0">
+      <span className={`absolute inset-y-0 right-0 w-px ${dark ? 'bg-surface/20' : 'bg-ink/20'}`} />
+      {label ? (
+        <>
+          <span className={`absolute right-0 top-1/2 h-px w-2 ${dark ? 'bg-surface/30' : 'bg-ink/30'}`} />
+          <span
+            className={`absolute right-3 top-1/2 -translate-y-1/2 whitespace-nowrap text-[0.625rem] tabular-nums tracking-wide ${
+              dark ? 'text-surface/45' : 'text-ink/45'
+            }`}
+          >
+            {label}
+          </span>
+        </>
+      ) : null}
+      {marked ? (
+        <motion.span
+          layoutId="pult-marker"
+          transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+          className="absolute right-[-5px] top-1/2 -mt-[5px] h-2.5 w-2.5 rounded-full bg-reactor"
+        />
+      ) : null}
+    </div>
   );
 }
 

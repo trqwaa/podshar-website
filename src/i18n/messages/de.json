@@ -1127,6 +1127,9 @@
       "todos": "gemeinsam: {shared} · deins: {mine}",
       "games": "brawl-meta: {name}",
       "patches": "v{version} · {date}"
-    }
+    },
+    "dog": "der mops",
+    "dogHint": "wohnt ganz unten. weiss, was da liegt",
+    "deeper": "je tiefer, desto nischiger"
   }
 }

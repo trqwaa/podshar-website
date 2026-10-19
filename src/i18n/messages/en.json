@@ -1127,6 +1127,9 @@
       "todos": "shared: {shared} · yours: {mine}",
       "games": "brawl meta: {name}",
       "patches": "v{version} · {date}"
-    }
+    },
+    "dog": "the pug",
+    "dogHint": "lives at the very bottom. knows what is down there",
+    "deeper": "deeper means more niche"
   }
 }
