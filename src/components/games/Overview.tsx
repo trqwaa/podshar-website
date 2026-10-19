@@ -182,7 +182,12 @@ export async function Overview({ locale, userId }: { locale: Locale; userId: str
           </>
         )}
 
-        <BrawlPeek label={t('metaBrawl')} empty={t('brawlMetaMissing')} locale={locale} />
+        {/* За `<Suspense>`, как мета доты выше. До 1.17 эта мета читалась из
+            нашей базы и ждать её было не страшно; с переездом на SeeMeta
+            карточка без обёртки ждала чужой сайт целиком. */}
+        <Suspense fallback={<PeekPending label={t('metaBrawl')} />}>
+          <BrawlPeek label={t('metaBrawl')} empty={t('brawlMetaMissing')} locale={locale} />
+        </Suspense>
 
         <div className="mt-auto flex flex-wrap gap-2">
           <ActionLink href="/games?view=brawl">{t('fullBrawl')}</ActionLink>

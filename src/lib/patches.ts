@@ -68,6 +68,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '1.17A',
+    date: '2026-10-19',
+    author: 'trqwaa',
+    note: '«игры» больше не висят пустыми, когда seemeta молчит: мета бравла догружается сама, как у доты, а страница открывается сразу'
+  },
+  {
     version: '1.17',
     date: '2026-10-16',
     author: 'nellet',

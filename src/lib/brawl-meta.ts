@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { unstable_cache } from 'next/cache';
+import { after } from 'next/server';
 
 import type { Locale } from '@/i18n/routing';
 import { UK_MAP_NAMES } from '@/lib/brawl-maps-uk';
@@ -36,6 +37,51 @@ const TTL = 6 * 3600;
 const BUDGET = 15_000;
 /** Сколько не ходить снова после сбоя: страница на три мегабайта не должна качаться на каждый показ. */
 const BACKOFF_MS = 10 * 60_000;
+
+/**
+ * Сколько показ страницы ждёт SeeMeta, прежде чем рисовать без неё.
+ *
+ * Тёплого кеша эти числа не касаются — он отвечает за миллисекунды. Они про
+ * холодный: после выкатки или когда запись вытеснили. Здоровый SeeMeta отдаёт
+ * страницы за полторы секунды, а молчащий держит до таймаута, 10–15 секунд, и
+ * «игры» открывались пустыми по 10–20 секунд. Так и было 19 октября 2026:
+ * SeeMeta (он за Cloudflare) на время перестал отвечать — соединение рвалось
+ * через 10 секунд и у сервера, и у `curl`. Замер с подменённым адресом: до
+ * этой правки 10,8 / 10,8 / 21,5 с до первого байта, после — 0,2 / 1,3 / 1,3.
+ *
+ * Не дождались — рисуем без неё (мета «не ответил», карты по-английски), но
+ * запрос не обрываем: `after()` держит его до конца, ответ ложится в кеш, и
+ * следующий показ уже с данными. Тот же приём, что гонка вместо отмены в
+ * `lib/trains.ts`. Названия ждём меньше меты: без них на экране английское имя
+ * карты, без меты — пустая доска.
+ */
+const META_WAIT_MS = 2500;
+const NAMES_WAIT_MS = 1200;
+
+const LATE = Symbol('late');
+
+/** Ответ, если успел за `ms`; иначе `LATE`, а сам запрос доживает после ответа. */
+async function inTime<T>(work: Promise<T>, ms: number): Promise<T | typeof LATE> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<typeof LATE>((resolve) => {
+    timer = setTimeout(() => resolve(LATE), ms);
+  });
+  try {
+    const result = await Promise.race([work, late]);
+    if (result === LATE) {
+      // На Vercel функцию замораживают сразу после ответа, и недокачанный
+      // запрос замёрз бы вместе с ней — кеш так и остался бы пустым.
+      try {
+        after(work);
+      } catch {
+        // Вне запроса (сборка, скрипт) `after` бросает. Там процесс живёт и так.
+      }
+    }
+    return result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * Порядок режимов на доске. Какие карты ранговые, решает не этот список, а
@@ -175,16 +221,19 @@ const cached = unstable_cache(load, ['seemeta-brawl', 'v2'], { revalidate: TTL }
 
 let failedAt = 0;
 
-/** Мета рангового с SeeMeta. `null` — не ответил или не разобрался; причина в логе. */
+/**
+ * Мета рангового с SeeMeta. `null` — не ответил, не разобрался (причина в
+ * логе) или не успел за `META_WAIT_MS` — тогда будет к следующему показу.
+ */
 export async function brawlMeta(): Promise<BrawlMeta | null> {
   if (Date.now() - failedAt < BACKOFF_MS) return null;
-  try {
-    return await cached();
-  } catch (error) {
+  const work = cached().catch((error) => {
     failedAt = Date.now();
     console.warn('[podshar] seemeta:', error instanceof Error ? error.message : error);
     return null;
-  }
+  });
+  const meta = await inTime(work, META_WAIT_MS);
+  return meta === LATE ? null : meta;
 }
 
 /** Мета — верх их тир-листа, в их порядке: оценка уже учитывает и винрейт, и то, как часто берут. */
@@ -270,12 +319,13 @@ export async function mapNamer(
 
   let dict: Record<string, string> = {};
   if (Date.now() - namesFailedAt >= BACKOFF_MS) {
-    try {
-      dict = (await cachedNames())[locale];
-    } catch (error) {
+    const work = cachedNames().catch((error) => {
       namesFailedAt = Date.now();
       console.warn('[podshar] seemeta names:', error instanceof Error ? error.message : error);
-    }
+      return null;
+    });
+    const names = await inTime(work, NAMES_WAIT_MS);
+    if (names && names !== LATE) dict = names[locale];
   }
   return (english) => (english ? (dict[norm(english)] ?? english) : '');
 }
