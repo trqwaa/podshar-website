@@ -167,6 +167,15 @@ const fold = (s: string) =>
  * а не из скрытого поля: браузеру верить незачем, а координаты потом уезжают в
  * `locations` и по ним же считается погода.
  *
+ * Спрашиваем **табло** станции, а не поиск. Поиск (`locations?query=8503000`)
+ * номер понимал до осени 2026, а потом стал отвечать пустым списком — и вся
+ * страница поездов ослепла: маршрут в адресе живёт номерами, имена к ним не
+ * находились, страница считала, что станции не выбраны, и поездов не
+ * показывала. Сохранить дорогу или свою станцию тоже было нельзя. Табло же
+ * по номеру отдаёт станцию целиком — имя и координаты — потому что на нём
+ * держится само табло. Проверено 19 октября 2026: настоящий номер — станция,
+ * выдуманный — `station: null`, то есть «такой нет», как и раньше.
+ *
  * Координаты у SBB перепутаны местами относительно того, что подсказывают
  * буквы: `x` — это широта, `y` — долгота.
  */
@@ -174,15 +183,17 @@ export async function stationById(
   id: string
 ): Promise<(Station & { latitude: number; longitude: number }) | null> {
   if (!/^\d+$/.test(id)) return null;
-  const data = await ask('locations', { query: id }, STATION_TTL);
-  const first = (Array.isArray(data?.stations) ? data.stations : [])[0];
-  const name = text(first?.name);
+  // Одна строка табло — меньше не бывает, а сама станция приходит при любой.
+  // Кеш на сутки, как у имён: из этого ответа берём только станцию.
+  const data = await ask('stationboard', { id, limit: '1' }, STATION_TTL);
+  const station = dig(data, 'station');
+  const name = text(dig(station, 'name'));
   if (!name) return null;
   return {
     id,
     name,
-    latitude: Number(first?.coordinate?.x) || 0,
-    longitude: Number(first?.coordinate?.y) || 0
+    latitude: Number(dig(station, 'coordinate', 'x')) || 0,
+    longitude: Number(dig(station, 'coordinate', 'y')) || 0
   };
 }
 
