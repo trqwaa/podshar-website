@@ -133,7 +133,11 @@ const patchesReleased: Source = async ({ userId, since, t, dayAt }) => {
   return fresh.map((p) => {
     const at = new Date(zurichMidnight(p.date).getTime() + 12 * 3600_000);
     const author = byHandle.get(p.author);
-    const note = p.note.length > 90 ? `${p.note.slice(0, 89).trimEnd()}…` : p.note;
+    // В ленту — первая фраза: она и есть заголовок, целиком текст на странице
+    // патчей. Длинная первая фраза режется по слову, а не посреди него.
+    const [lead] = p.note.split('. ');
+    const note =
+      p.note.length <= 90 ? p.note : lead.length <= 90 ? lead : `${p.note.slice(0, 90).replace(/\s+\S*$/, '')}…`;
     return {
       id: `patch:${p.version}`,
       at: at.getTime(),
