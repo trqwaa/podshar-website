@@ -214,6 +214,38 @@
     background-color: rgb(var(--ink) / 0.26);
   }
 
+  /* A list that scrolls inside a tile, under a thumb of its own (`ScrollPane`).
+
+     The native bar is hidden rather than quietened: the pane draws one that is
+     always there, since on a phone and on a Mac the native one shows only while
+     scrolling, and here the thumb is what says the tile scrolls at all. An edge
+     with more beyond it fades out. A mask reads only alpha — `black` here is
+     not a colour, it means "fully shown". */
+  .scroll-pane {
+    --fade-top: 0px;
+    --fade-end: 0px;
+    scrollbar-width: none;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      black var(--fade-top),
+      black calc(100% - var(--fade-end)),
+      transparent
+    );
+  }
+
+  .scroll-pane::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scroll-pane[data-top] {
+    --fade-top: 1.25rem;
+  }
+
+  .scroll-pane[data-more] {
+    --fade-end: 2.5rem;
+  }
+
   /* Divider between sections inside one panel. */
   .ps-rule {
     @apply border-t border-rule-soft;

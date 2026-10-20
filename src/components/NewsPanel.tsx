@@ -1,42 +1,49 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Link } from '@/i18n/routing';
 import type { News, NewsEntry } from '@/lib/news';
-import { Modal } from './Modal';
+import { ScrollPane } from './ScrollPane';
 import { TagIcon } from './Icons';
 import { MemberAvatar } from './profile/MemberAvatar';
 
 /**
- * Новости на главной: плитка и окно за ней.
+ * Новости на главной: одна плитка, которая листается.
  *
- * Плитка — кнопка, как у погоды: на ней «дальше в календаре» синей карточкой и
- * две последние новости, а всё остальное — в окне. Карточка того же синего,
- * что весь интерактив сайта, и это намеренно: на рабочем портале владельца,
- * откуда взят образец, ближайшая встреча стоит именно так, и глаз находит её
- * первой. Красный — нет: он только у ядра кнопки ПХ.
+ * Окна за ней нет — решение владельца от 20 октября 2026: новости — то, что
+ * видно сразу, а не после клика. Сверху «дальше в календаре» синей карточкой,
+ * под ней что нового у остальных, ниже неделя календаря. Листается колесом,
+ * ползунком и пальцем; почему ползунок свой — в `ScrollPane`.
+ *
+ * Карточка того же синего, что весь интерактив сайта, и это намеренно: на
+ * рабочем портале владельца, откуда взят образец, ближайшая встреча стоит
+ * именно так, и глаз находит её первой. Красный — нет: он только у ядра
+ * кнопки ПХ.
  *
  * Все строки приходят с сервера готовыми (`lib/news.ts`), здесь только
  * раскладка и «непрочитано».
  *
- * Непрочитанное — что появилось после последнего открытия окна, и только
- * чужое. Хранится в браузере зрителя: это удобство, а не данные, и потерять
- * его — значит один раз увидеть точки заново. Считается после монтирования:
- * сервер не знает, когда ты смотрел, и точки, нарисованные им, разошлись бы с
- * браузером при гидратации.
+ * Непрочитанное — чужое, что появилось после прошлого раза, когда плитка
+ * побыла на экране. Именно на экране, а не на странице: на телефоне плитка
+ * ниже кнопки, и открыть главную ещё не значит её увидеть. Точки стоят до
+ * следующего захода — иначе по списку не понять, что в нём новое. Хранится в
+ * браузере зрителя: это удобство, а не данные, и потерять его — значит один
+ * раз увидеть точки заново. Считается после монтирования: сервер не знает,
+ * когда ты смотрел, и точки, нарисованные им, разошлись бы с браузером при
+ * гидратации.
  */
 
 const SEEN_KEY = 'podshar:news-seen';
 /** Первый раз: «новым» считается то, что появилось за последние двое суток. */
 const FIRST_LOOK_MS = 2 * 86_400_000;
+/** Сколько плитка должна пробыть на экране, чтобы новое стало прочитанным. */
+const LOOK_MS = 2000;
 
 export function NewsPanel({ news, className = '' }: { news: News; className?: string }) {
   const t = useTranslations('news');
-  const tHome = useTranslations('home');
-  const [open, setOpen] = useState(false);
+  const tile = useRef<HTMLElement>(null);
   const [seenAt, setSeenAt] = useState<number | null>(null);
 
   useEffect(() => {
@@ -49,139 +56,122 @@ export function NewsPanel({ news, className = '' }: { news: News; className?: st
     setSeenAt(Number.isFinite(stored) && stored > 0 ? stored : Date.now() - FIRST_LOOK_MS);
   }, []);
 
+  // Отметка — время самой свежей записи, а не «сейчас»: пришедшее после
+  // отрисовки на экране не было и прочитанным считаться не должно. И время
+  // это серверное, как у самих записей, — часы зрителя в сравнении не участвуют.
+  const newest = news.feed.reduce((max, entry) => Math.max(max, entry.at), 0);
+  useEffect(() => {
+    const el = tile.current;
+    if (!el || newest === 0) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const watch = new IntersectionObserver(
+      ([seen]) => {
+        clearTimeout(timer);
+        if (!seen?.isIntersecting) return;
+        timer = setTimeout(() => {
+          watch.disconnect();
+          try {
+            if (newest > Number(window.localStorage.getItem(SEEN_KEY) || 0)) {
+              window.localStorage.setItem(SEEN_KEY, String(newest));
+            }
+          } catch {
+            // Без хранилища точки просто вернутся в следующий раз.
+          }
+        }, LOOK_MS);
+      },
+      { threshold: 0.6 }
+    );
+    watch.observe(el);
+    return () => {
+      clearTimeout(timer);
+      watch.disconnect();
+    };
+  }, [newest]);
+
   const unread = (entry: NewsEntry) => seenAt !== null && !entry.mine && entry.at > seenAt;
   const count = news.feed.filter(unread).length;
 
-  // Открыл окно — значит увидел. Точки при этом стоят, пока окно открыто:
-  // иначе нельзя было бы понять, что из списка новое. Гаснут при закрытии.
-  const show = () => {
-    setOpen(true);
-    try {
-      window.localStorage.setItem(SEEN_KEY, String(Date.now()));
-    } catch {
-      // Без хранилища точки просто вернутся в следующий раз.
-    }
-  };
-  const hide = () => {
-    setOpen(false);
-    setSeenAt(Date.now());
-  };
-
   return (
-    <>
-      <button
-        type="button"
-        onClick={show}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className={`block-card animate-rise-in flex w-full flex-col gap-4 p-6 text-left transition-colors duration-drape ease-drape [animation-delay:150ms] hover:bg-sunk ${className}`}
-      >
-        <p className="flex items-baseline justify-between gap-3">
-          <span className="ps-label flex items-center gap-2">
-            {t('label')}
-            {count > 0 ? <Badge count={count} label={t('unread', { n: count })} /> : null}
-          </span>
-          <span aria-hidden="true" className="ps-label">
-            {t('more')}&nbsp;›
-          </span>
-        </p>
+    <section
+      ref={tile}
+      aria-label={t('label')}
+      className={`block-card animate-rise-in flex flex-col gap-4 p-6 [animation-delay:150ms] ${className}`}
+    >
+      <p className="ps-label flex items-center gap-2">
+        {t('label')}
+        {count > 0 ? <Badge count={count} label={t('unread', { n: count })} /> : null}
+      </p>
 
-        {news.next ? (
-          <span className="block rounded-block bg-accent px-4 py-3 text-accent-ink">
-            <span className="block text-sm opacity-80">{t('next')}</span>
-            <span className="mt-0.5 block truncate text-base font-semibold">{news.next.title}</span>
-            <span className="block text-sm tabular-nums">{news.next.when}</span>
-          </span>
-        ) : (
-          <span className="text-sm text-ink-muted">{t('nothingAhead')}</span>
-        )}
+      {/* Высота постоянная: плитка стоит в колонке рядом с кнопкой, и лента в
+          двадцать строк вытянула бы колонку, а с ней и кнопку. */}
+      <ScrollPane label={t('label')} className="h-80 md:h-72">
+        <div className="flex flex-col gap-5">
+          {news.next ? (
+            <Link
+              href={news.next.href}
+              className="block rounded-block bg-accent px-4 py-3 text-accent-ink transition-opacity duration-180 hover:opacity-90"
+            >
+              <span className="block text-sm opacity-80">{t('next')}</span>
+              <span className="mt-0.5 block truncate text-base font-semibold">{news.next.title}</span>
+              <span className="block truncate text-sm tabular-nums">
+                {news.next.when}
+                {news.next.where ? ` · ${news.next.where}` : ''}
+              </span>
+            </Link>
+          ) : (
+            <p className="text-sm text-ink-muted">{t('nothingAhead')}</p>
+          )}
 
-        {news.feed.length ? (
-          <span className="flex flex-col gap-3">
-            {news.feed.slice(0, 2).map((entry) => (
-              <Row key={entry.id} entry={entry} unread={unread(entry)} compact />
-            ))}
-          </span>
-        ) : (
-          <span className="text-sm text-ink-muted">{t('feedEmpty')}</span>
-        )}
-      </button>
+          <section aria-label={t('feed')}>
+            <h3 className="ps-label mb-1">{t('feed')}</h3>
+            {news.feed.length ? (
+              <ul className="flex flex-col">
+                {news.feed.map((entry) => (
+                  <li key={entry.id}>
+                    <Link
+                      href={entry.href}
+                      className="-mx-2 flex rounded px-2 py-2 transition-colors duration-180 hover:bg-sunk"
+                    >
+                      <Row entry={entry} unread={unread(entry)} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-muted">{t('feedEmpty')}</p>
+            )}
+          </section>
 
-      <AnimatePresence>
-        {open ? (
-          <Modal key="news" title={t('title')} hint={t('hint')} close={tHome('close')} onClose={hide}>
-            <div className="flex flex-col gap-10 pt-4">
-              <section aria-label={t('ahead')}>
-                <h3 className="ps-label mb-3">{t('ahead')}</h3>
-                {news.next ? (
-                  <Link
-                    href={news.next.href}
-                    className="block rounded-block bg-accent px-5 py-4 text-accent-ink transition-opacity duration-180 hover:opacity-90"
-                  >
-                    <span className="block text-sm opacity-80">{t('next')}</span>
-                    <span className="mt-1 block text-lg font-semibold leading-tight">{news.next.title}</span>
-                    <span className="mt-0.5 block text-base tabular-nums">
-                      {news.next.when}
-                      {news.next.where ? ` · ${news.next.where}` : ''}
-                    </span>
-                  </Link>
-                ) : (
-                  <p className="text-base text-ink-muted">{t('nothingAhead')}</p>
-                )}
-
-                {news.days.length ? (
-                  <ol className="mt-6 flex flex-col gap-5">
-                    {news.days.map((day) => (
-                      <li key={day.label}>
-                        <p className="text-base font-semibold text-ink">{day.label}</p>
-                        {/* Пунктир слева — как у образца: дни читаются колонкой, а
-                            не россыпью строк. Цвет — тот же синий, что у карточки. */}
-                        <ul className="mt-2 flex flex-col border-l-2 border-dotted border-accent/50 ps-3">
-                          {day.items.map((item) => (
-                            <li key={item.id}>
-                              <Link
-                                href={item.href}
-                                className="flex items-baseline gap-3 rounded py-1.5 transition-colors duration-180 hover:bg-sunk"
-                              >
-                                <span className="w-28 shrink-0 text-sm tabular-nums text-ink-muted">{item.time}</span>
-                                <span className="min-w-0 flex-1 truncate text-base text-ink">{item.title}</span>
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    ))}
-                  </ol>
-                ) : null}
-              </section>
-
-              <section aria-label={t('feed')}>
-                <h3 className="ps-label mb-3 flex items-center gap-2">
-                  {t('feed')}
-                  {count > 0 ? <Badge count={count} label={t('unread', { n: count })} /> : null}
-                </h3>
-                {news.feed.length ? (
-                  <ul className="flex flex-col">
-                    {news.feed.map((entry) => (
-                      <li key={entry.id}>
-                        <Link
-                          href={entry.href}
-                          className="-mx-2 flex rounded px-2 py-2.5 transition-colors duration-180 hover:bg-sunk"
-                        >
-                          <Row entry={entry} unread={unread(entry)} />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-base text-ink-muted">{t('feedEmpty')}</p>
-                )}
-              </section>
-            </div>
-          </Modal>
-        ) : null}
-      </AnimatePresence>
-    </>
+          {news.days.length ? (
+            <section aria-label={t('ahead')}>
+              <h3 className="ps-label mb-2">{t('ahead')}</h3>
+              <ol className="flex flex-col gap-3">
+                {news.days.map((day) => (
+                  <li key={day.label}>
+                    <p className="text-sm font-semibold text-ink">{day.label}</p>
+                    {/* Пунктир слева — как у образца: дни читаются колонкой, а
+                        не россыпью строк. Цвет — тот же синий, что у карточки. */}
+                    <ul className="mt-1 flex flex-col border-l-2 border-dotted border-accent/50 ps-3">
+                      {day.items.map((item) => (
+                        <li key={item.id}>
+                          <Link
+                            href={item.href}
+                            className="flex items-baseline gap-3 rounded py-1 transition-colors duration-180 hover:bg-sunk"
+                          >
+                            <span className="w-24 shrink-0 text-xs tabular-nums text-ink-muted">{item.time}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm text-ink">{item.title}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+        </div>
+      </ScrollPane>
+    </section>
   );
 }
 
@@ -199,16 +189,18 @@ function Badge({ count, label }: { count: number; label: string }) {
 
 /**
  * Строка ленты: кто, когда, что. Как во входящих: имя жирным, время справа,
- * под ними одна строка, и синяя точка у нового.
+ * под ними текст в две строки, и синяя точка у нового.
  */
-function Row({ entry, unread, compact = false }: { entry: NewsEntry; unread: boolean; compact?: boolean }) {
-  const size = compact ? 'h-8 w-8' : 'h-10 w-10';
+function Row({ entry, unread }: { entry: NewsEntry; unread: boolean }) {
   return (
     <span className="flex w-full min-w-0 items-start gap-3">
       {entry.who ? (
-        <MemberAvatar preset={entry.who.avatarPreset} displayName={entry.who.name} className={size} />
+        <MemberAvatar preset={entry.who.avatarPreset} displayName={entry.who.name} className="h-8 w-8" />
       ) : (
-        <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full border-2 border-rule text-ink-muted ${size}`}>
+        <span
+          aria-hidden="true"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-rule text-ink-muted"
+        >
           <TagIcon />
         </span>
       )}
@@ -216,13 +208,13 @@ function Row({ entry, unread, compact = false }: { entry: NewsEntry; unread: boo
         <span className="flex items-baseline justify-between gap-3">
           <span className="flex min-w-0 items-center gap-1.5">
             {unread ? <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
-            <span className={`truncate text-ink ${unread ? 'font-semibold' : 'font-medium'} ${compact ? 'text-sm' : 'text-base'}`}>
+            <span className={`truncate text-sm text-ink ${unread ? 'font-semibold' : 'font-medium'}`}>
               {entry.who?.name ?? 'podshar'}
             </span>
           </span>
           <span className="shrink-0 text-xs tabular-nums text-ink-muted">{entry.when}</span>
         </span>
-        <span className="block truncate text-sm text-ink-muted">{entry.text}</span>
+        <span className="line-clamp-2 text-sm text-ink-muted">{entry.text}</span>
       </span>
     </span>
   );

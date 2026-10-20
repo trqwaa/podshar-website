@@ -32,7 +32,9 @@ const QUOTE_COUNT = 240;
  * that is three rows tall, and the three small blocks — the date, the news
  * and who you are — stack beside it to match its height. Under that, a row of
  * two unequal blocks: who is on the site, narrow, and the weather, wide, with
- * the next hours drawn beside the number. The quote runs full width at the
+ * the number large on top and the next hours in a strip across the bottom.
+ * The news scrolls inside its tile at a fixed height, so a long feed never
+ * stretches the column beside the reactor. The quote runs full width at the
  * bottom. Deliberately varied block sizes — an even three-across row of equal
  * thirds reads as a table, not a bento.
  *
@@ -145,8 +147,9 @@ export default async function HomePage({
       />
 
       {/* The weather, shared like the date — the sky over Zurich, not over
-          whoever is looking. Wide here, so the next hours stand beside the
-          number. It streams in: the page does not wait for the provider, and
+          whoever is looking. Its row is as tall as the presence list beside
+          it, and the tile fills that height rather than leaving it empty. It
+          streams in: the page does not wait for the provider, and
           the placeholder holds the same frame, so nothing below it moves when
           the answer lands. */}
       <Suspense
@@ -157,7 +160,7 @@ export default async function HomePage({
           />
         }
       >
-        <WeatherTile locale={locale} className="md:col-span-4" wide />
+        <WeatherTile locale={locale} className="md:col-span-4" />
       </Suspense>
 
       {/* Quote of the day. The one place on the page allowed to have a voice,

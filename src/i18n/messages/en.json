@@ -572,7 +572,7 @@
       "today": "date and clock. the date is shared, the clock is your machine",
       "member": "that is you. name, handle, a letter instead of a face",
       "quote": "thought of the day, one for all three. no depth",
-      "news": "the news. what is next in the calendar and what the others did. press it for all of it",
+      "news": "the news. what is next in the calendar and what the others did. it scrolls right there in the tile",
       "patches": "the version at the bottom of the drawer. press it, the whole patch list is there",
       "weather": "zurich weather, one for all of us. no umbrellas handed out",
       "presence": "who is on the site right now. the rest, and when they dropped off",
@@ -1134,9 +1134,6 @@
   },
   "news": {
     "label": "news",
-    "title": "news",
-    "hint": "what is next in the calendar and what the others did",
-    "more": "all",
     "next": "next in the calendar",
     "nothingAhead": "nothing in the calendar this week",
     "ahead": "coming up",

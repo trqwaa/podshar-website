@@ -572,7 +572,7 @@
       "today": "datum und uhr. das datum ist für alle gleich, die uhr ist deine",
       "member": "das bist du. name, handle, ein buchstabe statt gesicht",
       "quote": "gedanke des tages, einer für alle drei. keine tiefe",
-      "news": "die neuigkeiten. was als nächstes im kalender steht und was die anderen gemacht haben. drück drauf für alles",
+      "news": "die neuigkeiten. was als nächstes im kalender steht und was die anderen gemacht haben. scrollt direkt in der kachel",
       "patches": "die version unten im menü. drück drauf, da ist die ganze patch-liste",
       "weather": "wetter in zürich, eins für alle. schirme gibts keine",
       "presence": "wer gerade auf der seite ist. die anderen, und wann sie weg waren",
@@ -1134,9 +1134,6 @@
   },
   "news": {
     "label": "neuigkeiten",
-    "title": "neuigkeiten",
-    "hint": "was als nächstes im kalender steht und was die anderen gemacht haben",
-    "more": "alles",
     "next": "als nächstes im kalender",
     "nothingAhead": "diese woche nichts im kalender",
     "ahead": "demnächst im kalender",

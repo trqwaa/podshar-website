@@ -24,8 +24,7 @@ import type { Locale } from '@/i18n/routing';
  */
 export async function WeatherTile({
   locale,
-  className = '',
-  wide = false
+  className = ''
 }: {
   /**
    * Handed down, never asked for.
@@ -37,12 +36,6 @@ export async function WeatherTile({
    */
   locale: Locale;
   className?: string;
-  /**
-   * Плитка во всю широкую ячейку главной — там, где был слот «скоро». Рядом с
-   * числом тогда встаёт полоса на ближайшие часы: в узкой колонке ей не было
-   * места, а широкая без неё стояла бы пустой на две трети.
-   */
-  wide?: boolean;
 }) {
   const [t, tHome, weather] = await Promise.all([
     getTranslations({ locale, namespace: 'weather' }),
@@ -59,10 +52,11 @@ export async function WeatherTile({
     );
   }
 
-  const deg = (n: number) => `${Math.round(n)}°`;
   const night = !weather.isDay;
   // Only a clear sky reads differently at night. A cloud is a cloud.
   const key = weather.condition === 'clear' && night ? 'clearNight' : weather.condition;
+  const high = t('high', { temp: Math.round(weather.max) });
+  const low = t('low', { temp: Math.round(weather.min) });
 
   return (
     <WeatherPanel
@@ -74,55 +68,69 @@ export async function WeatherTile({
       close={tHome('close')}
       week={<Forecast weather={weather} locale={locale} />}
     >
-      {/* Узкая плитка — как была: обёртка `contents` в раскладке не участвует.
-          Широкая — число слева, полоса часов справа. */}
-      <div
-        className={
-          wide ? 'flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-10' : 'contents'
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-3xl font-semibold leading-tight tabular-nums text-ink">
+      {/* Высоту плитке задаёт сосед по ряду, «кто тут трётся», и содержимое
+          её заполняет, а не жмётся кверху: «сейчас» крупно наверху, часы
+          полосой во всю ширину внизу. Прежние «13° и строчка» оставляли под
+          собой две трети пустой плитки. */}
+      <div className="flex flex-1 flex-col gap-4">
+        <div className="flex items-center justify-between gap-6">
+          <div className="flex min-w-0 items-center gap-4 sm:gap-5">
+            <WeatherIcon condition={weather.condition} night={night} size="xl" />
+            <div className="min-w-0">
+              <p className="text-5xl font-semibold leading-none tabular-nums text-ink sm:text-6xl">
                 {deg(weather.temp)}
               </p>
-              <p className="mt-1 text-base font-medium text-ink-muted">{t(`conditions.${key}`)}</p>
+              <p className="mt-2 text-lg font-medium leading-tight text-ink-muted">{t(`conditions.${key}`)}</p>
             </div>
-            <WeatherIcon condition={weather.condition} night={night} />
           </div>
           {/* «Макс» и «мин» словами, а не «10°…21°»: два числа через многоточие не
               говорят, какое из них днём, и именно на это пожаловались. */}
-          <p className="text-sm tabular-nums text-ink-muted">
-            {t('feels', { temp: Math.round(weather.feels) })} &middot;{' '}
-            {t('high', { temp: Math.round(weather.max) })} &middot;{' '}
-            {t('low', { temp: Math.round(weather.min) })} &middot;{' '}
-            {weather.rain > 0 ? t('rain', { chance: Math.round(weather.rain) }) : t('dry')}
+          <p className="flex shrink-0 flex-col items-end gap-1 text-lg tabular-nums sm:text-xl">
+            <span className="font-semibold text-ink">{high}</span>
+            <span className="text-ink-muted">{low}</span>
           </p>
         </div>
-        {wide && weather.hours.length > 0 ? <Strip weather={weather} locale={locale} /> : null}
+        <p className="text-sm tabular-nums text-ink-muted sm:text-base">
+          {t('feels', { temp: Math.round(weather.feels) })} &middot;{' '}
+          {weather.rain > 0 ? t('rain', { chance: Math.round(weather.rain) }) : t('dry')}
+        </p>
+        {weather.hours.length > 0 ? <Strip weather={weather} locale={locale} /> : null}
       </div>
     </WeatherPanel>
   );
 }
 
 /**
- * Ближайшие часы прямо на широкой плитке: шесть отметок через два часа.
+ * Ближайшие часы полосой во всю ширину плитки, через два часа.
  *
- * Только с `md`: на телефоне плитка во всю ширину и так узкая, и полоса ушла
- * бы в прокрутку внутри кнопки. Скрыта от скринридера — те же часы, полностью,
- * есть в окне прогноза, а в кнопке они сделали бы её имя бесконечным.
+ * Клетки делят ширину поровну, а сколько их — решает ширина: шесть на телефоне
+ * и в узкой раскладке, девять с `lg`, двенадцать — целые сутки — с `xl`. Так
+ * полоса доходит до правого края на любом экране и нигде не уходит в прокрутку
+ * внутри кнопки. Скрыта от скринридера — те же часы, полностью, есть в окне
+ * прогноза, а в кнопке они сделали бы её имя бесконечным.
  */
 async function Strip({ weather, locale }: { weather: Weather; locale: Locale }) {
   const t = await getTranslations({ locale, namespace: 'weather' });
-  const hours = weather.hours.filter((_, i) => i % 2 === 0).slice(0, 6);
+  const hours = weather.hours.filter((_, i) => i % 2 === 0).slice(0, 12);
+  // Как в окне: строка с шансом дождя — только если он где-то есть.
+  const wet = hours.some((hour) => hour.rain >= 10);
   return (
-    <ol aria-hidden="true" className="hidden shrink-0 gap-1 md:flex">
+    <ol aria-hidden="true" className="ps-rule mt-auto flex pt-5">
       {hours.map((hour, index) => (
-        <li key={hour.time} className="flex w-12 flex-col items-center gap-1.5 text-center">
+        <li
+          key={hour.time}
+          className={`min-w-0 flex-1 flex-col items-center gap-2 text-center ${
+            index >= 9 ? 'hidden xl:flex' : index >= 6 ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
           <span className="ps-label tabular-nums">{index === 0 ? t('now') : hour.time.slice(11, 16)}</span>
-          <WeatherIcon condition={hour.condition} night={!hour.isDay} size="sm" />
-          <span className="text-base font-semibold tabular-nums text-ink">{deg(hour.temp)}</span>
+          <WeatherIcon condition={hour.condition} night={!hour.isDay} size="base" />
+          <span className="text-xl font-semibold tabular-nums text-ink">{deg(hour.temp)}</span>
+          {wet ? (
+            <span className="h-4 text-xs tabular-nums text-ink-muted">
+              {hour.rain >= 10 ? t('share', { value: Math.round(hour.rain) }) : ''}
+            </span>
+          ) : null}
         </li>
       ))}
     </ol>
@@ -372,8 +380,9 @@ async function Days({ days, locale }: { days: DayForecast[]; locale: Locale }) {
 export function WeatherPending({ label, className = '' }: { label: string; className?: string }) {
   return (
     <Frame label={label} className={className}>
-      <span className="inline-block h-9 w-20 animate-pulse rounded-sm bg-sunk" />
-      <span className="inline-block h-4 w-44 animate-pulse rounded-sm bg-sunk" />
+      <span className="inline-block h-16 w-48 animate-pulse rounded-sm bg-sunk" />
+      <span className="inline-block h-4 w-56 animate-pulse rounded-sm bg-sunk" />
+      <span className="mt-auto inline-block h-24 w-full animate-pulse rounded-sm bg-sunk" />
     </Frame>
   );
 }
@@ -405,16 +414,22 @@ function Frame({
  * same cloud to anyone glancing at a phone, and the words under the number say
  * which it is.
  */
-const ICON_SIZE = { xs: 'h-5 w-5', sm: 'h-6 w-6', md: 'h-10 w-10', lg: 'h-12 w-12' } as const;
+const ICON_SIZE = {
+  xs: 'h-5 w-5',
+  sm: 'h-6 w-6',
+  base: 'h-8 w-8',
+  lg: 'h-12 w-12',
+  xl: 'h-14 w-14 sm:h-16 sm:w-16'
+} as const;
 
 function WeatherIcon({
   condition,
   night,
-  size = 'md'
+  size = 'xl'
 }: {
   condition: Condition;
   night: boolean;
-  /** `md` is the tile; the panel behind it uses the rest. */
+  /** `xl` is the tile and `base` its strip of hours; the panel behind it uses the rest. */
   size?: keyof typeof ICON_SIZE;
 }) {
   const rainCloud = 'M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25';
