@@ -82,6 +82,9 @@ export const HOME: Place = {
     { id: 'today', terms: ['дата', 'число', 'часы', 'годин', 'час', 'время', 'день', 'сегодня', 'сьогодні', 'clock', 'time', 'date', 'uhr', 'datum', 'heute'] },
     { id: 'member', terms: ['профил', 'профіл', 'аккаунт', 'акаунт', 'кто я', 'хто я', 'who am i', 'profile', 'profil', 'konto'] },
     { id: 'quote', terms: ['цитат', 'мысл', 'думк', 'quote', 'thought', 'spruch', 'gedank'] },
+    // «Что нового» здесь нет намеренно: оно ведёт к патчам и местом
+    // (`PATCHES_PLACE`), и элементом ниже, а `matchPlace` спрашивается раньше.
+    { id: 'news', terms: ['новост', 'новин', 'news', 'neuigkeit', 'nachricht'] },
     {
       id: 'patches',
       terms: [

@@ -6,7 +6,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 import { prisma } from '@/lib/db';
 import { authConfigured } from '@/lib/auth/config';
-import { zurichMidnight } from '@/lib/calendar/events';
+import { zurichAt, zurichMidnight } from '@/lib/calendar/events';
 import { ZONE, dayKey } from '@/lib/calendar/scales';
 import { DEFAULT_COLOR, DEFAULT_PIN, NOTE_H, NOTE_W, freeSpot } from '@/lib/todos/notes';
 
@@ -32,9 +32,11 @@ import { DEFAULT_COLOR, DEFAULT_PIN, NOTE_H, NOTE_W, freeSpot } from '@/lib/todo
  * писать даты словами, однажды напишет их неправильно, и разбирать это будет
  * уже некому.
  *
- * **Время цюрихское**, и считается `zurichMidnight` — той же функцией, что у
- * формы. Своя арифметика здесь означала бы, что событие, заведённое голосом, и
- * событие, заведённое руками, попадают в разные часы.
+ * **Время цюрихское**, и считается `zurichAt` — той же функцией, что у формы.
+ * Своя арифметика здесь означала бы, что событие, заведённое голосом, и
+ * событие, заведённое руками, попадают в разные часы. Так и было до 20 октября
+ * 2026: обе стороны прибавляли часы к полуночи, и в день перевода часов мопс
+ * записывал «в 11:00» на 10:00.
  */
 
 /** `2026-09-24`, как в форме календаря. */
@@ -194,7 +196,7 @@ async function addEvent(input: unknown, userId: string): Promise<string> {
   const [hours, minutes] = time ? time.split(':').map(Number) : [0, 0];
   if (hours > 23 || minutes > 59) return 'that clock time does not exist — say you could not put it in.';
 
-  const startsAt = time ? new Date(midnight.getTime() + (hours * 60 + minutes) * 60_000) : midnight;
+  const startsAt = time ? zurichAt(day, time) : midnight;
 
   await prisma.calendarEvent.create({
     data: { title, startsAt, endsAt: null, allDay: !time, createdById: userId },
@@ -204,7 +206,12 @@ async function addEvent(input: unknown, userId: string): Promise<string> {
   revalidatePath('/calendar');
   console.log(`[podshar] мопс завёл событие для ${userId}: ${day} ${time || 'весь день'} ${title}`);
 
-  const when = time ? `${day} at ${time} (${ZONE})` : `${day}, all day`;
+  // Что легло в базу, а не что просили: в несуществующий весенний час (02:30
+  // 28 марта) запишется 03:30, и вслух должно прозвучать именно оно.
+  const stored = time
+    ? new Intl.DateTimeFormat('en-GB', { timeZone: ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(startsAt)
+    : null;
+  const when = stored ? `${day} at ${stored} (${ZONE})` : `${day}, all day`;
   return `Put in the shared calendar: "${title}" on ${when}. Read the day and the time back to them exactly — all three of them will see this.`;
 }
 

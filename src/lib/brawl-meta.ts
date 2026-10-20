@@ -217,21 +217,43 @@ async function load(): Promise<BrawlMeta> {
   };
 }
 
-const cached = unstable_cache(load, ['seemeta-brawl', 'v2'], { revalidate: TTL });
+/**
+ * Загрузка с паузой после сбоя — пауза живёт внутри, а не снаружи кеша.
+ *
+ * Когда запись в кеше протухла, `unstable_cache` отдаёт старую сразу, а
+ * загрузку запускает в фоне и её ошибку глотает. Пауза снаружи такого сбоя не
+ * видела, и пока SeeMeta молчал, каждый показ «игр» заново качал у него три
+ * мегабайта, а в логе не было ни строки. Здесь сбой и пишется в лог, и
+ * включает паузу: в фоне следующая попытка падает сразу, без похода наружу, а
+ * на экране остаётся последняя хорошая таблица.
+ */
+function guarded<T>(name: string, work: () => Promise<T>): () => Promise<T> {
+  let failedAt = 0;
+  return async () => {
+    if (Date.now() - failedAt < BACKOFF_MS) throw new Error(`${name}: пауза после сбоя`);
+    try {
+      return await work();
+    } catch (error) {
+      failedAt = Date.now();
+      console.warn(`[podshar] ${name}:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  };
+}
 
-let failedAt = 0;
+// Текст самой загрузки — в ключе. Раньше он попадал туда сам: Next строит ключ
+// из исходника функции, а функцией была `load`. Теперь функция — обёртка с
+// одинаковым текстом, и без этой строчки правка `load` не сбрасывала бы кеш:
+// после выкатки до шести часов отдавалась бы таблица старой формы.
+const cached = unstable_cache(guarded('seemeta', load), ['seemeta-brawl', 'v2', load.toString()], { revalidate: TTL });
 
 /**
  * Мета рангового с SeeMeta. `null` — не ответил, не разобрался (причина в
  * логе) или не успел за `META_WAIT_MS` — тогда будет к следующему показу.
  */
 export async function brawlMeta(): Promise<BrawlMeta | null> {
-  if (Date.now() - failedAt < BACKOFF_MS) return null;
-  const work = cached().catch((error) => {
-    failedAt = Date.now();
-    console.warn('[podshar] seemeta:', error instanceof Error ? error.message : error);
-    return null;
-  });
+  // Причина сбоя уже в логе (`guarded`), здесь только «нет меты».
+  const work = cached().catch(() => null);
   const meta = await inTime(work, META_WAIT_MS);
   return meta === LATE ? null : meta;
 }
@@ -299,13 +321,12 @@ async function loadNames(): Promise<Names> {
   return names;
 }
 
-const cachedNames = unstable_cache(loadNames, ['seemeta-map-names', 'v1'], {
+const cachedNames = unstable_cache(guarded('seemeta names', loadNames), ['seemeta-map-names', 'v1', loadNames.toString()], {
   revalidate: 24 * 3600
 });
 
 const UK = new Map(Object.entries(UK_MAP_NAMES).map(([en, uk]) => [norm(en), uk]));
 
-let namesFailedAt = 0;
 
 /**
  * Функция «английское название → название на языке страницы». Не нашлось —
@@ -318,14 +339,7 @@ export async function mapNamer(
   if (locale === 'uk') return (english) => (english ? (UK.get(norm(english)) ?? english) : '');
 
   let dict: Record<string, string> = {};
-  if (Date.now() - namesFailedAt >= BACKOFF_MS) {
-    const work = cachedNames().catch((error) => {
-      namesFailedAt = Date.now();
-      console.warn('[podshar] seemeta names:', error instanceof Error ? error.message : error);
-      return null;
-    });
-    const names = await inTime(work, NAMES_WAIT_MS);
-    if (names && names !== LATE) dict = names[locale];
-  }
+  const names = await inTime(cachedNames().catch(() => null), NAMES_WAIT_MS);
+  if (names && names !== LATE) dict = names[locale];
   return (english) => (english ? (dict[norm(english)] ?? english) : '');
 }

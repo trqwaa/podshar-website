@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { readSession } from '@/lib/auth/session';
-import { zurichMidnight } from '@/lib/calendar/events';
+import { zurichAt, zurichMidnight } from '@/lib/calendar/events';
 
 /**
  * Всё, что страница календаря умеет менять.
@@ -45,12 +45,13 @@ const Event = z
   .refine((v) => !v.endTime || CLOCK.test(v.endTime), { message: 'badTime', path: ['endTime'] })
   .refine((v) => !v.endDay || DAY.test(v.endDay), { message: 'badDay', path: ['endDay'] });
 
-/** Момент по цюрихским суткам и настенному времени. `18:30` — это 18:30 в Цюрихе. */
+/**
+ * Момент по цюрихским суткам и настенному времени. `18:30` — это 18:30 в Цюрихе,
+ * в том числе в день перевода часов: «полночь плюс часы» там давало 17:30
+ * (подробно — у `zurichAt`).
+ */
 function moment(day: string, clock?: string): Date {
-  const midnight = zurichMidnight(day);
-  if (!clock) return midnight;
-  const [hours, minutes] = clock.split(':').map(Number);
-  return new Date(midnight.getTime() + (hours * 60 + minutes) * 60_000);
+  return clock ? zurichAt(day, clock) : zurichMidnight(day);
 }
 
 function read(formData: FormData) {

@@ -98,7 +98,26 @@ const RETURN_KEY = 'podshar:pult-return';
 /** Через полчаса «назад» уже не про пульт: человек давно занят другим. */
 const RETURN_TTL = 30 * 60_000;
 
-type Return = { from: string; to: string; query: string; at: number };
+type Return = {
+  from: string;
+  to: string;
+  query: string;
+  at: number;
+  /** `history.length` по приходе в раздел: шагнул дальше — «назад» уже не про пульт. */
+  depth?: number;
+  /** Адрес по приходе: путь с параметрами. */
+  href?: string;
+  /** Когда стрелка отправила «назад»: второй щелчок в эти секунды не шагает ещё раз. */
+  leaving?: number;
+};
+
+/** Браузеры перестают считать `history.length` на пятидесяти: выше — счёт врёт. */
+const HISTORY_CAP = 50;
+/** Сколько ждать, что «назад» долетит, прежде чем снова пускать стрелку. */
+const LEAVING_MS = 3000;
+
+/** Путь без языка, как его отдаёт `usePathname` next-intl: `/ru/calendar` → `/calendar`. */
+const stripLocale = (path: string) => path.replace(/^\/(en|ru|uk|de)(?=\/|$)/, '') || '/';
 
 function readReturn(): Return | null {
   try {
@@ -128,6 +147,23 @@ function writeReturn(value: Return | null) {
 export function backToPult(pathname: string): boolean {
   const back = readReturn();
   if (!back || back.to !== pathname) return false;
+  // После прихода из пульта человек мог полистать недели или сменить вкладку —
+  // это новые записи истории, и `history.back()` вернул бы на прошлую неделю, а
+  // не в пульт. Тогда стрелка ведёт на главную, как всегда. Узнаём это по
+  // адресу (тот же — никуда не ходил) или по длине истории (та же — менял
+  // только `replaceState`, как выбор дня в календаре). Длина работает только до
+  // пятидесяти: дальше браузеры её не растят, и она совпадала бы всегда.
+  const here = window.location.pathname + window.location.search;
+  const length = window.history.length;
+  const samePlace = back.href === here;
+  const sameDepth = length < HISTORY_CAP && back.depth === length;
+  if (!samePlace && !sameDepth) return false;
+  // Второй щелчок, пока возвращаемся и страница ещё грузится, — ничего. Иначе
+  // `history.back()` срабатывал дважды и проскакивал мимо пульта, вплоть до
+  // чужого сайта позади. Через три секунды отметка не держит: если «назад»
+  // так и не увёл со страницы, стрелка снова работает.
+  if (back.leaving && Date.now() - back.leaving < LEAVING_MS) return true;
+  writeReturn({ ...back, leaving: Date.now() });
   window.history.back();
   return true;
 }
@@ -164,9 +200,14 @@ for (let i = 0; i < EN.length; i++) {
   SWAP.set(RU[i], EN[i]);
 }
 SWAP.set('і', 's').set('ї', ']').set('є', "'");
+// Украинская раскладка отличается от русской тремя клавишами: на месте ы, ъ и э
+// стоят і, ї и є. Набранное латиницей проверяется в обоих вариантах, иначе
+// «suhb» становилось «ыгри» и не находило «ігри».
+const UK_SWAP = new Map(SWAP);
+UK_SWAP.set('s', 'і').set(']', 'ї').set("'", 'є');
 
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
-const swapLayout = (s: string) => [...s].map((c) => SWAP.get(c) ?? c).join('');
+const swapLayout = (s: string, map: Map<string, string> = SWAP) => [...s].map((c) => map.get(c) ?? c).join('');
 
 /** Насколько раздел похож на набранное. 0 — не похож. */
 function score(label: string, terms: string[], answer: string | undefined, q: string): number {
@@ -238,6 +279,12 @@ export function Pult() {
   const sheet = useRef<HTMLDivElement | null>(null);
   const returnTo = useRef<HTMLElement | null>(null);
   const poppedAt = useRef(0);
+  /** Куда привёл последний «назад»: чужой «назад» на другую страницу не в счёт. */
+  const poppedPath = useRef('');
+  /** Отложенный переход после трещины — чтобы Esc в эти 380 мс его отменял. */
+  const crackTimer = useRef<number | null>(null);
+  const openRef = useRef(false);
+  openRef.current = origin !== null;
   /** Вернулись на страницу, откуда шли из пульта, но «назад» ещё не пришёл. */
   const pending = useRef<{ back: Return; until: number } | null>(null);
   const rows = useRef(new Map<string, HTMLLIElement>());
@@ -263,10 +310,33 @@ export function Pult() {
   }, [locale]);
 
   const open = origin !== null;
-  const close = useCallback(() => setOrigin(null), []);
+
+  /** Передумал во время трещины: перехода не будет, и «назад» ему не нужен. */
+  const cancelCrack = useCallback(() => {
+    if (crackTimer.current === null) return;
+    window.clearTimeout(crackTimer.current);
+    crackTimer.current = null;
+    writeReturn(null);
+  }, []);
+
+  const close = useCallback(() => {
+    cancelCrack();
+    setCrack(null);
+    setOrigin(null);
+  }, [cancelCrack]);
+
+  useEffect(() => cancelCrack, [cancelCrack]);
 
   const show = useCallback(
     (detail: PultOrigin, text = '') => {
+      // Уже открыт: второе нажатие на кнопку, пока первое долетало, меняет только
+      // реплику. Иначе фокус «возвращался» бы в собственную строку пульта, а
+      // набранное стиралось.
+      if (openRef.current) {
+        setOrigin((was) => (was ? { ...was, line: detail.line ?? was.line } : detail));
+        return;
+      }
+      cancelCrack();
       returnTo.current = document.activeElement as HTMLElement | null;
       setQuery(text);
       setPicked(null);
@@ -276,7 +346,7 @@ export function Pult() {
       setOrigin(detail);
       load();
     },
-    [load]
+    [load, cancelCrack]
   );
 
   // Все пути открыть — одно событие. Плюс клавиатура: `/` вне полей ввода и
@@ -289,11 +359,19 @@ export function Pult() {
       const target = e.target as HTMLElement | null;
       const typing =
         !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
-      const combo = (e.key === 'k' || e.key === 'K' || e.key === 'л' || e.key === 'Л') && (e.metaKey || e.ctrlKey);
-      if (combo || (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey)) {
-        e.preventDefault();
-        openPult(fromDot());
-      }
+      // По физической клавише там, где символ врёт: на русской и украинской
+      // раскладке клавиша «/» печатает точку, а «K» — «л». На немецкой «/» —
+      // это Shift+7, и его ловит сам символ.
+      const combo = (e.code === 'KeyK' || e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey);
+      const slash = (e.key === '/' || (e.code === 'Slash' && e.key === '.')) && !typing && !e.metaKey && !e.ctrlKey && !e.altKey;
+      if (!combo && !slash) return;
+      // Открыто другое окно (патчи): пульт встал бы под ним, а фокус ушёл бы в
+      // невидимую строку.
+      // Своё уходящее окно не в счёт: пока оно доигрывает исчезновение, Ctrl+K
+      // иначе уходил бы браузеру, в адресную строку.
+      if (document.querySelector('[role="dialog"][aria-modal="true"]:not([data-pult])')) return;
+      e.preventDefault();
+      openPult(fromDot());
     };
     // «Назад» в браузере. Порядок с эффектом смены страницы ниже не
     // гарантирован: проверено, что Next рисует вернувшуюся страницу раньше,
@@ -302,9 +380,12 @@ export function Pult() {
     // а если страница уже сменилась и ждёт — открывает пульт само.
     const onPop = () => {
       poppedAt.current = Date.now();
+      poppedPath.current = stripLocale(window.location.pathname);
       const waiting = pending.current;
       pending.current = null;
-      if (waiting && Date.now() < waiting.until) show({ ...fromDot(), quiet: true }, waiting.back.query);
+      if (waiting && Date.now() < waiting.until && poppedPath.current === waiting.back.from) {
+        show({ ...fromDot(), quiet: true }, waiting.back.query);
+      }
     };
     window.addEventListener(PULT_OPEN, onOpen);
     window.addEventListener(PULT_WARM, load);
@@ -323,14 +404,29 @@ export function Pult() {
   // появляется снова, с тем же текстом: «назад» значит «к предыдущему
   // действию», а предыдущим действием был пульт, а не главная.
   useEffect(() => {
+    // «Назад» браузером посреди трещины: переход, на который она шла, отменён —
+    // иначе через 380 мс он увёл бы вперёд, туда, откуда человек только что ушёл.
+    // При обычном приходе таймер уже отработал, и здесь ничего не делается.
+    cancelCrack();
     setLeaving('nav');
     setOrigin(null);
     const back = readReturn();
     if (!back) return;
-    if (pathname === back.to) return;
+    if (pathname === back.to) {
+      // Пришли. Запоминаем, на какой записи истории: всё, что дальше, — уже
+      // своя навигация раздела, и «назад» с неё ведёт не в пульт.
+      if (back.depth === undefined) {
+        writeReturn({
+          ...back,
+          depth: window.history.length,
+          href: window.location.pathname + window.location.search
+        });
+      }
+      return;
+    }
     writeReturn(null);
     if (pathname !== back.from) return;
-    if (Date.now() - poppedAt.current < 2000) {
+    if (Date.now() - poppedAt.current < 2000 && poppedPath.current === pathname) {
       // «Назад» пришёл раньше страницы.
       show({ ...fromDot(), quiet: true }, back.query);
     } else {
@@ -358,13 +454,34 @@ export function Pult() {
     root.style.overflow = 'hidden';
     if (gap > 0) document.body.style.paddingRight = `${gap}px`;
     field.current?.focus({ preventScroll: true });
-    // Esc — на всём документе, как у окон, а не только в строке.
-    const onEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+    // На окне и в фазе захвата — раньше всех. Esc закрывает только пульт: шторка
+    // и чат мопса под ним слушают Esc на документе и закрылись бы тем же
+    // нажатием. Tab не уходит под пульт: элемент с aria-modal обещает, что за
+    // ним ничего нет, а фокус иначе гулял по невидимым кнопкам страницы.
+    const onKeys = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close();
+        return;
+      }
+      const box = sheet.current;
+      if (e.key !== 'Tab' || !box) return;
+      const stops = [...box.querySelectorAll<HTMLElement>('button, input, a[href], [tabindex]:not([tabindex="-1"])')].filter(
+        (el) => !el.hasAttribute('disabled')
+      );
+      if (!stops.length) return;
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      const at = document.activeElement;
+      const inside = !!at && box.contains(at);
+      if (e.shiftKey ? !inside || at === first : !inside || at === last) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
     };
-    document.addEventListener('keydown', onEscape);
+    window.addEventListener('keydown', onKeys, true);
     return () => {
-      document.removeEventListener('keydown', onEscape);
+      window.removeEventListener('keydown', onKeys, true);
       root.style.overflow = overflow;
       document.body.style.paddingRight = paddingRight;
       returnTo.current?.focus?.();
@@ -409,9 +526,9 @@ export function Pult() {
   const scores = useMemo(() => {
     const out = new Map<string, number>();
     if (!q) return out;
-    const swapped = swapLayout(q);
+    const variants = [...new Set([q, swapLayout(q), swapLayout(q, UK_SWAP)])];
     for (const band of bands) {
-      const s = Math.max(score(band.label, band.terms, band.answer, q), score(band.label, band.terms, band.answer, swapped));
+      const s = Math.max(...variants.map((v) => score(band.label, band.terms, band.answer, v)));
       if (s > 0) out.set(band.key, s);
     }
     return out;
@@ -480,7 +597,10 @@ export function Pult() {
     const seed = Date.now() % 2147483647;
     setCrack({ key, points: crackThrough(berg.layers[index], seeded(seed)), seed });
     router.prefetch(href);
-    window.setTimeout(() => router.push(href), CRACK_MS);
+    crackTimer.current = window.setTimeout(() => {
+      crackTimer.current = null;
+      router.push(href);
+    }, CRACK_MS);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -545,6 +665,7 @@ export function Pult() {
 
           <motion.div
             ref={sheet}
+            data-pult=""
             role="dialog"
             aria-modal="true"
             aria-label={t('label')}
@@ -659,7 +780,7 @@ export function Pult() {
                     style={{ background: waterAt(0) }}
                   >
                     <div className="mx-auto flex max-w-[40rem] px-3 sm:px-4">
-                      <Gauge marked={current === 'ask'} dark={false} label="" />
+                      <Gauge marked={current === 'ask'} dark={false} label="" still={still} />
                       <p
                         className={`flex min-h-11 flex-1 items-center justify-center gap-2 px-4 text-center text-sm transition-colors duration-180 ${
                           current === 'ask' ? 'text-ink' : 'text-ink-muted'
@@ -701,7 +822,7 @@ export function Pult() {
                       style={{ background: waterAt(depth) }}
                     >
                       <div className="mx-auto flex max-w-[40rem] px-3 sm:px-4">
-                        <Gauge marked={on} dark={dark} label={`−${meters.format(depthOf(i, bands.length))}`} />
+                        <Gauge marked={on} dark={dark} label={`−${meters.format(depthOf(i, bands.length))}`} still={still} />
                         <div className="relative flex-1">
                           <IceSlice layer={berg.layers[i]} t={depth} lit={on} crack={cracked?.points ?? null} />
                           {cracked && !still ? <Shards crack={cracked.points} t={depth} seed={cracked.seed + 1} /> : null}
@@ -795,7 +916,7 @@ export function Pult() {
  * ядро кнопки, которое показывает, где ты, — переезжает между слоями общим
  * `layoutId`: framer сам ведёт её от слоя к слою, как стрелку эхолота.
  */
-function Gauge({ marked, dark, label }: { marked: boolean; dark: boolean; label: string }) {
+function Gauge({ marked, dark, label, still }: { marked: boolean; dark: boolean; label: string; still: boolean }) {
   return (
     <div aria-hidden="true" className="relative w-16 shrink-0">
       <span className={`absolute inset-y-0 right-0 w-px ${dark ? 'bg-surface/20' : 'bg-ink/20'}`} />
@@ -814,7 +935,9 @@ function Gauge({ marked, dark, label }: { marked: boolean; dark: boolean; label:
       {marked ? (
         <motion.span
           layoutId="pult-marker"
-          transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+          // Без движения — сразу на месте: пружина framer сама на
+          // `prefers-reduced-motion` не смотрит.
+          transition={still ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 38 }}
           className="absolute right-[-5px] top-1/2 -mt-[5px] h-2.5 w-2.5 rounded-full bg-reactor"
         />
       ) : null}

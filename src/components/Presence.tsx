@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { MemberAvatar } from './profile/MemberAvatar';
@@ -13,7 +13,17 @@ const ONLINE_MS = 2 * 60_000;
 /** How the heartbeat hands its answer to the board. */
 const EVENT = 'podshar:presence';
 
-type Payload = { people: PresenceEntry[] };
+type Payload = { people: PresenceEntry[]; now?: number };
+
+/**
+ * Разница часов сервера и зрителя по последнему ответу пульса.
+ *
+ * Снаружи компонента: при «назад» Next поднимает главную из своего кеша, со
+ * старым `serverNow` двадцатиминутной давности, и разница, посчитанная по нему,
+ * сделала бы ушедшего снова «тут». Ответ пульса свежий всегда, поэтому, раз он
+ * был, верим ему; `serverNow` — только до первого пульса.
+ */
+let beatSkew: number | null = null;
 
 /**
  * The heartbeat. Mounted once, in the shell, so every signed-in page counts —
@@ -38,6 +48,9 @@ export function PresenceBeat() {
         const res = await fetch('/api/presence', { method: 'POST' });
         if (!res.ok || !alive) return;
         const data = (await res.json()) as Payload;
+        // Здесь, а не только на доске: пульс бьётся на любой странице, и к
+        // возвращению на главную разница уже свежая.
+        if (typeof data.now === 'number') beatSkew = data.now - Date.now();
         window.dispatchEvent(new CustomEvent<Payload>(EVENT, { detail: data }));
       } catch {
         // Offline, or the server blinked. The next beat will do.
@@ -91,26 +104,41 @@ export function PresenceBoard({
   const [people, setPeople] = useState(initial);
   const [now, setNow] = useState(serverNow);
   const [mounted, setMounted] = useState(false);
+  /**
+   * На сколько часы сервера впереди часов зрителя.
+   *
+   * «Когда был» пишет сервер, а сравнивался он с часами компьютера, на котором
+   * открыт сайт. Спешат они на полторы минуты — и друг, который здесь, выглядел
+   * ушедшим; отстают — и ушедший «был тут» лишние минуты. Разница берётся из
+   * времени отрисовки страницы, а потом из каждого ответа пульса: тот приносит
+   * своё `now`.
+   */
+  const skew = useRef(0);
 
   useEffect(() => {
     setMounted(true);
-    setNow(Date.now());
+    skew.current = beatSkew ?? serverNow - Date.now();
+    setNow(Date.now() + skew.current);
 
     const onBeat = (e: Event) => {
       const data = (e as CustomEvent<Payload>).detail;
+      if (typeof data?.now === 'number') {
+        beatSkew = data.now - Date.now();
+        skew.current = beatSkew;
+      }
       if (!data?.people?.length) return;
       setPeople(data.people);
-      setNow(Date.now());
+      setNow(Date.now() + skew.current);
     };
     window.addEventListener(EVENT, onBeat);
     // "5 minutes ago" has to become "6 minutes ago" without a new answer.
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const tick = setInterval(() => setNow(Date.now() + skew.current), 30_000);
 
     return () => {
       window.removeEventListener(EVENT, onBeat);
       clearInterval(tick);
     };
-  }, []);
+  }, [serverNow]);
 
   const rtf = useMemo(() => new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }), [locale]);
   const ago = (ms: number) => {

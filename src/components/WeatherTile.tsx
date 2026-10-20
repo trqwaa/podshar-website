@@ -24,7 +24,8 @@ import type { Locale } from '@/i18n/routing';
  */
 export async function WeatherTile({
   locale,
-  className = ''
+  className = '',
+  wide = false
 }: {
   /**
    * Handed down, never asked for.
@@ -36,6 +37,12 @@ export async function WeatherTile({
    */
   locale: Locale;
   className?: string;
+  /**
+   * Плитка во всю широкую ячейку главной — там, где был слот «скоро». Рядом с
+   * числом тогда встаёт полоса на ближайшие часы: в узкой колонке ей не было
+   * места, а широкая без неё стояла бы пустой на две трети.
+   */
+  wide?: boolean;
 }) {
   const [t, tHome, weather] = await Promise.all([
     getTranslations({ locale, namespace: 'weather' }),
@@ -67,24 +74,58 @@ export async function WeatherTile({
       close={tHome('close')}
       week={<Forecast weather={weather} locale={locale} />}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-3xl font-semibold leading-tight tabular-nums text-ink">
-            {deg(weather.temp)}
+      {/* Узкая плитка — как была: обёртка `contents` в раскладке не участвует.
+          Широкая — число слева, полоса часов справа. */}
+      <div
+        className={
+          wide ? 'flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-10' : 'contents'
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-3xl font-semibold leading-tight tabular-nums text-ink">
+                {deg(weather.temp)}
+              </p>
+              <p className="mt-1 text-base font-medium text-ink-muted">{t(`conditions.${key}`)}</p>
+            </div>
+            <WeatherIcon condition={weather.condition} night={night} />
+          </div>
+          {/* «Макс» и «мин» словами, а не «10°…21°»: два числа через многоточие не
+              говорят, какое из них днём, и именно на это пожаловались. */}
+          <p className="text-sm tabular-nums text-ink-muted">
+            {t('feels', { temp: Math.round(weather.feels) })} &middot;{' '}
+            {t('high', { temp: Math.round(weather.max) })} &middot;{' '}
+            {t('low', { temp: Math.round(weather.min) })} &middot;{' '}
+            {weather.rain > 0 ? t('rain', { chance: Math.round(weather.rain) }) : t('dry')}
           </p>
-          <p className="mt-1 text-base font-medium text-ink-muted">{t(`conditions.${key}`)}</p>
         </div>
-        <WeatherIcon condition={weather.condition} night={night} />
+        {wide && weather.hours.length > 0 ? <Strip weather={weather} locale={locale} /> : null}
       </div>
-      {/* «Макс» и «мин» словами, а не «10°…21°»: два числа через многоточие не
-          говорят, какое из них днём, и именно на это пожаловались. */}
-      <p className="text-sm tabular-nums text-ink-muted">
-        {t('feels', { temp: Math.round(weather.feels) })} &middot;{' '}
-        {t('high', { temp: Math.round(weather.max) })} &middot;{' '}
-        {t('low', { temp: Math.round(weather.min) })} &middot;{' '}
-        {weather.rain > 0 ? t('rain', { chance: Math.round(weather.rain) }) : t('dry')}
-      </p>
     </WeatherPanel>
+  );
+}
+
+/**
+ * Ближайшие часы прямо на широкой плитке: шесть отметок через два часа.
+ *
+ * Только с `md`: на телефоне плитка во всю ширину и так узкая, и полоса ушла
+ * бы в прокрутку внутри кнопки. Скрыта от скринридера — те же часы, полностью,
+ * есть в окне прогноза, а в кнопке они сделали бы её имя бесконечным.
+ */
+async function Strip({ weather, locale }: { weather: Weather; locale: Locale }) {
+  const t = await getTranslations({ locale, namespace: 'weather' });
+  const hours = weather.hours.filter((_, i) => i % 2 === 0).slice(0, 6);
+  return (
+    <ol aria-hidden="true" className="hidden shrink-0 gap-1 md:flex">
+      {hours.map((hour, index) => (
+        <li key={hour.time} className="flex w-12 flex-col items-center gap-1.5 text-center">
+          <span className="ps-label tabular-nums">{index === 0 ? t('now') : hour.time.slice(11, 16)}</span>
+          <WeatherIcon condition={hour.condition} night={!hour.isDay} size="sm" />
+          <span className="text-base font-semibold tabular-nums text-ink">{deg(hour.temp)}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

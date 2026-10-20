@@ -285,8 +285,7 @@
     "close": "close",
     "footerLove": "made with love by three lovely bastards",
     "footerTelegram": "our Telegram group",
-    "footerRights": "© 2026 podshar · all rights ridiculed, bastards reserved",
-    "slotSoon": "soon"
+    "footerRights": "© 2026 podshar · all rights ridiculed, bastards reserved"
   },
   "weather": {
     "label": "weather",
@@ -567,12 +566,13 @@
     "going": "fine, taking you to {place}",
     "hello": "yeah, hello. what do you want",
     "home": {
-      "here": "the home page. a red button, the date, the weather, who is loitering, a thought",
+      "here": "the home page. a red button, the date, the news, the weather, who is loitering, a thought",
       "greeting": "that is me saying hello, a new line every day",
       "reactor": "the ПХ button, says do not press. behind it is the whole site, one line 😈",
       "today": "date and clock. the date is shared, the clock is your machine",
       "member": "that is you. name, handle, a letter instead of a face",
       "quote": "thought of the day, one for all three. no depth",
+      "news": "the news. what is next in the calendar and what the others did. press it for all of it",
       "patches": "the version at the bottom of the drawer. press it, the whole patch list is there",
       "weather": "zurich weather, one for all of us. no umbrellas handed out",
       "presence": "who is on the site right now. the rest, and when they dropped off",
@@ -1131,5 +1131,25 @@
     "dog": "the pug",
     "dogHint": "lives at the very bottom. knows what is down there",
     "deeper": "deeper means more niche"
+  },
+  "news": {
+    "label": "news",
+    "title": "news",
+    "hint": "what is next in the calendar and what the others did",
+    "more": "all",
+    "next": "next in the calendar",
+    "nothingAhead": "nothing in the calendar this week",
+    "ahead": "coming up",
+    "feed": "what is new",
+    "feedEmpty": "nothing from the others in two weeks. quiet",
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "yesterday": "yesterday",
+    "allDay": "all day",
+    "at": "{day}, {time}",
+    "event": "to the calendar: “{title}” · {when}",
+    "note": "to the board: “{title}”",
+    "patch": "patch {version}: {note}",
+    "unread": "{n, plural, one {# new} other {# new}}"
   }
 }

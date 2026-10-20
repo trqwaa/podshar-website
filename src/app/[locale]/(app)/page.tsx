@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 
-import { HardHatIcon } from '@/components/Icons';
 import { getTranslations } from 'next-intl/server';
 
 import { Greeting } from '@/components/Greeting';
@@ -9,6 +8,7 @@ import { LocalClock } from '@/components/LocalClock';
 import { PHButton } from '@/components/PHButton';
 import { PresenceBoard } from '@/components/Presence';
 import { QuoteCookie } from '@/components/QuoteCookie';
+import { NewsPending, NewsTile } from '@/components/NewsTile';
 import { WeatherPending, WeatherTile } from '@/components/WeatherTile';
 import { getCurrentMember } from '@/lib/session';
 import { listPresence } from '@/lib/presence';
@@ -29,18 +29,23 @@ const QUOTE_COUNT = 240;
  * The homepage as a bento grid.
  *
  * Six columns. The greeting spans all of them; the reactor takes a wide block
- * that is three rows tall, and the three small blocks — the date, the weather
+ * that is three rows tall, and the three small blocks — the date, the news
  * and who you are — stack beside it to match its height. Under that, a row of
- * two unequal blocks about the other two people: who is on the site, narrow,
- * and how each of you gets home from HB, wide. The quote runs full width at
- * the bottom. Deliberately varied block sizes — an even three-across row of
- * equal thirds reads as a table, not a bento.
+ * two unequal blocks: who is on the site, narrow, and the weather, wide, with
+ * the next hours drawn beside the number. The quote runs full width at the
+ * bottom. Deliberately varied block sizes — an even three-across row of equal
+ * thirds reads as a table, not a bento.
  *
  * Three beside the reactor, not two. With two, the reactor's height was shared
  * out between the date and the profile, and both stood mostly empty: a label,
- * a value, and a hand's width of nothing under it. The weather fills that
- * column with something that changes during the day, which a page opened
- * several times a day needs more than it needs the whitespace.
+ * a value, and a hand's width of nothing under it. The news fills that column
+ * with something that changes during the day — what is next in the calendar
+ * and what the other two did — which a page opened several times a day needs
+ * more than it needs the whitespace.
+ *
+ * Swapped on 20 October 2026, on the owner's word: the news went where the
+ * weather stood, and the weather took the wide slot that had held a hard hat
+ * and «скоро» since the trains tile moved to its own section.
  *
  * Row heights are `auto`, never `1fr`: letting a row absorb the viewport leaves
  * the small blocks cavernous, with a label stranded at the top and a value at
@@ -104,19 +109,11 @@ export default async function HomePage({
         </div>
       </section>
 
-      {/* The weather, shared like the date — the sky over Zurich, not over
-          whoever is looking. It streams in: the page does not wait for the
-          provider, and the placeholder holds the same frame, so nothing below
-          it moves when the answer lands. */}
-      <Suspense
-        fallback={
-          <WeatherPending
-            label={`${tWeather('label')} · ${tWeather('place')}`}
-            className="md:col-span-2"
-          />
-        }
-      >
-        <WeatherTile locale={locale} className="md:col-span-2" />
+      {/* News: what is next in the calendar and what the other two did. It
+          streams in like the weather: the database answers fast, but the page
+          does not wait even for that, and the placeholder holds the frame. */}
+      <Suspense fallback={<NewsPending locale={locale} className="md:col-span-2" />}>
+        <NewsTile locale={locale} className="md:col-span-2" />
       </Suspense>
 
       {/* Identity */}
@@ -147,17 +144,21 @@ export default async function HomePage({
         className="md:col-span-2"
       />
 
-      {/* Слот под сменный блок. Поезда отсюда уехали в свой раздел — держать
-          их тут вторым экземпляром незачем, а место владелец хочет отдать под
-          то, что каждый соберёт себе сам, или под новости сайта.
-
-          Знаком, а не абзацем: каска понятна с одного взгляда и не просит
-          себя читать, а под ней одно слово. Объяснять пустое место длиннее,
-          чем оно того стоит, — значит делать вид, что там что-то есть. */}
-      <section className="block-card animate-rise-in flex flex-col items-center justify-center gap-3 p-8 [animation-delay:300ms] md:col-span-4">
-        <HardHatIcon className="h-14 w-14 text-ink-faint" />
-        <p className="ps-label text-ink-faint">{t('slotSoon')}</p>
-      </section>
+      {/* The weather, shared like the date — the sky over Zurich, not over
+          whoever is looking. Wide here, so the next hours stand beside the
+          number. It streams in: the page does not wait for the provider, and
+          the placeholder holds the same frame, so nothing below it moves when
+          the answer lands. */}
+      <Suspense
+        fallback={
+          <WeatherPending
+            label={`${tWeather('label')} · ${tWeather('place')}`}
+            className="md:col-span-4"
+          />
+        }
+      >
+        <WeatherTile locale={locale} className="md:col-span-4" wide />
+      </Suspense>
 
       {/* Quote of the day. The one place on the page allowed to have a voice,
           and the only block you have to open before it will speak. */}

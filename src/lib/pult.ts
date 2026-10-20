@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import type { Locale } from '@/i18n/routing';
 import { brawlMeta } from '@/lib/brawl-meta';
-import { rangeEvents } from '@/lib/calendar/events';
+import { rangeEvents, zurichMidnight } from '@/lib/calendar/events';
 import { ZONE, dayKey } from '@/lib/calendar/scales';
 import { PATCHES } from '@/lib/patches';
 import { listPresence } from '@/lib/presence';
@@ -94,8 +94,12 @@ export async function pultAnswers({
     else {
       const next = row.departures.find((d) => d.departs + d.delay * 60_000 > now);
       if (next) {
-        const min = Math.round((next.departs + next.delay * 60_000 - now) / 60_000);
-        answers.trains = t('trainsNext', { time: clock.format(next.departs), min });
+        // Ожидаемое время, а не по расписанию: «через N мин» считается с
+        // опозданием, и время рядом обязано с ним сходиться. Иначе опоздавший
+        // поезд показывал «в 18:05 · через 3 мин» в 18:07.
+        const leaves = next.departs + next.delay * 60_000;
+        const min = Math.round((leaves - now) / 60_000);
+        answers.trains = t('trainsNext', { time: clock.format(leaves), min });
       }
     }
   }
@@ -119,14 +123,25 @@ export async function pultAnswers({
   // Календарь — сегодня. Многодневное событие лежит в каждом своём дне, поэтому
   // здесь, в одном дне, повторов нет.
   if (today) {
-    const events = today[dayKey(new Date(now))] ?? [];
+    const key = dayKey(new Date(now));
+    const events = today[key] ?? [];
     if (events.length === 0) answers.calendar = t('calendarEmpty');
     else {
-      const ahead = events.filter((e) => e.allDay || (e.endsAt ?? e.startsAt).getTime() > now);
+      // Многодневное событие, начавшееся раньше сегодняшней полуночи, для
+      // сегодня — «весь день», а не «в 18:00»: время его начала было вчера.
+      // Первым называется ближайшее событие со временем — оно и есть то, к
+      // которому надо успеть; целодневные идут после.
+      const midnight = zurichMidnight(key).getTime();
+      const spans = (e: (typeof events)[number]) => e.allDay || e.startsAt.getTime() < midnight;
+      // Фильтр — по концу, как и было: ночное кино до 00:30 к обеду уже
+      // закончилось, хоть и началось вчера. `spans` — только подпись и порядок.
+      const ahead = events
+        .filter((e) => e.allDay || (e.endsAt ?? e.startsAt).getTime() > now)
+        .sort((a, b) => Number(spans(a)) - Number(spans(b)) || a.startsAt.getTime() - b.startsAt.getTime());
       const first = ahead[0];
       if (!first) answers.calendar = t('calendarDone');
       else {
-        const line = first.allDay
+        const line = spans(first)
           ? t('calendarAllDay', { title: first.title })
           : t('calendarNext', { title: first.title, time: clock.format(first.startsAt) });
         answers.calendar = ahead.length > 1 ? t('calendarMore', { first: line, n: ahead.length - 1 }) : line;

@@ -25,6 +25,16 @@ import 'server-only';
 
 const HOME = { latitude: 47.3769, longitude: 8.5417 };
 const REVALIDATE_SECONDS = 15 * 60;
+/**
+ * Старше этого «сейчас» уже не сейчас.
+ *
+ * Next отдаёт протухший ответ, пока свежий едет в фоне. Обычно это минуты, но
+ * после тихой ночи первый утренний заход получает вчерашние 23:45, а при сбое
+ * у провайдера старое не сменяется вовсе. Тогда провайдера спрашиваем ещё раз,
+ * напрямую, мимо кеша, — и только если и это не вышло, честное «погоды нет»,
+ * а не ночная температура под словом «сейчас».
+ */
+const STALE_MS = 3 * 3600_000;
 const TIMEOUT_MS = 2500;
 
 export type Condition =
@@ -191,28 +201,47 @@ export async function getWeather(): Promise<Weather | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     // A race rather than an abort signal: a slow answer that loses the race
-    // still finishes and lands in the cache, so the next visitor gets it.
-    const response = await Promise.race([
-      fetch(url, { next: { revalidate: REVALIDATE_SECONDS } }),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`no answer in ${TIMEOUT_MS}ms`)), TIMEOUT_MS);
-      })
-    ]);
-    if (!response.ok) throw new Error(`provider answered ${response.status}`);
+    // still finishes and lands in the cache, so the next visitor gets it. One
+    // budget for both tries below: the tile never waits longer than it did.
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`no answer in ${TIMEOUT_MS}ms`)), TIMEOUT_MS);
+    });
+    const ask = async (init: RequestInit) => {
+      const response = await Promise.race([fetch(url, init), deadline]);
+      if (!response.ok) throw new Error(`provider answered ${response.status}`);
+      return response.json();
+    };
 
-    const data = await response.json();
+    // Настенное время провайдера и наше, оба в Цюрихе и без пояса, — сравнимы
+    // как числа, если прочитать их одинаково.
+    const hereNow = zurichHour(new Date());
+    const stale = (answer: { current?: { time?: unknown } } | null) => {
+      const at = typeof answer?.current?.time === 'string' ? Date.parse(`${answer.current.time}Z`) : NaN;
+      return !Number.isFinite(at) || Date.parse(`${hereNow}Z`) - at > STALE_MS;
+    };
+
+    let data = await ask({ next: { revalidate: REVALIDATE_SECONDS } });
+    if (stale(data)) {
+      data = await ask({ cache: 'no-store' });
+      if (stale(data)) throw new Error(`stale answer from ${String(data?.current?.time)}`);
+    }
+
     const now = data?.current;
     const today = data?.daily;
+    // «Сегодня» — строка с сегодняшней датой, а не нулевая: ответ, взятый до
+    // полуночи и отданный после, начинался со вчера, и плитка подписывала
+    // вчерашний день «сегодня».
+    const todayKey = hereNow.slice(0, 10);
+    const dates: unknown[] = Array.isArray(today?.time) ? today.time : [];
+    const at = dates.indexOf(todayKey);
     const needed = [
       now?.temperature_2m,
       now?.apparent_temperature,
       now?.weather_code,
-      today?.temperature_2m_min?.[0],
-      today?.temperature_2m_max?.[0]
+      today?.temperature_2m_min?.[at],
+      today?.temperature_2m_max?.[at]
     ];
-    if (!needed.every(finite)) throw new Error('unexpected response shape');
-
-    const chance = today?.precipitation_probability_max?.[0];
+    if (at < 0 || !needed.every(finite)) throw new Error('unexpected response shape');
 
     // Hours first, because the days read their four parts out of them. Same
     // rule as the week below: an hour that does not parse is dropped, and the
@@ -240,8 +269,9 @@ export async function getWeather(): Promise<Weather | null> {
     // a missing day must cost the panel that row, never the tile its
     // temperature. Anything that does not parse is dropped rather than rendered
     // as a dash, and an empty list is a legitimate answer.
-    const dates: unknown[] = Array.isArray(today?.time) ? today.time : [];
+    // Дни до сегодняшнего — долой, по той же причине.
     const days: DayForecast[] = dates.flatMap((date, i) => {
+      if (typeof date === 'string' && date < todayKey) return [];
       const min = today?.temperature_2m_min?.[i];
       const max = today?.temperature_2m_max?.[i];
       const code = today?.weather_code?.[i];
@@ -277,19 +307,22 @@ export async function getWeather(): Promise<Weather | null> {
     // From the hour we are in, twenty-four of them. If this hour is somehow
     // not in the list (a clock far off, a provider answering for yesterday),
     // the strip starts at the first hour still ahead rather than not at all.
-    const current = zurichHour(new Date());
-    const from = allHours.findIndex((h) => h.time >= current);
+    const from = allHours.findIndex((h) => h.time >= hereNow);
     const hours = from < 0 ? [] : allHours.slice(from, from + 24);
+
 
     return {
       temp: now.temperature_2m,
       feels: now.apparent_temperature,
       condition: conditionOf(now.weather_code),
       isDay: now.is_day !== 0,
-      min: today.temperature_2m_min[0],
-      max: today.temperature_2m_max[0],
+      // Из сырых чисел сегодняшней строки, а не из списка дней: строку с
+      // испорченным кодом погоды список выбросит, и это должно стоить окну
+      // одной строки, а не плитке её температуры.
+      min: today.temperature_2m_min[at],
+      max: today.temperature_2m_max[at],
       // Some forecast models leave this out; "no chance given" reads as dry.
-      rain: finite(chance) ? chance : 0,
+      rain: finite(today?.precipitation_probability_max?.[at]) ? today.precipitation_probability_max[at] : 0,
       wind: orNull(now.wind_speed_10m),
       gusts: orNull(now.wind_gusts_10m),
       humidity: orNull(now.relative_humidity_2m),

@@ -171,6 +171,9 @@ export function AppShell({
                 // главную: предыдущим действием был он. Иначе — на главную, как
                 // всегда (почему не `router.back()` — выше).
                 onClick={(e) => {
+                  // С Ctrl, Cmd, Shift или средней кнопкой — как любая ссылка:
+                  // главная в новой вкладке, а не шаг назад в этой.
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
                   if (backToPult(pathname)) e.preventDefault();
                 }}
                 aria-label={t('goBack')}

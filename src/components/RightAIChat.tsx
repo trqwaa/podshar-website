@@ -943,10 +943,25 @@ function ChatBody({
   // Пульт прислал вопрос — уходит так же, как набранный здесь. Через ссылку на
   // свежий `send`: функция пересоздаётся каждый рендер, а эффекту нужен только
   // новый `id`.
+  //
+  // Пока мопс дописывает ответ, отправка закрыта (`busy`). Вопрос из пульта тогда
+  // ждёт своей очереди, а не пропадает: пульт уже закрыт, и набранное иначе
+  // исчезло бы без следа.
   const sendRef = useRef<typeof send | null>(null);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  const queued = useRef<string[]>([]);
   useEffect(() => {
-    if (ask) void sendRef.current?.(undefined, ask.text);
+    if (!ask) return;
+    if (busyRef.current) queued.current.push(ask.text);
+    else void sendRef.current?.(undefined, ask.text);
   }, [ask]);
+  // По одному: отправка снова занимает мопса, и следующий ждёт его ответа.
+  useEffect(() => {
+    if (busy || queued.current.length === 0) return;
+    const text = queued.current.shift() as string;
+    void sendRef.current?.(undefined, text);
+  }, [busy]);
 
   async function send(e?: React.FormEvent, fromPult?: string) {
     e?.preventDefault();
@@ -954,7 +969,8 @@ function ChatBody({
     if (!text || busy) return;
 
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', text }]);
-    setInput('');
+    // Вопрос из пульта не трогает недописанное здесь: ушло не оно.
+    if (fromPult === undefined) setInput('');
     setBusy(true);
 
     waiting.current = '';
