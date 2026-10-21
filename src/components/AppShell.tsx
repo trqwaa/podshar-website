@@ -35,10 +35,13 @@ export function AppShell({
   profile,
   children,
   patches,
-  telegram
+  telegram,
+  epic
 }: {
   profile: MemberProfile;
   children: React.ReactNode;
+  /** Фраза заставки кнопки ПХ на этот заход — выбрана сервером, см. `lib/epic.ts`. */
+  epic?: string;
   /**
    * The patch list, rendered on the server upstairs and shown here in a panel.
    * It arrives as a prop rather than being fetched on demand because turning
@@ -305,7 +308,7 @@ export function AppShell({
       <RightAIChat />
 
       {/* Пульт — над всем, включая мопса: он открывается поверх сайта целиком. */}
-      <Pult />
+      <Pult epic={epic} />
 
       {/* Last, and over everything: the dog is fixed at z-50 and a panel that
           slid under him would be a panel you cannot fully read. */}

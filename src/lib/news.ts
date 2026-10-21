@@ -6,6 +6,7 @@ import type { Locale } from '@/i18n/routing';
 import { authConfigured } from '@/lib/auth/config';
 import { rangeEvents, zurichMidnight, type CalendarEvent } from '@/lib/calendar/events';
 import { ZONE, dayKey, shiftDay } from '@/lib/calendar/scales';
+import { BUILD } from '@/lib/build';
 import { prisma } from '@/lib/db';
 import { PATCHES } from '@/lib/patches';
 
@@ -53,7 +54,13 @@ export type NewsNext = { title: string; when: string; where: string | null; href
 
 export type NewsDay = { label: string; items: { id: string; time: string; title: string; href: string }[] };
 
-export type News = { next: NewsNext | null; days: NewsDay[]; feed: NewsEntry[] };
+export type News = {
+  next: NewsNext | null;
+  days: NewsDay[];
+  feed: NewsEntry[];
+  /** Когда сервер собрал ленту, мс: всё, что было до него, зритель видел. */
+  now: number;
+};
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -119,8 +126,12 @@ const notesPinned: Source = async ({ userId, since, t, dayAt }) => {
 
 /**
  * Вышедшие патчи — новости сайта, поэтому все, и свои тоже; свой только не
- * помечается новым. Дата у патча без времени, поэтому момент — полдень того дня
- * по Цюриху: в ленте патч встаёт посреди своего дня, а не первой записью суток.
+ * помечается новым.
+ *
+ * Дата у патча без времени. Самый свежий вышел вместе с этой сборкой, и его
+ * момент — время сборки: в полдне патч, выкаченный в 16:07, так и не стал бы
+ * новым для того, кто заглядывал в час дня. Остальные — полдень своего дня по
+ * Цюриху: в ленте патч встаёт посреди своего дня, а не первой записью суток.
  */
 const patchesReleased: Source = async ({ userId, since, t, dayAt }) => {
   const fresh = PATCHES.filter((p) => zurichMidnight(p.date).getTime() >= since.getTime() - 86_400_000);
@@ -130,8 +141,9 @@ const patchesReleased: Source = async ({ userId, since, t, dayAt }) => {
     select: { id: true, handle: true, displayName: true, avatarPreset: true }
   });
   const byHandle = new Map(authors.map((a) => [a.handle, a]));
+  const built = BUILD.at && dayKey(BUILD.at) === PATCHES[0]?.date ? BUILD.at.getTime() : null;
   return fresh.map((p) => {
-    const at = new Date(zurichMidnight(p.date).getTime() + 12 * 3600_000);
+    const at = new Date(p === PATCHES[0] && built ? built : zurichMidnight(p.date).getTime() + 12 * 3600_000);
     const author = byHandle.get(p.author);
     // В ленту — первая фраза: она и есть заголовок, целиком текст на странице
     // патчей. Длинная первая фраза режется по слову, а не посреди него.
@@ -182,7 +194,7 @@ export async function newsFor({ userId, locale }: { userId: string; locale: Loca
     return withTime ? t('at', { day, time: clock.format(at) }) : day;
   };
 
-  if (!authConfigured()) return { next: null, days: [], feed: [] };
+  if (!authConfigured()) return { next: null, days: [], feed: [], now: now.getTime() };
 
   // ── Скоро в календаре ──
   const keys = Array.from({ length: AHEAD_DAYS }, (_, i) => shiftDay(todayKey, i));
@@ -248,5 +260,5 @@ export async function newsFor({ userId, locale }: { userId: string; locale: Loca
     .sort((a, b) => b.at - a.at)
     .slice(0, FEED_LIMIT);
 
-  return { next: next ?? nextAllDay, days, feed };
+  return { next: next ?? nextAllDay, days, feed, now: now.getTime() };
 }

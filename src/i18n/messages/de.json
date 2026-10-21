@@ -260,7 +260,9 @@
   "home": {
     "today": "welcher tag ist heute",
     "enter": "ПХ",
-    "enterCaption": "Nicht drücken",
+    "enterLabel": "Konsole öffnen",
+    "splashEnter": "drück, um reinzukommen",
+    "splashLabel": "Satz des Tages",
     "openMenu": "Menü öffnen",
     "closeMenu": "Menü schliessen",
     "goHome": "Podshar — zur startseite",
@@ -269,15 +271,6 @@
     "memberLabel": "wer ist das",
     "quoteLabel": "gedanke des tages",
     "patchesLabel": "was neu ist",
-    "pressCount": "{count} mal gedrückt. du wohnst jetzt hier",
-    "press": {
-      "1": "ernsthaft?",
-      "2": "noch einmal und es geht kaputt",
-      "3": "ich hab gewarnt",
-      "4": "du hörst nicht auf, oder?",
-      "5": "okay, mach ruhig weiter",
-      "6": "der knopf ist müde. du nicht"
-    },
     "goBack": "zurück zur startseite",
     "quoteHint": "tap tap",
     "quoteReveal": "den spruch des tages zeigen",
@@ -568,7 +561,7 @@
     "home": {
       "here": "die startseite. roter knopf, datum, neuigkeiten, wetter, wer hier rumlungert, ein gedanke",
       "greeting": "das bin ich beim grüssen, jeden tag anders",
-      "reactor": "der ПХ-knopf, da steht nicht drücken. dahinter die ganze seite, eine zeile 😈",
+      "reactor": "der PH-knopf. jeden tag eine neue zeile darunter, dahinter die ganze seite in einer zeile, und der erste druck pro besuch wird wie eine legende empfangen 😈",
       "today": "datum und uhr. das datum ist für alle gleich, die uhr ist deine",
       "member": "das bist du. name, handle, ein buchstabe statt gesicht",
       "quote": "gedanke des tages, einer für alle drei. keine tiefe",
@@ -1130,7 +1123,8 @@
     },
     "dog": "der mops",
     "dogHint": "wohnt ganz unten. weiss, was da liegt",
-    "deeper": "je tiefer, desto nischiger"
+    "deeper": "je tiefer, desto nischiger",
+    "undertow": "montag · wecker · deadline · noch fünf minuten · später · morgen fang ich an · warteschlange · bericht · noch ein call · akku 1 % · ungelesen · abwasch · stau · hausaufgaben · wäsche · vielleicht lieber nicht"
   },
   "news": {
     "label": "neuigkeiten",

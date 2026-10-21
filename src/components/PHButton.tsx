@@ -25,8 +25,6 @@ const FALLOFF = 460;
 const MAX_LEAN = 9;
 /** Where the aura sits when the pointer is absent (touch, or reduced motion). */
 const RESTING = 0.16;
-/** How many presses have their own retort before the counter takes over. */
-const PRESS_LINES = 6;
 /**
  * Rings per press, and how long one takes to cross the aura.
  *
@@ -71,8 +69,12 @@ const fixed = (n: number) => n.toFixed(2);
  * The "ПХ" reactor.
  *
  * A warning light: a small solid red core, a tight halo, and twelve rays
- * reaching in toward it. The joke is that it looks consequential and does
- * nothing at all — press it and it just gets ruder.
+ * reaching in toward it. Pressed, it opens the whole site as an iceberg
+ * (`Pult`), and the first press of a visit gets a full-screen welcome first.
+ * The caption under it changes daily — «прикоснись к величию» and the like —
+ * and arrives as a prop, picked on the server (`lib/epic.ts`). It used to say
+ * «не нажимать» and grow ruder with every press; the owner swapped both for
+ * grandeur on 20 October 2026.
  *
  * A pointer anywhere on the page drives two signals:
  *
@@ -96,20 +98,19 @@ const fixed = (n: number) => n.toFixed(2);
  * it go past.
  *
  * Everything runs through motion values, so the gradients are rewritten on the
- * elements directly and React never re-renders during a mouse move. The press
- * counter is the one piece of real state, and it only changes on click.
+ * elements directly and React never re-renders during a mouse move. The rings
+ * in flight are the one piece of real state, and they only change on click.
  *
  * `prefers-reduced-motion` parks the aura at a fixed intensity, drops the idle
  * breath and the turn, and never attaches the listener.
  */
-export function PHButton() {
+export function PHButton({ caption }: { caption: string }) {
   const t = useTranslations('home');
   const reduceMotion = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const coreRef = useRef<HTMLButtonElement>(null);
   /** Когда последний раз просили пульт подгрузиться: не чаще раза в полминуты. */
   const warmedAt = useRef(0);
-  const [presses, setPresses] = useState(0);
   // Live shockwaves. The delay is stored per ring rather than derived from the
   // array index: rings retire out of order, so an index-based delay would be
   // recomputed for the survivors mid-flight and restart their animation.
@@ -242,19 +243,14 @@ export function PHButton() {
   const auraScale = useTransform(lit, [0, 1], [0.9, 1.08]);
 
   const press = () => {
-    const next = presses + 1;
-    setPresses(next);
-
-    // Реплика этого нажатия становится первой строкой пульта, а сам пульт
-    // вылетает из ядра — на пике толчка, когда волна уже пошла, а не до неё:
-    // так видно, что это она снесла страницу.
+    // Пульт вылетает из ядра — на пике толчка, когда волна уже пошла, а не до
+    // неё: так видно, что это она снесла страницу.
     const r = coreRef.current?.getBoundingClientRect();
-    const line = next <= PRESS_LINES ? t(`press.${next}`) : t('pressCount', { count: next });
     const go = () =>
       openPult(
         r
-          ? { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2, line }
-          : { x: window.innerWidth / 2, y: window.innerHeight / 2, line }
+          ? { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2, epic: true }
+          : { x: window.innerWidth / 2, y: window.innerHeight / 2, epic: true }
       );
     if (reduceMotion) {
       go();
@@ -323,14 +319,6 @@ export function PHButton() {
       ease: 'easeOut'
     });
   };
-
-  // Presses past the last written line fall back to a counted one.
-  const caption =
-    presses === 0
-      ? t('enterCaption')
-      : presses <= PRESS_LINES
-        ? t(`press.${presses}`)
-        : t('pressCount', { count: presses });
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -413,7 +401,7 @@ export function PHButton() {
           onPointerEnter={() => hover.set(1)}
           onPointerLeave={() => hover.set(0)}
           onClick={press}
-          aria-label={t('enterCaption')}
+          aria-label={t('enterLabel')}
           style={{
             scale: core,
             // Lit from above rather than filled flat: the top is a touch
@@ -432,10 +420,8 @@ export function PHButton() {
         </motion.button>
       </div>
 
-      {/* The caption is the whole payoff of pressing, so it announces itself. */}
-      <span key={caption} className="ps-label animate-rise-in text-center">
-        {caption}
-      </span>
+      {/* Today's caption: the same for all three, like the greeting. */}
+      <span className="ps-label animate-rise-in text-center">{caption}</span>
     </div>
   );
 }

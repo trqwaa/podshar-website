@@ -260,7 +260,9 @@
   "home": {
     "today": "what day is it",
     "enter": "ПХ",
-    "enterCaption": "Do not press",
+    "enterLabel": "Open the console",
+    "splashEnter": "press to enter",
+    "splashLabel": "Line of the day",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "goHome": "Podshar — to the home page",
@@ -269,15 +271,6 @@
     "memberLabel": "who is this",
     "quoteLabel": "thought of the day",
     "patchesLabel": "what changed",
-    "pressCount": "{count} presses. you live here now",
-    "press": {
-      "1": "really?",
-      "2": "one more and it breaks",
-      "3": "i did warn you",
-      "4": "you are not going to stop, are you",
-      "5": "fine. keep going",
-      "6": "the button is tired. you are not"
-    },
     "goBack": "back to the homepage",
     "quoteHint": "tap tap",
     "quoteReveal": "show the quote of the day",
@@ -568,7 +561,7 @@
     "home": {
       "here": "the home page. a red button, the date, the news, the weather, who is loitering, a thought",
       "greeting": "that is me saying hello, a new line every day",
-      "reactor": "the ПХ button, says do not press. behind it is the whole site, one line 😈",
+      "reactor": "the PH button. a new caption under it every day, the whole site behind it in one line, and the first press of a visit gets a hero's welcome 😈",
       "today": "date and clock. the date is shared, the clock is your machine",
       "member": "that is you. name, handle, a letter instead of a face",
       "quote": "thought of the day, one for all three. no depth",
@@ -1130,7 +1123,8 @@
     },
     "dog": "the pug",
     "dogHint": "lives at the very bottom. knows what is down there",
-    "deeper": "deeper means more niche"
+    "deeper": "deeper means more niche",
+    "undertow": "monday · alarm clock · deadline · five more minutes · later · tomorrow, for sure · queue · report · another call · battery 1% · unread · dishes · traffic · homework · laundry · maybe not"
   },
   "news": {
     "label": "news",

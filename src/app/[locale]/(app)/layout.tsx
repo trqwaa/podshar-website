@@ -1,12 +1,19 @@
+import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import { redirect } from '@/i18n/routing';
 import { SIGNED_IN, clientMessages } from '@/i18n/client-messages';
 import { AppShell } from '@/components/AppShell';
+import { DailySplash } from '@/components/DailySplash';
 import { PatchList } from '@/components/Patches';
 import { PresenceBeat } from '@/components/Presence';
 import { readSession } from '@/lib/auth/session';
 import { guestModeAllowed } from '@/lib/auth/config';
+import { ZONE, dayKey } from '@/lib/calendar/scales';
+import { sharedDayIndex } from '@/lib/day';
+import { dailyLineOf, pressLineOf } from '@/lib/epic';
+import { EPIC_COOKIE, SPLASH_COOKIE } from '@/lib/epic-keys';
 import { getCurrentMember } from '@/lib/session';
 import { resolveLocale } from '@/lib/locale';
 
@@ -35,17 +42,36 @@ export default async function AppLayout({
 }) {
   const locale = resolveLocale((await params).locale);
 
-  if (!guestModeAllowed()) {
-    const session = await readSession();
-    if (!session) redirect({ href: '/login', locale });
-  }
+  const session = guestModeAllowed() ? null : await readSession();
+  if (!guestModeAllowed() && !session) redirect({ href: '/login', locale });
 
   // Read only after the gate above has let the visitor through: the strings
   // behind the login are not built at all for someone who is being sent away.
-  const [profile, messages] = await Promise.all([
+  const [profile, messages, tHome, jar] = await Promise.all([
     getCurrentMember(),
-    clientMessages(locale, SIGNED_IN)
+    clientMessages(locale, SIGNED_IN),
+    getTranslations({ locale, namespace: 'home' }),
+    cookies()
   ]);
+
+  // The epic lines (`lib/epic.ts`), picked here so that one line travels to the
+  // browser rather than a thousand. The line of the day only if this browser
+  // has not seen today's yet — decided on the server, so the dark screen is in
+  // the very first HTML and the site never flashes before it. The PH button's
+  // line is the next one along this person's own order of the pool.
+  const now = new Date();
+  const today = dayKey(now);
+  const splash =
+    jar.get(SPLASH_COOKIE)?.value === today
+      ? null
+      : {
+          line: dailyLineOf(locale, sharedDayIndex(now)),
+          date: new Intl.DateTimeFormat(locale, { timeZone: ZONE, weekday: 'long', day: 'numeric', month: 'long' })
+            .format(now)
+            .toLocaleLowerCase(locale)
+        };
+  const shown = Number(jar.get(EPIC_COOKIE)?.value);
+  const epic = pressLineOf(locale, Number.isInteger(shown) && shown > 0 ? shown : 0, session?.userId ?? profile.handle);
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
@@ -58,9 +84,19 @@ export default async function AppLayout({
         profile={profile}
         patches={<PatchList locale={locale} />}
         telegram={telegramInvite()}
+        epic={epic}
       >
         {children}
       </AppShell>
+      {splash ? (
+        <DailySplash
+          line={splash.line}
+          date={splash.date}
+          day={today}
+          enter={tHome('splashEnter')}
+          label={tHome('splashLabel')}
+        />
+      ) : null}
       {/* Here and not on the homepage: every signed-in page is being on the
           site, and this layout is exactly the set of signed-in pages. */}
       <PresenceBeat />

@@ -13,6 +13,7 @@ import { WeatherPending, WeatherTile } from '@/components/WeatherTile';
 import { getCurrentMember } from '@/lib/session';
 import { listPresence } from '@/lib/presence';
 import { sharedDayIndex } from '@/lib/day';
+import { captionOf } from '@/lib/epic';
 import { resolveLocale } from '@/lib/locale';
 
 /**
@@ -88,7 +89,7 @@ export default async function HomePage({
 
       {/* The reactor — the dominant block, as tall as the three beside it */}
       <section className="block-card animate-rise-in flex items-center justify-center bg-sunk px-4 py-10 [animation-delay:60ms] md:col-span-4 md:row-span-3">
-        <PHButton />
+        <PHButton caption={captionOf(locale, day)} />
       </section>
 
       {/* The date, and your own clock beside it.
@@ -147,9 +148,10 @@ export default async function HomePage({
       />
 
       {/* The weather, shared like the date — the sky over Zurich, not over
-          whoever is looking. Its row is as tall as the presence list beside
-          it, and the tile fills that height rather than leaving it empty. It
-          streams in: the page does not wait for the provider, and
+          whoever is looking. Its row is as tall as the taller of it and the
+          presence list beside it, and the tile fills that height rather than
+          leaving it empty. It streams in: the page does not wait for the
+          provider, and
           the placeholder holds the same frame, so nothing below it moves when
           the answer lands. */}
       <Suspense

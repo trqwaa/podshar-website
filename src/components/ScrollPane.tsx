@@ -98,7 +98,10 @@ export function ScrollPane({
   const jump = (event: React.PointerEvent<HTMLSpanElement>) => {
     const el = box.current;
     const bar = thumb.current;
-    if (!el || !bar) return;
+    // Пальцем — нет: полоса стоит у края плитки, и свайп страницы, начатый на
+    // ней, сначала уносил бы ленту в случайное место. У системных полос прыжок
+    // по нажатию — тоже только мышиный.
+    if (!el || !bar || event.pointerType === 'touch') return;
     const { top, height } = event.currentTarget.getBoundingClientRect();
     const share = (event.clientY - top - bar.offsetHeight / 2) / Math.max(1, height - bar.offsetHeight);
     el.scrollTop = Math.min(1, Math.max(0, share)) * (el.scrollHeight - el.clientHeight);

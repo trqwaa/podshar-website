@@ -56,37 +56,42 @@ export function NewsPanel({ news, className = '' }: { news: News; className?: st
     setSeenAt(Number.isFinite(stored) && stored > 0 ? stored : Date.now() - FIRST_LOOK_MS);
   }, []);
 
-  // Отметка — время самой свежей записи, а не «сейчас»: пришедшее после
-  // отрисовки на экране не было и прочитанным считаться не должно. И время
-  // это серверное, как у самих записей, — часы зрителя в сравнении не участвуют.
-  const newest = news.feed.reduce((max, entry) => Math.max(max, entry.at), 0);
+  // Отметка — момент, когда сервер собрал ленту, а не «сейчас» в браузере:
+  // пришедшее после него на экране не было. И время это серверное, как у самих
+  // записей, — часы зрителя в сравнении не участвуют. Самая свежая запись на
+  // эту роль не годится: у патча нет часа, и патч с полуднем, увиденный в
+  // десять утра, делал непрочитанным всё, что появлялось до полудня.
   useEffect(() => {
     const el = tile.current;
-    if (!el || newest === 0) return;
+    if (!el) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const watch = new IntersectionObserver(
-      ([seen]) => {
+      (entries) => {
+        const seen = entries[entries.length - 1];
         clearTimeout(timer);
-        if (!seen?.isIntersecting) return;
+        // Доля на экране, а не «хоть краешек»: `isIntersecting` верен и для
+        // плитки, выглядывающей снизу парой строк, и для пролистанной мимо.
+        if (!seen || seen.intersectionRatio < 0.6) return;
         timer = setTimeout(() => {
           watch.disconnect();
           try {
-            if (newest > Number(window.localStorage.getItem(SEEN_KEY) || 0)) {
-              window.localStorage.setItem(SEEN_KEY, String(newest));
+            if (news.now > Number(window.localStorage.getItem(SEEN_KEY) || 0)) {
+              window.localStorage.setItem(SEEN_KEY, String(news.now));
             }
           } catch {
             // Без хранилища точки просто вернутся в следующий раз.
           }
         }, LOOK_MS);
       },
-      { threshold: 0.6 }
+      // Ноль — чтобы узнать и об уходе с экрана, а не только о пересечении 0.6.
+      { threshold: [0, 0.6] }
     );
     watch.observe(el);
     return () => {
       clearTimeout(timer);
       watch.disconnect();
     };
-  }, [newest]);
+  }, [news.now]);
 
   const unread = (entry: NewsEntry) => seenAt !== null && !entry.mine && entry.at > seenAt;
   const count = news.feed.filter(unread).length;
@@ -97,7 +102,9 @@ export function NewsPanel({ news, className = '' }: { news: News; className?: st
       aria-label={t('label')}
       className={`block-card animate-rise-in flex flex-col gap-4 p-6 [animation-delay:150ms] ${className}`}
     >
-      <p className="ps-label flex items-center gap-2">
+      {/* Высота строки — по плашке числа: число появляется после монтирования,
+          и строка без запаса подрастала бы на 8 px, сдвигая всё под плиткой. */}
+      <p className="ps-label flex h-5 items-center gap-2">
         {t('label')}
         {count > 0 ? <Badge count={count} label={t('unread', { n: count })} /> : null}
       </p>

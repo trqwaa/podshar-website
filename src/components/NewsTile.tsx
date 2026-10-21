@@ -25,7 +25,7 @@ export async function NewsPending({ locale, className = '' }: { locale: Locale; 
   const t = await getTranslations({ locale, namespace: 'news' });
   return (
     <section className={`block-card flex flex-col gap-4 p-6 ${className}`}>
-      <p className="ps-label">{t('label')}</p>
+      <p className="ps-label flex h-5 items-center">{t('label')}</p>
       {/* Та же высота, что у ленты в `NewsPanel`, — ничего не прыгнет. */}
       <span className="flex h-80 flex-col gap-4 overflow-hidden md:h-72">
         <span className="block h-[4.75rem] shrink-0 animate-pulse rounded-block bg-sunk" />

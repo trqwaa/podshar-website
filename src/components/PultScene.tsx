@@ -2,12 +2,20 @@
 
 import { useId, useMemo } from 'react';
 
+import type { Mood } from '@/lib/sun';
+
 /**
  * Айсберг пульта: геометрия, небо над ним и трещина.
  *
  * Пульт — это айсберг. Строка ввода стоит на линии воды, над ней небо, под ней
  * разделы слоями льда: чем глубже, тем нишевее. Здесь всё, что рисуется, а не
  * нажимается; списком и клавишами занимается `Pult`.
+ *
+ * Сверху величие, снизу апатия — так попросил владелец 20 октября 2026, когда
+ * рай с ангелами вышел детским и дешёвым. Над вершиной свет и кольца от
+ * красного ядра: та же кнопка ПХ, только теперь она венчает весь сайт. В
+ * глубине вода сереет, и в ней тонут слова рутины. Вечером и ночью всё темнеет
+ * по настоящему закату над Цюрихом (`lib/sun.ts`).
  *
  * Числа здесь не на глаз, и у каждого есть причина — она записана рядом.
  */
@@ -58,6 +66,23 @@ export function depthOf(i: number, n: number): number {
   return Math.round(raw / magnitude) * magnitude;
 }
 
+// ─── Цвет ────────────────────────────────────────────────────────────────────
+
+/**
+ * Насколько вечер притушил воду: 0 — день, ночью вода у поверхности уже на
+ * две трети тёмная.
+ *
+ * Не своя палитра на ночь, а та же смесь двух токенов, сдвинутая к дну: своя
+ * понадобилась бы каждому слою, а сдвиг работает на любой глубине сам.
+ */
+export const DIM: Record<Mood, number> = { day: 0, dusk: 0.4, night: 0.62 };
+
+/** Доля дна в воде на глубине `t`. */
+const deepShare = (t: number, dim: number) => t + (1 - t) * dim;
+/** Доля льда в цвете льдины на глубине `t`, в процентах. */
+const iceShare = (t: number, lift: number, dim: number) =>
+  Math.max(0, Math.min(100, Math.round(100 - 58 * t - 40 * dim + lift)));
+
 /**
  * Цвет воды на глубине `t` ∈ [0, 1] — смесь двух токенов в OKLab.
  *
@@ -66,21 +91,38 @@ export function depthOf(i: number, n: number): number {
  * глаза, а в sRGB середина выходит грязно-серой. Ступени, а не плавный
  * градиент, — как пояса глубин на морской карте.
  */
-export const waterAt = (t: number) =>
-  `color-mix(in oklab, rgb(var(--deep)) ${Math.round(t * 100)}%, rgb(var(--water)))`;
+export const waterAt = (t: number, dim = 0) =>
+  `color-mix(in oklab, rgb(var(--deep)) ${Math.round(deepShare(t, dim) * 100)}%, rgb(var(--water)))`;
 
-/** Лёд на глубине: светлее воды вокруг, но тоже уходит в синеву. */
-export const iceAt = (t: number, lift = 0) =>
-  `color-mix(in oklab, rgb(var(--ice)) ${Math.max(0, Math.min(100, Math.round(100 - 58 * t + lift)))}%, ${waterAt(t)})`;
+/** Лёд на глубине: светлее воды вокруг, но тоже уходит в глубину. */
+export const iceAt = (t: number, lift = 0, dim = 0) =>
+  `color-mix(in oklab, rgb(var(--ice)) ${iceShare(t, lift, dim)}%, ${waterAt(t, dim)})`;
 
 /**
- * С какой глубины текст становится светлым.
+ * Светлота токенов в OKLab — льда, воды у поверхности и дна.
  *
- * Половина пути до дна — там, где смешанная вода переходит за середину по
- * светлоте. Все живые разделы выше этой черты, и тёмный текст на них держит
- * контраст больше 5:1; светлый достаётся только «скоро», а их не нажимают.
+ * Нужна, чтобы выбрать цвет текста на смеси, не меряя пиксели: в OKLab
+ * светлота смеси — та же смесь светлот. Поменял токен в `globals.css` —
+ * пересчитай здесь, иначе текст на слоях выберет не тот цвет.
  */
-export const DARK_FROM = 0.5;
+const LIGHTNESS = { ice: 0.98, water: 0.9, deep: 0.21 };
+
+const waterLightness = (t: number, dim: number) => {
+  const p = deepShare(t, dim);
+  return LIGHTNESS.water * (1 - p) + LIGHTNESS.deep * p;
+};
+
+/**
+ * Светлый ли текст нужен на воде и на льду этой глубины.
+ *
+ * Порог 0.6 — там, где тёмный текст и белый держат одинаковый контраст, около
+ * 4:1 оба. Выше — тёмный, ниже — светлый.
+ */
+export const lightOnWater = (t: number, dim: number) => waterLightness(t, dim) < 0.6;
+export const lightOnIce = (t: number, dim: number) => {
+  const q = iceShare(t, 0, dim) / 100;
+  return LIGHTNESS.ice * q + waterLightness(t, dim) * (1 - q) < 0.6;
+};
 
 // ─── Профиль айсберга ────────────────────────────────────────────────────────
 
@@ -173,14 +215,17 @@ export function icebergFor(n: number, seed: number): Iceberg {
 export function crackThrough(layer: IceLayer, rand: () => number): [number, number][] {
   // По диагонали, от одного края к другому на разной высоте: ровно
   // горизонтальная трещина посередине слоя ложилась на название и читалась
-  // зачёркиванием, а не сколом.
+  // зачёркиванием, а не сколом. С какого края она пойдёт — тоже случай: всегда
+  // слева она через неделю читалась бы заставкой.
   const down = rand() < 0.5;
+  const fromLeft = rand() < 0.5;
   const high = 14 + rand() * 18;
   const low = 68 + rand() * 18;
   let points: [number, number][] = [
     [layer.left[1] + 1, down ? high : low],
     [layer.right[1] - 1, down ? low : high]
   ];
+  if (!fromLeft) points.reverse();
   let amplitude = 44;
   for (let round = 0; round < 5; round++) {
     const next: [number, number][] = [points[0]];
@@ -197,6 +242,9 @@ export function crackThrough(layer: IceLayer, rand: () => number): [number, numb
   return points;
 }
 
+/** Сколько трещины проступает при наведении: треть — видно, что пошло, и ещё держится. */
+export const TEASE = 0.34;
+
 const pts = (list: [number, number][]) => list.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
 
 // ─── Слой льда ───────────────────────────────────────────────────────────────
@@ -209,17 +257,22 @@ const pts = (list: [number, number][]) => list.map(([x, y]) => `${x.toFixed(2)},
  * (`preserveAspectRatio="none"`), а линии — `non-scaling-stroke`, иначе на
  * широком слое контур стал бы толще, чем на узком.
  *
+ * У выбранного слоя контур плотнее: слой должен читаться кнопкой, которую вот
+ * сейчас нажмут, а не только светлеть.
+ *
  * При трещине слой рисуется дважды, по обе стороны скола, и нижняя часть
  * откалывается вниз.
  */
 export function IceSlice({
   layer,
   t,
+  dim,
   lit,
   crack
 }: {
   layer: IceLayer;
   t: number;
+  dim: number;
   lit: boolean;
   crack: [number, number][] | null;
 }) {
@@ -230,9 +283,11 @@ export function IceSlice({
   const [rt, rmid, rb] = layer.right;
   const [kt, kb] = layer.ridge;
   const lift = lit ? 12 : 0;
-  const light = iceAt(t, lift + 6);
-  const shade = iceAt(t, lift - 7);
-  const edge = t < DARK_FROM ? 'rgb(var(--ink) / 0.16)' : 'rgb(var(--surface) / 0.14)';
+  const light = iceAt(t, lift + 6, dim);
+  const shade = iceAt(t, lift - 7, dim);
+  const edge = lightOnIce(t, dim)
+    ? `rgb(var(--surface) / ${lit ? 0.55 : 0.14})`
+    : `rgb(var(--ink) / ${lit ? 0.5 : 0.16})`;
 
   const faces = (
     <>
@@ -263,8 +318,10 @@ export function IceSlice({
     );
   }
 
-  const upper = pts([[0, 0], [100, 0], [100, crack[crack.length - 1][1]], ...[...crack].reverse(), [0, crack[0][1]]]);
-  const lower = pts([[0, crack[0][1]], ...crack, [100, crack[crack.length - 1][1]], [100, 100], [0, 100]]);
+  const ends = [crack[0], crack[crack.length - 1]].sort((a, b) => a[0] - b[0]);
+  const line = crack[0][0] <= crack[crack.length - 1][0] ? crack : [...crack].reverse();
+  const upper = pts([[0, 0], [100, 0], [100, ends[1][1]], ...[...line].reverse(), [0, ends[0][1]]]);
+  const lower = pts([[0, ends[0][1]], ...line, [100, ends[1][1]], [100, 100], [0, 100]]);
 
   return (
     <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
@@ -290,22 +347,52 @@ export function IceSlice({
  * льду, а надпись — на льду. Две линии: широкая светлая кромка и тонкая тёмная
  * сердцевина, — так скол во льду и выглядит. Плюс одно ответвление от середины:
  * лёд редко ломается одной чертой.
+ *
+ * `to` меньше единицы — трещина только пошла: так слой отвечает на наведение
+ * (`TEASE`). Нажатие продолжает её с того же места (`from`), а не рисует новую:
+ * лёд, который начал трескаться, доламывается, а не трескается заново.
  */
-export function CrackLine({ crack, seed }: { crack: [number, number][]; seed: number }) {
+export function CrackLine({
+  crack,
+  seed,
+  from = 0,
+  to = 1
+}: {
+  crack: [number, number][];
+  seed: number;
+  from?: number;
+  to?: number;
+}) {
+  const id = useId().replace(/:/g, '');
+  const whole = to >= 1;
   const branch = useMemo(() => {
     const rand = seeded(seed + 7);
     const at = crack[Math.floor(crack.length * (0.35 + rand() * 0.3))];
     const out: [number, number][] = [at];
     let [x, y] = at;
     const dir = rand() < 0.5 ? -1 : 1;
+    const step = crack[0][0] <= crack[crack.length - 1][0] ? 1 : -1;
     for (let i = 0; i < 4; i++) {
-      x += 1.5 + rand() * 3;
+      x += step * (1.5 + rand() * 3);
       y = Math.min(96, Math.max(4, y + dir * (6 + rand() * 10)));
       out.push([x, y]);
     }
     return out;
   }, [crack, seed]);
-  const line = (points: [number, number][], width: number, colour: string, delay: string) => (
+  // Наведение тянет трещину медленнее, чем удар: она «пошла», а не «треснула».
+  const seconds = `${whole ? 0.26 : 0.55}s`;
+  // Прорисовка — растущей шторкой в координатах слоя, а не пунктиром. У
+  // растянутого SVG с `non-scaling-stroke` пунктир считается в пикселях экрана,
+  // а `pathLength` — в координатах слоя, и трещина шла кусками. Шторка растёт
+  // от того края, с которого трещина пошла.
+  const xs = crack.map(([x]) => x);
+  const lo = Math.min(...xs) - 1;
+  const hi = Math.max(...xs) + 1;
+  const forward = crack[0][0] <= crack[crack.length - 1][0];
+  const w0 = (hi - lo) * from;
+  const w1 = (hi - lo) * to;
+  const ease = { calcMode: 'spline', keyTimes: '0;1', keySplines: '0.2 0.8 0.2 1', fill: 'freeze' } as const;
+  const line = (points: [number, number][], width: number, colour: string) => (
     <polyline
       points={pts(points)}
       fill="none"
@@ -314,17 +401,24 @@ export function CrackLine({ crack, seed }: { crack: [number, number][]; seed: nu
       strokeLinejoin="bevel"
       strokeLinecap="round"
       vectorEffect="non-scaling-stroke"
-      pathLength={1}
-      strokeDasharray="1"
-      style={{ animation: `crack-draw 0.26s cubic-bezier(0.2,0.8,0.2,1) ${delay} both` }}
     />
   );
   return (
     <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
-      {line(crack, 5, 'rgb(var(--surface) / 0.9)', '0s')}
-      {line(crack, 1.75, 'rgb(var(--deep) / 0.85)', '0s')}
-      {line(branch, 3.5, 'rgb(var(--surface) / 0.85)', '0.12s')}
-      {line(branch, 1.25, 'rgb(var(--deep) / 0.75)', '0.12s')}
+      <defs>
+        <clipPath id={`${id}c`}>
+          <rect x={forward ? lo : hi - w1} y={-20} width={w1} height={140}>
+            <animate attributeName="width" from={w0} to={w1} dur={seconds} {...ease} />
+            {forward ? null : <animate attributeName="x" from={hi - w0} to={hi - w1} dur={seconds} {...ease} />}
+          </rect>
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${id}c)`}>
+        {line(crack, 5, 'rgb(var(--surface) / 0.9)')}
+        {line(crack, 1.75, 'rgb(var(--deep) / 0.85)')}
+        {whole ? line(branch, 3.5, 'rgb(var(--surface) / 0.85)') : null}
+        {whole ? line(branch, 1.25, 'rgb(var(--deep) / 0.75)') : null}
+      </g>
     </svg>
   );
 }
@@ -337,49 +431,50 @@ export function CrackLine({ crack, seed }: { crack: [number, number][]; seed: nu
  * Осколок — HTML, а не часть растянутого SVG: в растянутом треугольник стал
  * бы щепкой.
  */
-export function Shards({ crack, t, seed }: { crack: [number, number][]; t: number; seed: number }) {
+export function Shards({ crack, t, dim, seed }: { crack: [number, number][]; t: number; dim: number; seed: number }) {
   // Один раз на трещину: пересчёт на каждой перерисовке (наведение мыши,
   // приход ответов) двигал бы осколки посреди полёта.
   const shards = useMemo(() => {
     const rand = seeded(seed);
     const step = Math.max(1, Math.floor(crack.length / 8));
+    // Сколько осколков — тоже случай, от пяти до девяти: одинаковая горсть на
+    // каждом нажатии выдаёт, что это одна и та же анимация.
+    const count = 5 + Math.floor(rand() * 5);
     return crack
       .filter((_, i) => i % step === 0)
-      .slice(1, 8)
+      .slice(1, 1 + count)
       .map(([x, y]) => ({
         x,
         y,
-        size: 5 + rand() * 6,
+        size: 5 + rand() * 7,
         a: rand() * 40,
         b: 60 + rand() * 40,
-        dx: (rand() - 0.5) * 44,
-        dy: 36 + rand() * 60,
-        rot: (rand() - 0.5) * 360
+        dx: (rand() - 0.5) * 50,
+        dy: 36 + rand() * 70,
+        rot: (rand() - 0.5) * 380
       }));
   }, [crack, seed]);
   return (
     <span aria-hidden="true" className="pointer-events-none absolute inset-0">
-      {shards.map(({ x, y, size, a, b, dx, dy, rot }, i) => {
-          return (
-            <span
-              key={i}
-              className="absolute animate-[shard-sink_0.8s_cubic-bezier(0.4,0,0.9,0.5)_0.12s_both]"
-              style={
-                {
-                  left: `${x}%`,
-                  top: `${y}%`,
-                  width: size,
-                  height: size,
-                  background: iceAt(t, 14),
-                  clipPath: `polygon(${a}% 0, 100% ${b}%, 0 100%)`,
-                  '--dx': `${dx}px`,
-                  '--dy': `${dy}px`,
-                  '--rot': `${rot}deg`
-                } as React.CSSProperties
-              }
-            />
-          );
-        })}
+      {shards.map(({ x, y, size, a, b, dx, dy, rot }, i) => (
+        <span
+          key={i}
+          className="absolute animate-[shard-sink_0.8s_cubic-bezier(0.4,0,0.9,0.5)_0.12s_both]"
+          style={
+            {
+              left: `${x}%`,
+              top: `${y}%`,
+              width: size,
+              height: size,
+              background: iceAt(t, 14, dim),
+              clipPath: `polygon(${a}% 0, 100% ${b}%, 0 100%)`,
+              '--dx': `${dx}px`,
+              '--dy': `${dy}px`,
+              '--rot': `${rot}deg`
+            } as React.CSSProperties
+          }
+        />
+      ))}
     </span>
   );
 }
@@ -391,27 +486,28 @@ export function Shards({ crack, t, seed }: { crack: [number, number][]; t: numbe
  * льда под водой, потому что лёд легче морской воды ровно настолько
  * (917 против 1025 кг/м³). Видно поле и кончик — остальное надо листать.
  */
-export function IceTip({ tip }: { tip: Iceberg['tip'] }) {
+export function IceTip({ tip, dim }: { tip: Iceberg['tip']; dim: number }) {
   const { left, right, peak, shoulder } = tip;
   const ridgeX = left + (peak - left) * 0.62;
+  const edge = dim > 0.3 ? 'rgb(var(--surface) / 0.22)' : 'rgb(var(--ink) / 0.16)';
   return (
     <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
       <polygon
         points={pts([[left, 100], [left + (peak - left) * 0.4, 100 - 46 * shoulder], [peak, 0], [ridgeX, 100]])}
-        fill="rgb(var(--ice))"
+        fill={iceAt(0, 4, dim)}
       />
       <polygon
         points={pts([[ridgeX, 100], [peak, 0], [peak + (right - peak) * 0.45, 38], [right, 100]])}
-        fill={iceAt(0.06, -4)}
+        fill={iceAt(0.06, -4, dim)}
       />
       <polyline
         points={pts([[left, 100], [left + (peak - left) * 0.4, 100 - 46 * shoulder], [peak, 0], [peak + (right - peak) * 0.45, 38], [right, 100]])}
         fill="none"
-        stroke="rgb(var(--ink) / 0.16)"
+        stroke={edge}
         strokeWidth="1.5"
         vectorEffect="non-scaling-stroke"
       />
-      <line x1={peak} y1={0} x2={ridgeX} y2={100} stroke="rgb(var(--ink) / 0.12)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      <line x1={peak} y1={0} x2={ridgeX} y2={100} stroke={edge} strokeWidth="1" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -423,7 +519,7 @@ export function IceTip({ tip }: { tip: Iceberg['tip'] }) {
  * а не школьным графиком. Период 120 px, и вся полоса сдвигается ровно на
  * период по кругу — поэтому шов не виден никогда.
  */
-export function Waterline({ still }: { still: boolean }) {
+export function Waterline({ still, dim, floor }: { still: boolean; dim: number; floor: string }) {
   const period = 120;
   const width = 2400 + period;
   const d: string[] = [];
@@ -434,177 +530,166 @@ export function Waterline({ still }: { still: boolean }) {
   }
   const line = d.join(' ');
   return (
-    <div aria-hidden="true" className="pointer-events-none relative h-3.5 w-full overflow-hidden">
+    // Над волной — небо у самой воды (`skyFloor`): прозрачный зазор показывал бы
+    // лист под пультом, и ночью вдоль воды шла светлая полоса.
+    <div aria-hidden="true" className="pointer-events-none relative h-3.5 w-full overflow-hidden" style={{ background: floor }}>
       <svg
         width={width}
         height="14"
         viewBox={`0 0 ${width} 14`}
         className={`absolute left-0 top-0 ${still ? '' : 'animate-[swell_7s_linear_infinite]'}`}
       >
-        <path d={`${line} L${width} 14 L0 14 Z`} fill={waterAt(0)} />
-        <path d={line} fill="none" stroke="rgb(var(--ink))" strokeWidth="2" />
+        <path d={`${line} L${width} 14 L0 14 Z`} fill={waterAt(0, dim)} />
+        <path d={line} fill="none" stroke={dim > 0.3 ? 'rgb(var(--surface) / 0.5)' : 'rgb(var(--ink))'} strokeWidth="2" />
       </svg>
     </div>
   );
 }
 
-// ─── Небо ────────────────────────────────────────────────────────────────────
+// ─── Небо и вершина ──────────────────────────────────────────────────────────
+
+/** Цвет неба у самой воды: им же залит зазор над волной (`Waterline`). */
+export const skyFloor = (mood: Mood) =>
+  mood === 'night'
+    ? waterAt(0.1, DIM.night)
+    : mood === 'dusk'
+      ? `color-mix(in oklab, rgb(var(--halo)) 34%, ${waterAt(0.15, DIM.night)})`
+      : 'rgb(var(--canvas))';
 
 /**
- * Облако из кругов одного цвета: где круги перекрываются, шва нет, и силуэт
- * собирается сам. Плоское дно — прямоугольником, как у кучевых облаков.
- */
-function Cloud({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 120 48" className={className} style={style}>
-      <g fill="rgb(var(--surface))">
-        <circle cx="24" cy="32" r="13" />
-        <circle cx="44" cy="23" r="19" />
-        <circle cx="68" cy="20" r="17" />
-        <circle cx="88" cy="29" r="13" />
-        <circle cx="104" cy="35" r="9" />
-        <rect x="11" y="32" width="102" height="12" rx="6" />
-      </g>
-    </svg>
-  );
-}
-
-/**
- * Ангел: нимб, голова, балахон и два крыла, которые машут.
+ * Небо над айсбергом. Днём — почти белое, светлеющее кверху: величие здесь не в
+ * облаках, а в вершине (`Summit`), и пустота вокруг неё работает на неё. В
+ * сумерках — тёплая полоса у горизонта под темнеющим верхом, ночью — тёмное, со
+ * звёздами.
  *
- * Линией и плоской заливкой, как значки сайта, — не картинка из интернета.
- * Крыло машет по вертикали вокруг плеча (`transform-box: fill-box`), и у каждого
- * ангела свой темп: в ногу махали бы, как на параде.
+ * Звёзды — точки одного цвета, по зерну дня: у троих одно небо, как и айсберг.
+ * Мерцает каждая пятая, и медленно: небо, которое всё время шевелится, — это
+ * заставка, а не ночь.
  */
-function Angel({ flap }: { flap: string }) {
-  const wing = 'rgb(var(--ink) / 0.45)';
+export function Sky({ mood, seed, still }: { mood: Mood; seed: number; still: boolean }) {
+  const stars = useMemo(() => {
+    const rand = seeded(seed + 101);
+    return Array.from({ length: 36 }, (_, i) => ({
+      x: rand() * 100,
+      y: rand() * 86,
+      big: rand() < 0.14,
+      o: 0.3 + rand() * 0.55,
+      delay: rand() * 7,
+      twinkle: i % 5 === 0
+    }));
+  }, [seed]);
+  const top =
+    mood === 'night'
+      ? 'rgb(var(--deep))'
+      : mood === 'dusk'
+        ? 'color-mix(in oklab, rgb(var(--deep)) 82%, rgb(var(--water)))'
+        : 'rgb(var(--surface))';
+  const ground = `linear-gradient(to bottom, ${top}, ${skyFloor(mood)})`;
   return (
-    <svg aria-hidden="true" viewBox="0 0 40 32" className="h-full w-full overflow-visible">
-      <ellipse cx="20" cy="4.5" rx="6" ry="1.8" fill="none" stroke="rgb(var(--halo))" strokeWidth="1.6" />
-      <g
-        style={{ transformBox: 'fill-box', transformOrigin: '100% 30%', animation: `wing-flap ${flap} ease-in-out infinite` }}
-      >
-        <path d="M17.5 16 C 10 8.5, 3 10.5, 0.5 16.5 C 6 15.5, 10 17.5, 17 20 Z" fill="rgb(var(--surface))" stroke={wing} strokeWidth="1.1" />
-      </g>
-      <g
-        style={{ transformBox: 'fill-box', transformOrigin: '0% 30%', animation: `wing-flap ${flap} ease-in-out infinite` }}
-      >
-        <path d="M22.5 16 C 30 8.5, 37 10.5, 39.5 16.5 C 34 15.5, 30 17.5, 23 20 Z" fill="rgb(var(--surface))" stroke={wing} strokeWidth="1.1" />
-      </g>
-      <path d="M20 14 L14.5 29 Q20 31.2 25.5 29 Z" fill="rgb(var(--surface))" stroke="rgb(var(--ink) / 0.55)" strokeWidth="1.1" />
-      <circle cx="20" cy="10.5" r="3.1" fill="rgb(var(--ink) / 0.72)" />
-    </svg>
-  );
-}
-
-/** Четырёхлучевая искра: ромб с вогнутыми сторонами. */
-function Sparkle() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 10 10" className="h-full w-full">
-      <path d="M5 0 Q5.6 4.4 10 5 Q5.6 5.6 5 10 Q4.4 5.6 0 5 Q4.4 4.4 5 0 Z" fill="rgb(var(--halo))" />
-    </svg>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: ground }}>
+      {mood === 'day'
+        ? null
+        : stars
+            .filter((_, i) => mood === 'night' || i % 3 === 0)
+            .map((s, i) => (
+              <span
+                key={i}
+                className="absolute rounded-full bg-surface"
+                style={{
+                  left: `${s.x}%`,
+                  top: `${s.y}%`,
+                  width: s.big ? 2.5 : 1.5,
+                  height: s.big ? 2.5 : 1.5,
+                  opacity: mood === 'night' ? s.o : s.o * 0.5,
+                  animation: s.twinkle && !still ? `star 6s ease-in-out ${s.delay}s infinite` : undefined
+                }}
+              />
+            ))}
+    </div>
   );
 }
 
 /**
- * Небо над айсбергом: рай, как его просили, — свет из-за облаков, облака, над
- * ними ангелы, в воздухе искры.
+ * Вершина: свет сверху и кольца от ядра — за льдом, а само ядро — `SummitCore`,
+ * перед ним. Ставится в точку пика: `x` — его доля ширины, верх коробки — макушка.
  *
- * Всё движется только `transform` и `opacity` и стоит на месте при
- * `prefers-reduced-motion`. Облака и ангелы вылетают из-за левого края и
- * уходят за правый, а отрицательные задержки рассыпают их по небу к моменту
- * открытия, иначе все стартовали бы из одной точки. Без движения они стоят в
- * заранее разложенных местах, а не за краем.
+ * Кольца — по одному в две секунды, каждое живёт шесть: одновременно видно
+ * три, и ритм не сбивается в пульсацию. Без движения два кольца стоят на месте
+ * отметкой, а не анимацией.
  */
-export function Sky({ still }: { still: boolean }) {
-  const drift = (seconds: number, delay: number, distance = '150vw'): React.CSSProperties =>
-    still
-      ? {}
-      : ({
-          animation: `cloud-drift ${seconds}s linear ${delay}s infinite`,
-          '--drift': distance
-        } as React.CSSProperties);
-
-  const clouds = [
-    { top: '38%', left: still ? '6%' : '-22%', w: 'w-40 sm:w-56', s: 110, d: -38, o: 0.95 },
-    { top: '58%', left: still ? '62%' : '-22%', w: 'w-32 sm:w-44', s: 80, d: -56, o: 0.85 },
-    { top: '22%', left: still ? '38%' : '-22%', w: 'w-24 sm:w-32', s: 140, d: -20, o: 0.7 }
-  ];
-  const angels = [
-    { top: '10%', left: still ? '18%' : '-10%', s: 46, d: -14, bob: '3.4s', flap: '0.9s', size: 'h-7 w-9 sm:h-11 sm:w-14' },
-    { top: '26%', left: still ? '74%' : '-10%', s: 64, d: -40, bob: '4.1s', flap: '1.15s', size: 'h-5 w-7 sm:h-8 sm:w-10' },
-    { top: '4%', left: still ? '52%' : '-10%', s: 82, d: -61, bob: '3.8s', flap: '1.3s', size: 'h-4 w-5 sm:h-6 sm:w-8' }
-  ];
-  const sparkles = [
-    ['12%', '30%', '0s'],
-    ['30%', '8%', '1.1s'],
-    ['47%', '44%', '2.3s'],
-    ['66%', '14%', '0.6s'],
-    ['82%', '36%', '1.7s'],
-    ['91%', '9%', '2.9s']
-  ];
-
+export function Summit({ x, mood, still }: { x: number; mood: Mood; still: boolean }) {
+  const dark = mood !== 'day';
+  const ring = dark ? 'rgb(var(--surface) / 0.3)' : 'rgb(var(--ink) / 0.2)';
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* Сияние сверху: свет, который идёт из-за облаков. */}
-      <div
-        className="absolute inset-x-0 top-0 h-full"
-        style={{ background: 'radial-gradient(ellipse 70% 90% at 50% -10%, rgb(var(--halo) / 0.26), rgb(var(--halo) / 0) 70%)' }}
+    <span aria-hidden="true" className="pointer-events-none absolute top-0 h-0 w-0" style={{ left: `${x}%` }}>
+      {/* Свет вокруг макушки, вытянутый столбом вверх. Центр — в самой
+          макушке, а не край: свет, обрезанный по её высоте, читался плашкой с
+          ровным нижним краем. Нижнюю половину и так закрывает лёд. Заливка, а
+          не тень. */}
+      <span
+        className="absolute left-0 top-0 h-[40rem] w-[22rem] -translate-x-1/2 -translate-y-1/2"
+        style={{
+          background: `radial-gradient(ellipse 50% 50% at 50% 50%, rgb(var(--halo) / ${dark ? 0.24 : 0.65}), rgb(var(--halo) / 0) 72%)`
+        }}
       />
-
-      {/* Лучи — семь клиньев из одной точки над экраном; качаются на два
-          градуса в обе стороны, чтобы свет был живым, но не вертелся. */}
-      <svg
-        viewBox="0 0 1000 400"
-        preserveAspectRatio="xMidYMin slice"
-        className={`absolute inset-0 h-full w-full origin-top ${still ? '' : 'animate-[ray-sway_16s_ease-in-out_infinite]'}`}
-      >
-        <defs>
-          <linearGradient id="pult-ray" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgb(var(--halo))" stopOpacity="0.22" />
-            <stop offset="1" stopColor="rgb(var(--halo))" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[-54, -34, -16, 0, 15, 33, 52].map((deg, i) => {
-          const spread = i % 2 ? 3.2 : 5.5;
-          const a = ((deg - spread) * Math.PI) / 180;
-          const b = ((deg + spread) * Math.PI) / 180;
-          const reach = 520;
-          return (
-            <polygon
-              key={deg}
-              points={`500,-60 ${500 + Math.sin(a) * reach},${-60 + Math.cos(a) * reach} ${500 + Math.sin(b) * reach},${-60 + Math.cos(b) * reach}`}
-              fill="url(#pult-ray)"
-            />
-          );
-        })}
-      </svg>
-
-      {sparkles.map(([left, top, delay]) => (
+      {[0, 1, 2].map((i) => (
         <span
-          key={left}
-          className={`absolute h-2.5 w-2.5 ${still ? 'opacity-60' : 'animate-[twinkle_3.6s_ease-in-out_infinite]'}`}
-          style={{ left, top, animationDelay: delay }}
-        >
-          <Sparkle />
-        </span>
+          key={i}
+          className="absolute left-0 top-0 h-56 w-56 rounded-full border"
+          style={
+            still
+              ? { borderColor: ring, transform: `translate(-50%, -50%) scale(${0.35 + i * 0.3})`, opacity: 0.6 - i * 0.25 }
+              : {
+                  borderColor: ring,
+                  opacity: 0,
+                  animation: `aura-ring 6s cubic-bezier(0.25, 0.6, 0.35, 1) ${i * 2}s infinite`
+                }
+          }
+        />
       ))}
-
-      {clouds.map((c) => (
-        <Cloud key={c.top} className={`absolute ${c.w}`} style={{ top: c.top, left: c.left, opacity: c.o, ...drift(c.s, c.d) }} />
-      ))}
-
-      {/* Ангелы выше облаков, как просили: «над ним, над облаками». */}
-      {angels.map((a) => (
-        <span key={a.top} className="absolute" style={{ top: a.top, left: a.left, ...drift(a.s, a.d, '125vw') }}>
-          <span
-            className={`block ${a.size}`}
-            style={still ? undefined : { animation: `angel-bob ${a.bob} ease-in-out infinite` }}
-          >
-            <Angel flap={a.flap} />
-          </span>
-        </span>
-      ))}
-    </div>
+    </span>
   );
+}
+
+/** Ядро на макушке — та же красная кнопка ПХ, только теперь она венчает айсберг. */
+export function SummitCore({ x }: { x: number }) {
+  return (
+    <span aria-hidden="true" className="pointer-events-none absolute top-0 h-0 w-0" style={{ left: `${x}%` }}>
+      <span className="absolute left-0 top-0 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-reactor/20" />
+      <span className="absolute left-0 top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-reactor" />
+    </span>
+  );
+}
+
+// ─── Рутина на глубине ───────────────────────────────────────────────────────
+
+export type Drift = { word: string; side: 'left' | 'right'; inset: number; seconds: number; delay: number };
+
+/**
+ * Какие слова рутины тонут у каких слоёв: «понедельник», «дедлайн», «ещё пять
+ * минут». То, что тянет вниз, пока наверху величие, — не текст для чтения, а
+ * фактура воды: в полях по краям, почти прозрачные, и только начиная с трети
+ * глубины.
+ *
+ * По зерну дня, у троих одинаково. Слова не повторяются, сторона и темп у
+ * каждого свои: строем они читались бы бегущей строкой.
+ */
+export function undertowFor(n: number, words: string[], seed: number): (Drift | null)[] {
+  const rand = seeded(seed + 313);
+  const pool = [...words];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return Array.from({ length: n }, (_, i) => {
+    const t = i / Math.max(1, n - 1);
+    if (t < 0.3 || !pool.length || rand() < 0.3) return null;
+    return {
+      word: pool.pop() as string,
+      side: rand() < 0.5 ? 'left' : 'right',
+      inset: 3 + rand() * 9,
+      seconds: 9 + rand() * 7,
+      delay: -rand() * 9
+    };
+  });
 }

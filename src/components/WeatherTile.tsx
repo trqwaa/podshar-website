@@ -68,10 +68,10 @@ export async function WeatherTile({
       close={tHome('close')}
       week={<Forecast weather={weather} locale={locale} />}
     >
-      {/* Высоту плитке задаёт сосед по ряду, «кто тут трётся», и содержимое
-          её заполняет, а не жмётся кверху: «сейчас» крупно наверху, часы
-          полосой во всю ширину внизу. Прежние «13° и строчка» оставляли под
-          собой две трети пустой плитки. */}
+      {/* Плитка стоит в ряду с «кто тут трётся», и ряд берёт высоту большей из
+          двух. Содержимое заполняет свою, а не жмётся кверху: «сейчас» крупно
+          наверху, часы полосой во всю ширину внизу. Прежние «13° и строчка»
+          оставляли под собой две трети пустой плитки. */}
       <div className="flex flex-1 flex-col gap-4">
         <div className="flex items-center justify-between gap-6">
           <div className="flex min-w-0 items-center gap-4 sm:gap-5">
@@ -112,8 +112,12 @@ export async function WeatherTile({
 async function Strip({ weather, locale }: { weather: Weather; locale: Locale }) {
   const t = await getTranslations({ locale, namespace: 'weather' });
   const hours = weather.hours.filter((_, i) => i % 2 === 0).slice(0, 12);
-  // Как в окне: строка с шансом дождя — только если он где-то есть.
-  const wet = hours.some((hour) => hour.rain >= 10);
+  // Как в окне: строка с шансом дождя — только если он есть среди видимых
+  // клеток. Видимых на разных экранах разное число, и пустая строка под шестью
+  // сухими часами телефона из-за дождя в одиннадцатой клетке — это та самая
+  // недорисованная строка, от которой окно и избавлялось.
+  const wetIn = (n: number) => hours.slice(0, n).some((hour) => hour.rain >= 10);
+  const slot = wetIn(6) ? 'block' : wetIn(9) ? 'hidden lg:block' : wetIn(12) ? 'hidden xl:block' : null;
   return (
     <ol aria-hidden="true" className="ps-rule mt-auto flex pt-5">
       {hours.map((hour, index) => (
@@ -126,8 +130,8 @@ async function Strip({ weather, locale }: { weather: Weather; locale: Locale }) 
           <span className="ps-label tabular-nums">{index === 0 ? t('now') : hour.time.slice(11, 16)}</span>
           <WeatherIcon condition={hour.condition} night={!hour.isDay} size="base" />
           <span className="text-xl font-semibold tabular-nums text-ink">{deg(hour.temp)}</span>
-          {wet ? (
-            <span className="h-4 text-xs tabular-nums text-ink-muted">
+          {slot ? (
+            <span className={`h-4 text-xs tabular-nums text-ink-muted ${slot}`}>
               {hour.rain >= 10 ? t('share', { value: Math.round(hour.rain) }) : ''}
             </span>
           ) : null}
@@ -380,9 +384,12 @@ async function Days({ days, locale }: { days: DayForecast[]; locale: Locale }) {
 export function WeatherPending({ label, className = '' }: { label: string; className?: string }) {
   return (
     <Frame label={label} className={className}>
-      <span className="inline-block h-16 w-48 animate-pulse rounded-sm bg-sunk" />
-      <span className="inline-block h-4 w-56 animate-pulse rounded-sm bg-sunk" />
-      <span className="mt-auto inline-block h-24 w-full animate-pulse rounded-sm bg-sunk" />
+      {/* По размерам настоящей плитки: число со значком, строка, полоса часов.
+          Короче на полсотни пикселей — и при её приходе ряд вырастал, сдвигая
+          цитату под ним. */}
+      <span className="inline-block h-[5.75rem] w-56 animate-pulse rounded-sm bg-sunk" />
+      <span className="inline-block h-6 w-64 max-w-full animate-pulse rounded-sm bg-sunk" />
+      <span className="mt-auto inline-block h-[6.75rem] w-full animate-pulse rounded-sm bg-sunk" />
     </Frame>
   );
 }

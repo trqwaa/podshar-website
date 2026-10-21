@@ -6,7 +6,10 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { usePathname, useRouter } from '@/i18n/routing';
 import { sharedDayIndex } from '@/lib/day';
+import { EPIC_COOKIE, EPIC_SEEN } from '@/lib/epic-keys';
 import { ALL_PLACES, HOME, type Place } from '@/lib/navigation';
+import { moodAt, type Mood } from '@/lib/sun';
+import { EpicIntro } from './EpicIntro';
 import {
   CalendarIcon,
   ChatIcon,
@@ -20,30 +23,40 @@ import {
 } from './Icons';
 import {
   CrackLine,
-  DARK_FROM,
+  DIM,
   IceSlice,
   IceTip,
   Shards,
   Sky,
+  Summit,
+  SummitCore,
+  TEASE,
   Waterline,
   crackThrough,
   depthOf,
   icebergFor,
+  lightOnIce,
+  lightOnWater,
   seeded,
+  skyFloor,
+  undertowFor,
   waterAt
 } from './PultScene';
 
 /**
- * Пульт: весь сайт за кнопкой, на которой написано «не нажимать».
+ * Пульт: весь сайт за красной кнопкой ПХ.
  *
  * Кнопку жмут — главная разлетается, и под ней айсберг. Строка ввода стоит на
- * линии воды; над водой небо — рай, как просил владелец: свет из-за облаков,
- * облака, над ними ангелы. Под водой разделы слоями льда, и чем глубже, тем
- * нишевее: поезда у поверхности, «трэп-хаус» в темноте, на самом дне, ровно на
- * −10 994 м, живёт мопс. Рисунок и вся геометрия — в `PultScene.tsx`.
+ * линии воды; над водой величие — на макушке то же красное ядро, от него
+ * расходятся кольца, сверху падает свет. Под водой разделы слоями льда, и чем
+ * глубже, тем нишевее и серее: поезда у поверхности, «трэп-хаус» в темноте, по
+ * краям тонут слова рутины, на самом дне, ровно на −10 994 м, живёт мопс.
+ * Вечером и ночью айсберг темнеет по настоящему закату. Рисунок и вся
+ * геометрия — в `PultScene.tsx`.
  *
- * Шутка кнопки не теряется: её реплика («серьёзно?», «я предупреждал»)
- * становится первой строкой пульта.
+ * Первое нажатие за заход на сайт сначала играет заставку на весь экран
+ * (`EpicIntro`): «тебя приветствует весь легион» и ещё тысяча таких. Фраза
+ * приходит с сервера готовой (`lib/epic.ts`), здесь только «было или нет».
  *
  * Механика — от командных строк вроде Spotlight: одно поле, самый короткий путь
  * куда угодно. Своё здесь:
@@ -77,10 +90,13 @@ export type PultOrigin = {
   y: number;
   /** Радиус того, из чего он вылетает: у кнопки — её край, у точки — почти ноль. */
   r?: number;
-  /** Реплика кнопки. Нет — просто «пульт». */
-  line?: string;
   /** Без красной волны: пульт возвращается, а не взрывается. */
   quiet?: boolean;
+  /**
+   * Открыли кнопкой, а не клавишами: тогда, если за этот заход ещё не было,
+   * играет заставка. Кто открывает с клавиатуры, хочет искать, а не смотреть.
+   */
+  epic?: boolean;
 };
 
 export const openPult = (origin: PultOrigin) =>
@@ -240,6 +256,31 @@ function fromDot(): PultOrigin {
     : { x: window.innerWidth / 2, y: window.innerHeight / 3 };
 }
 
+/**
+ * Заставка — раз за заход на сайт: отметка в `sessionStorage`, который живёт,
+ * пока открыта вкладка. Счётчик в куке — для сервера: по нему он выбирает фразу
+ * следующего захода (`lib/epic.ts`), и тысяча фраз идёт по кругу без повторов.
+ * Он же выбирает манеру появления, чтобы и она не повторялась подряд.
+ */
+function claimIntro(text: string): { text: string; variant: number } | null {
+  try {
+    if (window.sessionStorage.getItem(EPIC_SEEN)) return null;
+    window.sessionStorage.setItem(EPIC_SEEN, '1');
+  } catch {
+    // Без хранилища заставка играла бы на каждое нажатие — лучше ни разу.
+    return null;
+  }
+  const n = Number(document.cookie.match(new RegExp(`(?:^|; )${EPIC_COOKIE}=(\\d+)`))?.[1] ?? 0);
+  document.cookie = `${EPIC_COOKIE}=${n + 1}; path=/; max-age=${400 * 86_400}; samesite=lax`;
+  return { text, variant: n % 4 };
+}
+
+/**
+ * Колонка айсберга. Шире, чем была (40rem): владелец попросил айсберг ближе, а
+ * на широком экране слои в 40rem терялись посреди воды.
+ */
+const COLUMN = 'mx-auto flex w-full max-w-[44rem] px-3 sm:px-4 lg:max-w-[52rem]';
+
 type Band = {
   key: string;
   kind: 'place' | 'soon' | 'dog';
@@ -250,7 +291,7 @@ type Band = {
   terms: string[];
 };
 
-export function Pult() {
+export function Pult({ epic = null }: { epic?: string | null }) {
   const t = useTranslations('pult');
   const tNav = useTranslations('nav');
   const locale = useLocale();
@@ -269,8 +310,18 @@ export function Pult() {
    * новой странице нет, значило бы показывать дорогу в никуда.
    */
   const [leaving, setLeaving] = useState<'close' | 'nav'>('close');
-  /** Трещина в выбранном слое: какой слой и по какой линии. */
-  const [crack, setCrack] = useState<{ key: string; points: [number, number][]; seed: number } | null>(null);
+  /** Трещина в выбранном слое: какой слой, по какой линии и с какого места рисовать. */
+  const [crack, setCrack] = useState<{ key: string; points: [number, number][]; seed: number; from: number } | null>(
+    null
+  );
+  /** Трещина, которая пошла от наведения мыши: нажатие доломает именно её. */
+  const [tease, setTease] = useState<{ key: string; points: [number, number][]; seed: number } | null>(null);
+  /** Какое небо: считается в момент открытия, по закату над Цюрихом. */
+  const [mood, setMood] = useState<Mood>('day');
+  /** Заставка поверх айсберга: фраза и манера, в которой она появится. */
+  const [intro, setIntro] = useState<{ text: string; variant: number } | null>(null);
+  const introRef = useRef(false);
+  introRef.current = intro !== null;
   const [scrolled, setScrolled] = useState(false);
   const [deepBelow, setDeepBelow] = useState(false);
   const fetchedAt = useRef(0);
@@ -322,31 +373,35 @@ export function Pult() {
   const close = useCallback(() => {
     cancelCrack();
     setCrack(null);
+    setTease(null);
+    setIntro(null);
     setOrigin(null);
   }, [cancelCrack]);
 
   useEffect(() => cancelCrack, [cancelCrack]);
 
+  const endIntro = useCallback(() => setIntro(null), []);
+
   const show = useCallback(
     (detail: PultOrigin, text = '') => {
-      // Уже открыт: второе нажатие на кнопку, пока первое долетало, меняет только
-      // реплику. Иначе фокус «возвращался» бы в собственную строку пульта, а
-      // набранное стиралось.
-      if (openRef.current) {
-        setOrigin((was) => (was ? { ...was, line: detail.line ?? was.line } : detail));
-        return;
-      }
+      // Уже открыт: второе нажатие на кнопку, пока первое долетало, — ничего.
+      // Иначе фокус «возвращался» бы в собственную строку пульта, а набранное
+      // стиралось.
+      if (openRef.current) return;
       cancelCrack();
       returnTo.current = document.activeElement as HTMLElement | null;
       setQuery(text);
       setPicked(null);
       setCrack(null);
+      setTease(null);
       setScrolled(false);
       setLeaving('close');
+      setMood(moodAt(Date.now()));
+      setIntro(detail.epic && epic && !detail.quiet ? claimIntro(epic) : null);
       setOrigin(detail);
       load();
     },
-    [load, cancelCrack]
+    [load, cancelCrack, epic]
   );
 
   // Все пути открыть — одно событие. Плюс клавиатура: `/` вне полей ввода и
@@ -459,6 +514,17 @@ export function Pult() {
     // нажатием. Tab не уходит под пульт: элемент с aria-modal обещает, что за
     // ним ничего нет, а фокус иначе гулял по невидимым кнопкам страницы.
     const onKeys = (e: KeyboardEvent) => {
+      // Любая клавиша во время заставки — дальше, к айсбергу; буква при этом
+      // остаётся в строке поиска. Esc, Enter и пробел — только заставку: закрыть
+      // пульт или открыть слой, не увидев их, — не то, чего хотели.
+      if (introRef.current) {
+        setIntro(null);
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
       if (e.key === 'Escape') {
         e.stopPropagation();
         close();
@@ -594,8 +660,17 @@ export function Pult() {
     }
     // Трещина бежит, пока грузится страница: переход заранее запрошен, и
     // `CRACK_MS` — это время, которое человек видит скол, а не ждёт сеть.
-    const seed = Date.now() % 2147483647;
-    setCrack({ key, points: crackThrough(berg.layers[index], seeded(seed)), seed });
+    // Пошедшая от наведения доламывается с того же места; нет её (клавиатура,
+    // палец) — новая, своя на каждое нажатие.
+    const started = tease?.key === key ? tease : null;
+    const seed = started?.seed ?? Date.now() % 2147483647;
+    setCrack({
+      key,
+      points: started?.points ?? crackThrough(berg.layers[index], seeded(seed)),
+      seed,
+      from: started ? TEASE : 0
+    });
+    setTease(null);
     router.prefetch(href);
     crackTimer.current = window.setTimeout(() => {
       crackTimer.current = null;
@@ -630,6 +705,14 @@ export function Pult() {
     ) + 8;
 
   const last = bands.length - 1;
+  const dim = DIM[mood];
+  /** Небо тёмное — в сумерках и ночью: текст над водой тогда светлый. */
+  const dark = mood !== 'day';
+  // Слова рутины на глубине: по зерну дня, как и сам айсберг.
+  const drifts = useMemo(
+    () => undertowFor(bands.length, t('undertow').split(' · '), sharedDayIndex()),
+    [bands.length, t]
+  );
 
   return (
     // `custom` на `AnimatePresence`, а не на самом листе: у уходящего элемента
@@ -690,18 +773,22 @@ export function Pult() {
           >
             <div className="flex min-h-full flex-col">
               {/* ── Небо ─────────────────────────────────────────────────── */}
-              <section className="relative isolate flex min-h-[clamp(16rem,38vh,24rem)] flex-col justify-end">
-                <Sky still={still} />
+              {/* Неба меньше, чем было: айсберг ближе, и главное в нём — вершина,
+                  а не воздух над ней. */}
+              <section className="relative isolate flex min-h-[clamp(12rem,27vh,17rem)] flex-col justify-end">
+                <Sky mood={mood} seed={sharedDayIndex()} still={still} />
 
-                <div className="absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[44rem] items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6">
-                  <p key={origin.line ?? 'title'} className="ps-label animate-rise-in text-ink-muted">
-                    {origin.line ?? t('title')}
-                  </p>
+                <div className="absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[44rem] items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6 lg:max-w-[52rem]">
+                  <p className={`ps-label ${dark ? 'text-surface/60' : 'text-ink-muted'}`}>{t('title')}</p>
                   <button
                     type="button"
                     onClick={close}
                     aria-label={t('close')}
-                    className="ps-press grid h-10 w-10 shrink-0 place-items-center rounded border-2 border-rule bg-canvas/70 text-ink-muted transition-colors duration-180 hover:border-ink hover:text-ink"
+                    className={`ps-press grid h-10 w-10 shrink-0 place-items-center rounded border-2 transition-colors duration-180 ${
+                      dark
+                        ? 'border-surface/25 bg-deep/40 text-surface/70 hover:border-surface hover:text-surface'
+                        : 'border-rule bg-canvas/70 text-ink-muted hover:border-ink hover:text-ink'
+                    }`}
                   >
                     <CrossIcon />
                   </button>
@@ -710,11 +797,14 @@ export function Pult() {
                 {/* Верхушка и строка ввода — на одной оси с айсбергом: слева та же
                     колонка, что у шкалы глубин, поэтому кончик над водой стоит
                     ровно над телом под водой. */}
-                <div className="relative z-10 mx-auto flex w-full max-w-[40rem] px-3 sm:px-4">
+                <div className={`relative z-10 ${COLUMN}`}>
                   <span className="w-16 shrink-0" aria-hidden="true" />
                   <div className="relative flex-1">
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 sm:h-24">
-                      <IceTip tip={berg.tip} />
+                    {/* Вершина: свет и кольца — за льдом, ядро — перед ним. */}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 sm:h-28 lg:h-32">
+                      <Summit x={berg.tip.peak} mood={mood} still={still} />
+                      <IceTip tip={berg.tip} dim={dim} />
+                      <SummitCore x={berg.tip.peak} />
                     </div>
                     <input
                       ref={field}
@@ -735,6 +825,8 @@ export function Pult() {
                       autoCorrect="off"
                       spellCheck={false}
                       enterKeyHint="go"
+                      // Тёмный текст и ночью: строка стоит на верхушке льда, а лёд
+                      // светлый всегда — белое «куда?» на нём пропадало.
                       className={`relative w-full bg-transparent pb-1 text-center text-3xl font-semibold leading-tight text-ink outline-none sm:text-4xl ${
                         query ? 'caret-reactor' : 'caret-transparent'
                       }`}
@@ -755,7 +847,7 @@ export function Pult() {
                 </div>
               </section>
 
-              <Waterline still={still} />
+              <Waterline still={still} dim={dim} floor={skyFloor(mood)} />
 
               {/* ── Вода ─────────────────────────────────────────────────── */}
               <ul
@@ -777,13 +869,19 @@ export function Pult() {
                     onPointerMove={() => current !== 'ask' && setPicked('ask')}
                     onClick={() => activate('ask')}
                     className="relative cursor-pointer"
-                    style={{ background: waterAt(0) }}
+                    style={{ background: waterAt(0, dim) }}
                   >
-                    <div className="mx-auto flex max-w-[40rem] px-3 sm:px-4">
-                      <Gauge marked={current === 'ask'} dark={false} label="" still={still} />
+                    <div className={COLUMN}>
+                      <Gauge marked={current === 'ask'} dark={lightOnWater(0, dim)} label="" still={still} />
                       <p
                         className={`flex min-h-11 flex-1 items-center justify-center gap-2 px-4 text-center text-sm transition-colors duration-180 ${
-                          current === 'ask' ? 'text-ink' : 'text-ink-muted'
+                          lightOnWater(0, dim)
+                            ? current === 'ask'
+                              ? 'text-surface'
+                              : 'text-surface/70'
+                            : current === 'ask'
+                              ? 'text-ink'
+                              : 'text-ink-muted'
                         }`}
                       >
                         <ChatIcon className="h-4 w-4 shrink-0" />
@@ -800,11 +898,17 @@ export function Pult() {
 
                 {bands.map((band, i) => {
                   const depth = i / Math.max(1, last);
-                  const dark = depth >= DARK_FROM;
+                  // Цвет текста свой у воды (шкала глубин, слова рутины) и у льда
+                  // (название слоя): ночью вода тёмная уже у поверхности, а лёд —
+                  // ещё нет.
+                  const waterDark = lightOnWater(depth, dim);
+                  const iceDark = lightOnIce(depth, dim);
                   const on = current === band.key;
-                  const dim = q !== '' && !scores.has(band.key);
+                  const faded = q !== '' && !scores.has(band.key);
                   const Icon = band.kind === 'dog' ? ChatIcon : ICONS[band.key];
                   const cracked = crack?.key === band.key ? crack : null;
+                  const teased = !cracked && tease?.key === band.key ? tease : null;
+                  const drift = drifts[i];
                   return (
                     <li
                       key={band.key}
@@ -817,48 +921,93 @@ export function Pult() {
                         else rows.current.delete(band.key);
                       }}
                       onPointerMove={() => band.kind !== 'soon' && !on && setPicked(band.key)}
+                      // Наведение — трещина пошла, но лёд держится. Новая на каждое
+                      // наведение: одна и та же линия через неделю читалась бы
+                      // рисунком, а не сколом. Пальцем — нет: у касания нет
+                      // «навести», только «нажать».
+                      onPointerEnter={(e) => {
+                        if (band.kind !== 'place' || band.here || still || crack || e.pointerType === 'touch') return;
+                        const seed = (Date.now() + i * 7919) % 2147483647;
+                        setTease({ key: band.key, points: crackThrough(berg.layers[i], seeded(seed)), seed });
+                      }}
+                      onPointerLeave={() => setTease((was) => (was?.key === band.key ? null : was))}
                       onClick={() => activate(band.key)}
                       className={`relative ${band.kind === 'soon' ? 'cursor-default' : 'cursor-pointer'}`}
-                      style={{ background: waterAt(depth) }}
+                      style={{ background: waterAt(depth, dim) }}
                     >
-                      <div className="mx-auto flex max-w-[40rem] px-3 sm:px-4">
-                        <Gauge marked={on} dark={dark} label={`−${meters.format(depthOf(i, bands.length))}`} still={still} />
+                      {drift ? (
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none absolute top-1/2 hidden select-none whitespace-nowrap text-sm tracking-wide xl:block ${
+                            waterDark ? 'text-surface' : 'text-ink'
+                          }`}
+                          style={{
+                            [drift.side]: `${drift.inset}%`,
+                            opacity: 0.1 + 0.2 * depth,
+                            transform: 'translateY(-50%)',
+                            animation: still
+                              ? undefined
+                              : `undertow ${drift.seconds}s ease-in-out ${drift.delay}s infinite alternate`
+                          }}
+                        >
+                          {drift.word}
+                        </span>
+                      ) : null}
+                      <div className={COLUMN}>
+                        <Gauge
+                          marked={on}
+                          dark={waterDark}
+                          label={`−${meters.format(depthOf(i, bands.length))}`}
+                          still={still}
+                        />
                         <div className="relative flex-1">
-                          <IceSlice layer={berg.layers[i]} t={depth} lit={on} crack={cracked?.points ?? null} />
-                          {cracked && !still ? <Shards crack={cracked.points} t={depth} seed={cracked.seed + 1} /> : null}
+                          <IceSlice layer={berg.layers[i]} t={depth} dim={dim} lit={on} crack={cracked?.points ?? null} />
+                          {cracked && !still ? (
+                            <Shards crack={cracked.points} t={depth} dim={dim} seed={cracked.seed + 1} />
+                          ) : null}
                           <div
                             className={`relative flex flex-col items-center justify-center px-8 text-center transition-opacity duration-180 ${
-                              band.kind === 'soon' ? 'min-h-11 py-1.5' : band.kind === 'dog' ? 'min-h-20 py-3' : 'min-h-[4.25rem] py-2'
-                            } ${dim ? 'opacity-25' : cracked ? 'opacity-55' : ''}`}
+                              band.kind === 'soon'
+                                ? 'min-h-12 py-1.5'
+                                : band.kind === 'dog'
+                                  ? 'min-h-24 py-3'
+                                  : 'min-h-[4.75rem] py-2 lg:min-h-[5.5rem]'
+                            } ${faded ? 'opacity-25' : cracked ? 'opacity-55' : ''}`}
                           >
                             <span className="flex max-w-full items-center gap-2">
                               {Icon ? (
-                                <Icon className={`h-4 w-4 shrink-0 ${dark ? 'text-surface/70' : 'text-ink-muted'}`} />
+                                <Icon
+                                  className={`h-4 w-4 shrink-0 lg:h-5 lg:w-5 ${iceDark ? 'text-surface/70' : 'text-ink-muted'}`}
+                                />
                               ) : null}
                               <span
-                                className={`truncate ${band.kind === 'soon' ? 'text-base' : 'text-lg'} font-medium ${
+                                className={`truncate ${band.kind === 'soon' ? 'text-base lg:text-lg' : 'text-lg lg:text-xl'} font-medium ${
                                   band.kind === 'soon'
-                                    ? dark
+                                    ? iceDark
                                       ? 'text-surface/60'
                                       : 'text-ink/50'
-                                    : dark
+                                    : iceDark
                                       ? 'text-surface'
                                       : 'text-ink'
                                 }`}
                               >
                                 {band.label}
                               </span>
-                              {band.here ? <span className="ps-label shrink-0 text-ink-faint">{t('here')}</span> : null}
+                              {band.here ? (
+                                <span className={`ps-label shrink-0 ${iceDark ? 'text-surface/45' : 'text-ink-faint'}`}>
+                                  {t('here')}
+                                </span>
+                              ) : null}
                               {band.kind === 'soon' ? (
-                                <span className={`ps-label shrink-0 ${dark ? 'text-surface/40' : 'text-ink/35'}`}>
+                                <span className={`ps-label shrink-0 ${iceDark ? 'text-surface/40' : 'text-ink/35'}`}>
                                   {t('soon')}
                                 </span>
                               ) : null}
                             </span>
                             {band.kind !== 'soon' ? (
                               <span
-                                className={`mt-0.5 block max-w-full truncate text-sm tabular-nums ${
-                                  dark ? 'text-surface/70' : 'text-ink-muted'
+                                className={`mt-0.5 block max-w-full truncate text-sm tabular-nums lg:text-base ${
+                                  iceDark ? 'text-surface/70' : 'text-ink-muted'
                                 }`}
                               >
                                 {band.answer ? (
@@ -871,7 +1020,28 @@ export function Pult() {
                               </span>
                             ) : null}
                           </div>
-                          {cracked ? <CrackLine crack={cracked.points} seed={cracked.seed} /> : null}
+                          {/* Стрелка у выбранного слоя: он кнопка, и нажмётся сейчас
+                              именно он. У правого края льда, а не рядом с названием:
+                              название стоит по центру и ездить не должно. На
+                              телефоне её нет — там она ложилась на ответ слоя. */}
+                          {on && band.kind !== 'soon' && !cracked ? (
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none absolute top-1/2 hidden -translate-y-1/2 text-lg sm:block lg:text-xl ${
+                                iceDark ? 'text-surface/70' : 'text-ink/55'
+                              }`}
+                              style={{ right: `${100 - berg.layers[i].right[1] + 4}%` }}
+                            >
+                              →
+                            </span>
+                          ) : null}
+                          {/* Ключи разные: при нажатии трещина должна вырасти заново
+                              от трети, а не обновиться на месте уже прорисованной. */}
+                          {cracked ? (
+                            <CrackLine key="crack" crack={cracked.points} seed={cracked.seed} from={cracked.from} />
+                          ) : teased ? (
+                            <CrackLine key={`tease-${teased.seed}`} crack={teased.points} seed={teased.seed} to={TEASE} />
+                          ) : null}
                         </div>
                       </div>
                     </li>
@@ -901,6 +1071,14 @@ export function Pult() {
               >
                 {t('deeper')} ↓
               </motion.p>
+            ) : null}
+          </AnimatePresence>
+
+          {/* Заставка — поверх всего, и красной волны тоже: волна уходит под неё,
+              а айсберг под ней уже раскрылся к тому времени, как она растает. */}
+          <AnimatePresence>
+            {intro ? (
+              <EpicIntro key="intro" text={intro.text} variant={intro.variant} still={still} onDone={endIntro} />
             ) : null}
           </AnimatePresence>
         </div>
@@ -962,7 +1140,7 @@ export function PultDot({ label }: { label: string }) {
       onFocus={warmPult}
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
-        openPult({ x: r.left + r.width / 2, y: r.top + r.height / 2, r: 6 });
+        openPult({ x: r.left + r.width / 2, y: r.top + r.height / 2, r: 6, epic: true });
       }}
       className="group grid h-11 w-11 place-items-center rounded transition-colors duration-drape ease-drape hover:bg-sunk"
     >
