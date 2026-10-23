@@ -27,7 +27,7 @@ import type { Locale } from '@/i18n/routing';
  * троих порядок разный.
  */
 
-type Pool = { captions: string[]; press: string[]; daily: string[] };
+type Pool = { first: string; captions: string[]; press: string[]; daily: string[] };
 
 const POOLS: Record<Locale, Pool> = { ru, en, uk, de };
 
@@ -39,6 +39,13 @@ const at = <T,>(list: T[], n: number): T => list[((n % list.length) + list.lengt
 export const captionOf = (locale: Locale, day: number) => at(POOLS[locale].captions, day);
 
 export const dailyLineOf = (locale: Locale, day: number) => at(POOLS[locale].daily, day);
+
+/**
+ * Самая первая фраза при входе — всегда «прикоснись к величию»: с неё человек
+ * знакомится с сайтом, дальше фраза дня по кругу (решение владельца от 21
+ * октября 2026). «Впервые» — значит, у браузера ещё нет куки фразы дня.
+ */
+export const firstLineOf = (locale: Locale) => POOLS[locale].first;
 
 /** Строка в неотрицательное число (FNV-1a): чтобы у каждого был свой порядок фраз. */
 function hash(s: string): number {

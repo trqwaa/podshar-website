@@ -12,7 +12,7 @@ import { readSession } from '@/lib/auth/session';
 import { guestModeAllowed } from '@/lib/auth/config';
 import { ZONE, dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
-import { dailyLineOf, pressLineOf } from '@/lib/epic';
+import { dailyLineOf, firstLineOf, pressLineOf } from '@/lib/epic';
 import { EPIC_COOKIE, SPLASH_COOKIE } from '@/lib/epic-keys';
 import { getCurrentMember } from '@/lib/session';
 import { resolveLocale } from '@/lib/locale';
@@ -61,11 +61,14 @@ export default async function AppLayout({
   // line is the next one along this person's own order of the pool.
   const now = new Date();
   const today = dayKey(now);
+  const seen = jar.get(SPLASH_COOKIE)?.value;
   const splash =
-    jar.get(SPLASH_COOKIE)?.value === today
+    seen === today
       ? null
       : {
-          line: dailyLineOf(locale, sharedDayIndex(now)),
+          // The very first time on this browser it is always «прикоснись к
+          // величию», the owner's line; the line of the day from then on.
+          line: seen ? dailyLineOf(locale, sharedDayIndex(now)) : firstLineOf(locale),
           date: new Intl.DateTimeFormat(locale, { timeZone: ZONE, weekday: 'long', day: 'numeric', month: 'long' })
             .format(now)
             .toLocaleLowerCase(locale)
