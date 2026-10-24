@@ -402,6 +402,8 @@ export function PHButton({ caption }: { caption: string }) {
           onPointerLeave={() => hover.set(0)}
           onClick={press}
           aria-label={t('enterLabel')}
+          // Сюда прилетает ядро с фразы дня (`DailySplash`) и становится кнопкой.
+          data-ph-core=""
           style={{
             scale: core,
             // Lit from above rather than filled flat: the top is a touch

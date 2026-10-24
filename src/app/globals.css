@@ -385,6 +385,13 @@
   }
 }
 
+/* Ядро с фразы дня летит на место настоящей кнопки и вырастает до неё. */
+@keyframes ph-land {
+  to {
+    transform: translate(var(--fx), var(--fy)) scale(var(--fs));
+  }
+}
+
 @keyframes shard-fall {
   to {
     transform: translate(var(--dx), var(--dy)) rotate(var(--rot));

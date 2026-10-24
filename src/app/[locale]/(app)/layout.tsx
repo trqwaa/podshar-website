@@ -10,7 +10,7 @@ import { PatchList } from '@/components/Patches';
 import { PresenceBeat } from '@/components/Presence';
 import { readSession } from '@/lib/auth/session';
 import { guestModeAllowed } from '@/lib/auth/config';
-import { ZONE, dayKey } from '@/lib/calendar/scales';
+import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
 import { dailyLineOf, firstLineOf, pressLineOf } from '@/lib/epic';
 import { EPIC_COOKIE, SPLASH_COOKIE } from '@/lib/epic-keys';
@@ -69,10 +69,7 @@ export default async function AppLayout({
       : {
           // The very first time on this browser it is always «прикоснись к
           // величию», the owner's line; the line of the day from then on.
-          line: seen ? dailyLineOf(locale, sharedDayIndex(now)) : firstLineOf(locale),
-          date: new Intl.DateTimeFormat(locale, { timeZone: ZONE, weekday: 'long', day: 'numeric', month: 'long' })
-            .format(now)
-            .toLocaleLowerCase(locale)
+          line: seen ? dailyLineOf(locale, sharedDayIndex(now)) : firstLineOf(locale)
         };
   const shown = Number(jar.get(EPIC_COOKIE)?.value);
   const epic = pressLineOf(locale, Number.isInteger(shown) && shown > 0 ? shown : 0, session?.userId ?? profile.handle);
@@ -95,7 +92,6 @@ export default async function AppLayout({
       {splash ? (
         <DailySplash
           line={splash.line}
-          date={splash.date}
           day={today}
           enter={tHome('splashEnter')}
           label={tHome('splashLabel')}

@@ -27,12 +27,21 @@ import { SPLASH_COOKIE } from '@/lib/epic-keys';
 
 /** Сколько трещин бежит от точки нажатия. Столько же осколков. */
 const RAYS = 11;
-/** Через сколько осколки уже улетели и заставку можно убирать. */
-const SHATTER_MS = 1050;
+/** Через сколько осколки упали, ядро село на место и заставку можно убирать. */
+const SHATTER_MS = 1300;
+
+/**
+ * Ядро — как у настоящей кнопки ПХ: светлее сверху, глубже снизу. Токенами, а
+ * не числами: красный ядра — `--reactor`, свет и тень — подмешанные свои.
+ */
+const CORE_FILL =
+  'radial-gradient(circle at 50% 34%, color-mix(in oklab, rgb(var(--reactor)) 78%, rgb(var(--surface))) 0%, rgb(var(--reactor)) 52%, color-mix(in oklab, rgb(var(--reactor)) 86%, rgb(var(--ink))) 100%)';
 
 type Point = [number, number];
 type Shard = { clip: string; dx: number; dy: number; rot: number; delay: number };
-type Broken = { shards: Shard[]; cracks: string[]; w: number; h: number };
+/** Перелёт ядра: откуда (левый верх и размер) и куда — сдвиг центра и масштаб. */
+type Flight = { left: number; top: number; size: number; dx: number; dy: number; scale: number };
+type Broken = { shards: Shard[]; cracks: string[]; w: number; h: number; flight: Flight | null };
 
 /**
  * Разбить экран w×h от точки (x, y): лучи до краёв с изломами — трещины, а
@@ -97,20 +106,38 @@ function shatter(x: number, y: number, w: number, h: number): Broken {
     };
   });
   const cracks = rays.map((r) => r.points.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' '));
-  return { shards, cracks, w, h };
+  return { shards, cracks, w, h, flight: null };
+}
+
+/**
+ * Куда садится ядро: на кнопку ПХ, если она на экране (главная), иначе — в
+ * красную точку шапки, её знак на любой странице.
+ */
+function landing(from: DOMRect, h: number): Flight | null {
+  const button = document.querySelector<HTMLElement>('[data-ph-core]')?.getBoundingClientRect();
+  const target =
+    button && button.width > 0 && button.bottom > 0 && button.top < h
+      ? button
+      : document.querySelector<HTMLElement>('[data-pult-dot]')?.getBoundingClientRect();
+  if (!target || !target.width || !from.width) return null;
+  return {
+    left: from.left,
+    top: from.top,
+    size: from.width,
+    dx: target.left + target.width / 2 - (from.left + from.width / 2),
+    dy: target.top + target.height / 2 - (from.top + from.height / 2),
+    scale: target.width / from.width
+  };
 }
 
 export function DailySplash({
   line,
-  date,
   enter,
   label,
   day,
   dark
 }: {
   line: string;
-  /** «среда, 21 октября» — уже строчными, с сервера. */
-  date: string;
   /** Подсказка внизу: «нажми, чтобы войти». */
   enter: string;
   /** Имя окна для скринридера. */
@@ -124,6 +151,7 @@ export function DailySplash({
   const [broken, setBroken] = useState<Broken | null>(null);
   const still = Boolean(useReducedMotion());
   const door = useRef<HTMLButtonElement>(null);
+  const seed = useRef<HTMLSpanElement>(null);
   const leaving = useRef(false);
 
   const enterSite = useCallback(
@@ -137,7 +165,8 @@ export function DailySplash({
       }
       const w = window.innerWidth;
       const h = window.innerHeight;
-      setBroken(shatter(x ?? w / 2, y ?? h / 2, w, h));
+      const from = seed.current?.getBoundingClientRect();
+      setBroken({ ...shatter(x ?? w / 2, y ?? h / 2, w, h), flight: from ? landing(from, h) : null });
       window.setTimeout(() => setOpen(false), SHATTER_MS);
     },
     [day, still]
@@ -176,12 +205,29 @@ export function DailySplash({
   const words = line.split(' ');
   const shown = 0.25 + words.length * 0.09;
   const ground = dark ? 'bg-ink text-surface' : 'bg-canvas text-ink';
-  const quiet = dark ? 'text-surface/45' : 'text-ink/45';
 
-  /** Сам экран: дата, фраза, подсказка. `settled` — без анимации появления, для осколков. */
+  /** Сам экран: знак, фраза, подсказка. `settled` — без анимации появления, для осколков. */
   const face = (settled: boolean) => (
     <span className="flex h-full w-full flex-col items-center justify-between px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] text-center">
-      <span className={`ps-label ${quiet}`}>{date}</span>
+      {/* Сверху пусто: дату владелец убрал, а место держит фразу посередине. */}
+      <span />
+      <span className="flex flex-col items-center gap-10">
+      {/* Знак кнопки ПХ над фразой — красная точка с ореолом, как в шапке, без
+          надписи. При нажатии она не бьётся с экраном, а летит на своё место —
+          на кнопку главной — и вырастает в неё. В осколках её нет: вместо неё
+          пустое место того же размера, чтобы фраза в них стояла там же. */}
+      {settled ? (
+        <span className="h-4 w-4" />
+      ) : (
+        <span
+          ref={seed}
+          className="relative grid h-4 w-4 place-items-center"
+          style={{ animation: 'splash-word 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both' }}
+        >
+          <span className="absolute -inset-2 rounded-full bg-reactor/15" />
+          <span className="relative h-4 w-4 rounded-full bg-reactor" />
+        </span>
+      )}
       <span className="block max-w-[20ch] text-balance text-[clamp(1.9rem,5.5vw,4.25rem)] font-semibold leading-[1.08] tracking-tight">
         {/* Пробел — настоящий, между словами, а не отступом: скринридер читает
             текст, и с отступами фраза звучала одним словом. */}
@@ -200,6 +246,7 @@ export function DailySplash({
             </span>
           </Fragment>
         ))}
+      </span>
       </span>
       <span
         className={`ps-label ${dark ? 'text-surface' : 'text-ink'}`}
@@ -273,6 +320,30 @@ export function DailySplash({
                   />
                 ))}
               </svg>
+              {/* Точка летит на место кнопки и вырастает до её размера, наливаясь
+                  её объёмом, а сев — тает: под ней уже настоящая кнопка. */}
+              {broken.flight ? (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none fixed"
+                  style={
+                    {
+                      left: broken.flight.left,
+                      top: broken.flight.top,
+                      width: broken.flight.size,
+                      height: broken.flight.size,
+                      '--fx': `${broken.flight.dx}px`,
+                      '--fy': `${broken.flight.dy}px`,
+                      '--fs': broken.flight.scale,
+                      animation:
+                        'ph-land 1s cubic-bezier(0.65, 0, 0.35, 1) 0.12s both, splash-fade 0.22s ease-out 1.1s both'
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="absolute -inset-[50%] rounded-full bg-reactor/15" />
+                  <span className="absolute inset-0 rounded-full" style={{ background: CORE_FILL }} />
+                </span>
+              ) : null}
             </>
           ) : null}
         </motion.div>
