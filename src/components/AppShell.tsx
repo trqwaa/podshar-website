@@ -8,7 +8,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { Modal } from './Modal';
 import { RightAIChat } from './RightAIChat';
 import { PodsharWordmark } from './PodsharMark';
-import { Pult, PultDot, backToPult } from './Pult';
+import { Pult, backToPult } from './Pult';
 import type { MemberProfile } from '@/lib/types';
 
 /**
@@ -54,7 +54,6 @@ export function AppShell({
 }) {
   const t = useTranslations('home');
   const tPatches = useTranslations('patches');
-  const tPult = useTranslations('pult');
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
 
@@ -203,20 +202,25 @@ export function AppShell({
               `PodsharWordmark`, because the same wordmark heads the login and
               join pages, where "home" is a page you are not allowed on yet and
               the click would land you back on the login screen. */}
-          {/* Справа — красная точка пульта и слово. Точка первой: она то, что
-              жмут, а слово — то, что читают. */}
-          <div className="flex items-center gap-1">
-          <PultDot label={tPult('open')} />
+          {/* Справа — красная точка и слово, одной ссылкой домой. Точка раньше
+              сама открывала пульт, но владелец решил (24 октября 2026), что
+              пульт открывает кнопка ПХ, а точка — её знак рядом с именем сайта.
+              `data-pult-dot` остался: пульт, открытый клавишами, раскрывается
+              отсюда. */}
           <Link
             href="/"
             aria-label={t('goHome')}
             // 44px tall, the height a thumb needs. The bar is already that
             // tall because of the switch beside it, so this costs no layout.
-            className="inline-flex min-h-11 items-center rounded px-2 transition-colors duration-drape ease-drape hover:bg-sunk"
+            className="group inline-flex min-h-11 items-center gap-2.5 rounded px-2 transition-colors duration-drape ease-drape hover:bg-sunk"
           >
+            <span aria-hidden="true" data-pult-dot="" className="relative grid h-3 w-3 place-items-center">
+              {/* Ореол — заливка, а не тень: тени на сайте нет нигде. */}
+              <span className="absolute -inset-1.5 rounded-full bg-reactor/15 transition-transform duration-drape ease-drape group-hover:scale-125" />
+              <span className="relative h-3 w-3 rounded-full bg-reactor" />
+            </span>
             <PodsharWordmark className="text-xs font-semibold text-ink-muted" />
           </Link>
-          </div>
         </header>
 
         {/* With the drawer open, the page beside it is a way out.

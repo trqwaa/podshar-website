@@ -13,7 +13,6 @@ import { EpicIntro } from './EpicIntro';
 import {
   CalendarIcon,
   ChatIcon,
-  CrossIcon,
   GamepadIcon,
   HomeIcon,
   NoteIcon,
@@ -28,8 +27,10 @@ import {
   IceTip,
   Shards,
   Sky,
+  IceBand,
   Summit,
   SummitCore,
+  SummitPulse,
   TEASE,
   Waterline,
   crackThrough,
@@ -322,6 +323,10 @@ export function Pult({ epic = null }: { epic?: string | null }) {
   const [intro, setIntro] = useState<{ text: string; variant: number } | null>(null);
   const introRef = useRef(false);
   introRef.current = intro !== null;
+  /** Нажимали ли в строку: тогда «куда?» уходит, остаётся курсор. */
+  const [poked, setPoked] = useState(false);
+  /** Сколько букв набрано за этот раз: каждая новая пускает кольцо от ядра и выпрыгивает. */
+  const [typed, setTyped] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [deepBelow, setDeepBelow] = useState(false);
   const fetchedAt = useRef(0);
@@ -394,6 +399,8 @@ export function Pult({ epic = null }: { epic?: string | null }) {
       setPicked(null);
       setCrack(null);
       setTease(null);
+      setPoked(false);
+      setTyped(0);
       setScrolled(false);
       setLeaving('close');
       setMood(moodAt(Date.now()));
@@ -715,6 +722,8 @@ export function Pult({ epic = null }: { epic?: string | null }) {
   const dim = DIM[mood];
   /** Небо тёмное — в сумерках и ночью: текст над водой тогда светлый. */
   const dark = mood !== 'day';
+  /** Набранное рисуется наложением с прыгающей последней буквой — пока строка короткая. */
+  const fancy = !still && query.length > 0 && query.length <= 24;
   // Слова рутины на глубине: по зерну дня, как и сам айсберг.
   const drifts = useMemo(
     () => undertowFor(bands.length, t('undertow').split(' · '), sharedDayIndex()),
@@ -774,7 +783,9 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                     }
             }}
             initial="from"
-            animate="open"
+            // Пока идёт заставка, айсберг не раскрывается: сначала величие, потом
+            // поисковик. Раскроется из ядра, когда заставка начнёт таять.
+            animate={intro ? 'from' : 'open'}
             exit="gone"
             transition={still ? { duration: 0.12 } : { duration: origin.quiet ? 0.42 : 0.56, ease: EASE, delay: origin.quiet ? 0 : 0.08 }}
           >
@@ -785,19 +796,32 @@ export function Pult({ epic = null }: { epic?: string | null }) {
               <section className="relative isolate flex min-h-[clamp(12rem,27vh,17rem)] flex-col justify-end">
                 <Sky mood={mood} seed={sharedDayIndex()} still={still} />
 
-                <div className="absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[44rem] items-center justify-between gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6 lg:max-w-[52rem]">
-                  <p className={`ps-label ${dark ? 'text-surface/60' : 'text-ink-muted'}`}>{t('title')}</p>
+                {/* Только выход: подпись «пульт» в углу владелец снял — айсберг и
+                    так говорит, что это. Крестик тонкий и в круге, поворачивается
+                    под курсором: квадратная рамка была кнопкой из формы, а не
+                    частью сцены. */}
+                <div className="absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[44rem] items-center justify-end px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6 lg:max-w-[52rem]">
                   <button
                     type="button"
                     onClick={close}
                     aria-label={t('close')}
-                    className={`ps-press grid h-10 w-10 shrink-0 place-items-center rounded border-2 transition-colors duration-180 ${
+                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border transition-[border-color,color,transform] duration-drape ease-drape hover:rotate-90 ${
                       dark
-                        ? 'border-surface/25 bg-deep/40 text-surface/70 hover:border-surface hover:text-surface'
-                        : 'border-rule bg-canvas/70 text-ink-muted hover:border-ink hover:text-ink'
+                        ? 'border-surface/30 text-surface/75 hover:border-surface hover:text-surface'
+                        : 'border-ink/20 text-ink/65 hover:border-ink hover:text-ink'
                     }`}
                   >
-                    <CrossIcon />
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.25"
+                      strokeLinecap="round"
+                    >
+                      <path d="M5 5l14 14M19 5L5 19" />
+                    </svg>
                   </button>
                 </div>
 
@@ -810,6 +834,7 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                     {/* Вершина: свет и кольца — за льдом, ядро — перед ним. */}
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 sm:h-28 lg:h-32">
                       <Summit x={berg.tip.peak} mood={mood} still={still} />
+                      {still ? null : <SummitPulse x={berg.tip.peak} n={typed} mood={mood} />}
                       <IceTip tip={berg.tip} dim={dim} />
                       <SummitCore x={berg.tip.peak} />
                     </div>
@@ -817,11 +842,17 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                       ref={field}
                       value={query}
                       onChange={(e) => {
+                        // Буква добавилась, а не стёрлась: кольцо и прыжок — только на ввод.
+                        if (e.target.value.length > query.length) setTyped((n) => n + 1);
                         setQuery(e.target.value);
                         setPicked(null);
                         followActive.current = true;
                       }}
-                      onKeyDown={onKeyDown}
+                      onPointerDown={() => setPoked(true)}
+                      onKeyDown={(e) => {
+                        setPoked(true);
+                        onKeyDown(e);
+                      }}
                       role="combobox"
                       aria-expanded="true"
                       aria-controls="pult-list"
@@ -834,14 +865,37 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                       enterKeyHint="go"
                       // Тёмный текст и ночью: строка стоит на верхушке льда, а лёд
                       // светлый всегда — белое «куда?» на нём пропадало.
-                      className={`relative w-full bg-transparent pb-1 text-center text-3xl font-semibold leading-tight text-ink outline-none sm:text-4xl ${
-                        query ? 'caret-reactor' : 'caret-transparent'
-                      }`}
+                      className={`relative w-full bg-transparent pb-1 text-center text-3xl font-semibold leading-tight outline-none sm:text-4xl ${
+                        fancy ? 'text-transparent' : 'text-ink'
+                      } ${query || poked ? 'caret-reactor' : 'caret-transparent'}`}
                     />
+                    {/* Набранное рисуется поверх поля, а само поле прозрачное: так
+                        последняя буква может выпрыгнуть — в настоящем поле буквы
+                        не анимируются. Курсор остаётся настоящим. Прыгает только
+                        последняя: разрежь всё слово на буквы — пропал бы кернинг,
+                        и курсор разошёлся бы с текстом. Длинная строка поле
+                        прокручивает, а наложение — нет; тогда без фокусов. */}
+                    {fancy ? (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-x-0 bottom-1 flex justify-center whitespace-pre text-3xl font-semibold leading-tight text-ink sm:text-4xl"
+                      >
+                        {query.slice(0, -1)}
+                        <span
+                          key={typed}
+                          className="inline-block"
+                          style={{ animation: 'type-pop 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.3) both' }}
+                        >
+                          {query.slice(-1) === ' ' ? ' ' : query.slice(-1)}
+                        </span>
+                      </span>
+                    ) : null}
                     {/* Пустое поле: «куда?» и красный курсор после него. Поле стоит
                         по центру, и настоящий курсор в пустом поле встаёт в
                         середину — посреди подсказки, «ку|да?», как сбой. */}
-                    {query ? null : (
+                    {/* «Куда?» — пока в строку не нажали: нажал — вопрос задан,
+                        дальше только курсор. */}
+                    {query || poked ? null : (
                       <span
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-x-0 bottom-1 flex items-center justify-center text-3xl font-semibold leading-tight text-ink/40 sm:text-4xl"
@@ -854,7 +908,14 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                 </div>
               </section>
 
-              <Waterline still={still} dim={dim} floor={skyFloor(mood)} />
+              <Waterline still={still} dim={dim} floor={skyFloor(mood)}>
+                <div className={`pointer-events-none absolute inset-0 ${COLUMN}`}>
+                  <span className="w-16 shrink-0" />
+                  <div className="relative flex-1">
+                    <IceBand tip={berg.tip} dim={dim} />
+                  </div>
+                </div>
+              </Waterline>
 
               {/* ── Вода ─────────────────────────────────────────────────── */}
               <ul
@@ -878,11 +939,20 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                     className="relative cursor-pointer"
                     style={{ background: waterAt(0, dim) }}
                   >
-                    <div className={COLUMN}>
+                    {/* Лёд и через эту строку: она встаёт между верхушкой и первым
+                        слоем, и без полосы льда айсберг снова рвался водой. Текст
+                        стоит на льду — и цвет его по льду, а не по воде. */}
+                    <div className={`pointer-events-none absolute inset-0 ${COLUMN}`}>
+                      <span className="w-16 shrink-0" />
+                      <div className="relative flex-1">
+                        <IceBand tip={berg.tip} dim={dim} />
+                      </div>
+                    </div>
+                    <div className={`relative ${COLUMN}`}>
                       <Gauge marked={current === 'ask'} dark={lightOnWater(0, dim)} label="" still={still} />
                       <p
                         className={`flex min-h-11 flex-1 items-center justify-center gap-2 px-4 text-center text-sm transition-colors duration-180 ${
-                          lightOnWater(0, dim)
+                          lightOnIce(0, dim)
                             ? current === 'ask'
                               ? 'text-surface'
                               : 'text-surface/70'
@@ -1083,9 +1153,26 @@ export function Pult({ epic = null }: { epic?: string | null }) {
 
           {/* Заставка — поверх всего, и красной волны тоже: волна уходит под неё,
               а айсберг под ней уже раскрылся к тому времени, как она растает. */}
+          {/* Кровавая луна красит всю сцену разом: полупрозрачный винный слой в
+              режиме умножения, а не своя краска у каждого слоя. */}
+          {mood === 'blood' ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 mix-blend-multiply"
+              style={{ background: 'rgb(var(--blood) / 0.3)' }}
+            />
+          ) : null}
+
           <AnimatePresence>
             {intro ? (
-              <EpicIntro key="intro" text={intro.text} variant={intro.variant} still={still} onDone={endIntro} />
+              <EpicIntro
+                key="intro"
+                text={intro.text}
+                variant={intro.variant}
+                dark={dark}
+                still={still}
+                onDone={endIntro}
+              />
             ) : null}
           </AnimatePresence>
         </div>
@@ -1130,32 +1217,3 @@ function Gauge({ marked, dark, label, still }: { marked: boolean; dark: boolean;
   );
 }
 
-/**
- * Красная точка в шапке — кнопка ПХ в миниатюре, на каждой странице.
- *
- * На главной есть большая кнопка, на остальных страницах её нет, а пульт нужен
- * отовсюду: на телефоне нет ни `/`, ни Ctrl+K. Точка того же красного, что
- * ядро, — единственное красное в шапке, поэтому читается как «то самое».
- */
-export function PultDot({ label }: { label: string }) {
-  return (
-    <button
-      type="button"
-      data-pult-dot=""
-      aria-label={label}
-      onPointerEnter={warmPult}
-      onFocus={warmPult}
-      onClick={(e) => {
-        const r = e.currentTarget.getBoundingClientRect();
-        openPult({ x: r.left + r.width / 2, y: r.top + r.height / 2, r: 6, epic: true });
-      }}
-      className="group grid h-11 w-11 place-items-center rounded transition-colors duration-drape ease-drape hover:bg-sunk"
-    >
-      <span aria-hidden="true" className="relative grid h-3 w-3 place-items-center">
-        {/* Ореол — заливка, а не тень: тени на сайте нет нигде. */}
-        <span className="absolute -inset-1.5 rounded-full bg-reactor/15 transition-transform duration-drape ease-drape group-hover:scale-125" />
-        <span className="relative h-3 w-3 rounded-full bg-reactor" />
-      </span>
-    </button>
-  );
-}

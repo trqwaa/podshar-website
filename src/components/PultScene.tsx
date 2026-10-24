@@ -75,7 +75,7 @@ export function depthOf(i: number, n: number): number {
  * Не своя палитра на ночь, а та же смесь двух токенов, сдвинутая к дну: своя
  * понадобилась бы каждому слою, а сдвиг работает на любой глубине сам.
  */
-export const DIM: Record<Mood, number> = { day: 0, dusk: 0.4, night: 0.62 };
+export const DIM: Record<Mood, number> = { day: 0, dusk: 0.4, night: 0.62, blood: 0.66 };
 
 /** Доля дна в воде на глубине `t`. */
 const deepShare = (t: number, dim: number) => t + (1 - t) * dim;
@@ -149,8 +149,11 @@ export type IceLayer = {
 
 export type Iceberg = {
   layers: IceLayer[];
-  /** Верхушка над водой: левый и правый край основания, пик (x, высота 0–1). */
-  tip: { left: number; right: number; peak: number; shoulder: number };
+  /**
+   * Верхушка над водой: края основания и ребро — те же, что у первого слоя
+   * под водой, чтобы айсберг шёл через линию воды одним телом, а не ступенькой.
+   */
+  tip: { left: number; right: number; ridge: number; peak: number; shoulder: number };
 };
 
 /**
@@ -194,8 +197,9 @@ export function icebergFor(n: number, seed: number): Iceberg {
   return {
     layers,
     tip: {
-      left: base.l + 4,
-      right: base.r - 6,
+      left: base.l,
+      right: base.r,
+      ridge: base.k,
       peak: base.l + (base.r - base.l) * (0.55 + rand() * 0.18),
       shoulder: 0.5 + rand() * 0.2
     }
@@ -283,16 +287,36 @@ export function IceSlice({
   const [rt, rmid, rb] = layer.right;
   const [kt, kb] = layer.ridge;
   const lift = lit ? 12 : 0;
-  const light = iceAt(t, lift + 6, dim);
-  const shade = iceAt(t, lift - 7, dim);
-  const edge = lightOnIce(t, dim)
-    ? `rgb(var(--surface) / ${lit ? 0.55 : 0.14})`
-    : `rgb(var(--ink) / ${lit ? 0.5 : 0.16})`;
+  const onDark = lightOnIce(t, dim);
+  const edge = onDark ? `rgb(var(--surface) / ${lit ? 0.55 : 0.14})` : `rgb(var(--ink) / ${lit ? 0.5 : 0.16})`;
+  // Внутренняя грань: волосяная линия от ребра вниз-влево. Плоская заливка в
+  // две краски читалась детской аппликацией; одна грань и мягкий перелив
+  // сверху вниз дают льду объём без единой тени.
+  const facet = onDark ? 'rgb(var(--surface) / 0.07)' : 'rgb(var(--ink) / 0.06)';
 
   const faces = (
     <>
-      <polygon points={pts([[lt, 0], [kt, 0], [kb, 100], [lb, 100], [lmid, 50]])} fill={light} />
-      <polygon points={pts([[kt, 0], [rt, 0], [rmid, 50], [rb, 100], [kb, 100]])} fill={shade} />
+      <defs>
+        <linearGradient id={`${id}a`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={iceAt(t, lift + 10, dim)} />
+          <stop offset="1" stopColor={iceAt(t, lift + 1, dim)} />
+        </linearGradient>
+        <linearGradient id={`${id}b`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={iceAt(t, lift - 4, dim)} />
+          <stop offset="1" stopColor={iceAt(t, lift - 11, dim)} />
+        </linearGradient>
+      </defs>
+      <polygon points={pts([[lt, 0], [kt, 0], [kb, 100], [lb, 100], [lmid, 50]])} fill={`url(#${id}a)`} />
+      <polygon points={pts([[kt, 0], [rt, 0], [rmid, 50], [rb, 100], [kb, 100]])} fill={`url(#${id}b)`} />
+      <line
+        x1={kt - (kt - lt) * 0.42}
+        y1={0}
+        x2={lb + (kb - lb) * 0.28}
+        y2={100}
+        stroke={facet}
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
       <polyline
         points={pts([[lt, 0], [lmid, 50], [lb, 100]])}
         fill="none"
@@ -487,18 +511,19 @@ export function Shards({ crack, t, dim, seed }: { crack: [number, number][]; t: 
  * (917 против 1025 кг/м³). Видно поле и кончик — остальное надо листать.
  */
 export function IceTip({ tip, dim }: { tip: Iceberg['tip']; dim: number }) {
-  const { left, right, peak, shoulder } = tip;
-  const ridgeX = left + (peak - left) * 0.62;
+  const { left, right, peak, shoulder, ridge: ridgeX } = tip;
   const edge = dim > 0.3 ? 'rgb(var(--surface) / 0.22)' : 'rgb(var(--ink) / 0.16)';
+  // Те же краски и то же ребро, что у верхнего слоя под водой (`IceSlice` при
+  // t = 0): лёд над водой и под ней — один кусок.
   return (
     <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
       <polygon
         points={pts([[left, 100], [left + (peak - left) * 0.4, 100 - 46 * shoulder], [peak, 0], [ridgeX, 100]])}
-        fill={iceAt(0, 4, dim)}
+        fill={iceAt(0, 10, dim)}
       />
       <polygon
         points={pts([[ridgeX, 100], [peak, 0], [peak + (right - peak) * 0.45, 38], [right, 100]])}
-        fill={iceAt(0.06, -4, dim)}
+        fill={iceAt(0, -4, dim)}
       />
       <polyline
         points={pts([[left, 100], [left + (peak - left) * 0.4, 100 - 46 * shoulder], [peak, 0], [peak + (right - peak) * 0.45, 38], [right, 100]])}
@@ -519,30 +544,57 @@ export function IceTip({ tip, dim }: { tip: Iceberg['tip']; dim: number }) {
  * а не школьным графиком. Период 120 px, и вся полоса сдвигается ровно на
  * период по кругу — поэтому шов не виден никогда.
  */
-export function Waterline({ still, dim, floor }: { still: boolean; dim: number; floor: string }) {
+export function Waterline({
+  still,
+  dim,
+  floor,
+  children
+}: {
+  still: boolean;
+  dim: number;
+  floor: string;
+  /** Лёд, который проходит сквозь линию воды: между водой и волной. */
+  children?: React.ReactNode;
+}) {
   const period = 120;
   const width = 2400 + period;
   const d: string[] = [];
+  // Волна низкая и спокойная: высокая двухцветная синусоида с жирной обводкой
+  // была мультиком. Линия — волосяная, как все линии сайта.
   for (let x = 0; x <= width; x += 4) {
     const k = (x / period) * Math.PI * 2;
-    const y = 7 + 2.6 * Math.sin(k) + 0.9 * Math.sin(2 * k + 1);
+    const y = 7 + 1.6 * Math.sin(k) + 0.6 * Math.sin(2 * k + 1);
     d.push(`${x === 0 ? 'M' : 'L'}${x} ${y.toFixed(2)}`);
   }
   const line = d.join(' ');
+  const drift = `absolute left-0 top-0 ${still ? '' : 'animate-[swell_7s_linear_infinite]'}`;
   return (
     // Над волной — небо у самой воды (`skyFloor`): прозрачный зазор показывал бы
     // лист под пультом, и ночью вдоль воды шла светлая полоса.
     <div aria-hidden="true" className="pointer-events-none relative h-3.5 w-full overflow-hidden" style={{ background: floor }}>
-      <svg
-        width={width}
-        height="14"
-        viewBox={`0 0 ${width} 14`}
-        className={`absolute left-0 top-0 ${still ? '' : 'animate-[swell_7s_linear_infinite]'}`}
-      >
+      <svg width={width} height="14" viewBox={`0 0 ${width} 14`} className={drift}>
         <path d={`${line} L${width} 14 L0 14 Z`} fill={waterAt(0, dim)} />
-        <path d={line} fill="none" stroke={dim > 0.3 ? 'rgb(var(--surface) / 0.5)' : 'rgb(var(--ink))'} strokeWidth="2" />
+      </svg>
+      {children}
+      <svg width={width} height="14" viewBox={`0 0 ${width} 14`} className={drift}>
+        <path d={line} fill="none" stroke={dim > 0.3 ? 'rgb(var(--surface) / 0.45)' : 'rgb(var(--ink) / 0.7)'} strokeWidth="1.25" />
       </svg>
     </div>
+  );
+}
+
+/**
+ * Полоса льда в толще линии воды: верхушка и первый слой иначе разделены
+ * четырнадцатью пикселями воды, и айсберг читался двумя кусками. Те же края,
+ * ребро и краски, что у них обоих.
+ */
+export function IceBand({ tip, dim }: { tip: Iceberg['tip']; dim: number }) {
+  const { left, right, ridge } = tip;
+  return (
+    <>
+      <span className="absolute inset-y-0" style={{ left: `${left}%`, width: `${ridge - left}%`, background: iceAt(0, 10, dim) }} />
+      <span className="absolute inset-y-0" style={{ left: `${ridge}%`, width: `${right - ridge}%`, background: iceAt(0, -4, dim) }} />
+    </>
   );
 }
 
@@ -552,9 +604,11 @@ export function Waterline({ still, dim, floor }: { still: boolean; dim: number; 
 export const skyFloor = (mood: Mood) =>
   mood === 'night'
     ? waterAt(0.1, DIM.night)
-    : mood === 'dusk'
-      ? `color-mix(in oklab, rgb(var(--halo)) 34%, ${waterAt(0.15, DIM.night)})`
-      : 'rgb(var(--canvas))';
+    : mood === 'blood'
+      ? `color-mix(in oklab, rgb(var(--blood)) 30%, ${waterAt(0.1, DIM.blood)})`
+      : mood === 'dusk'
+        ? `color-mix(in oklab, rgb(var(--halo)) 34%, ${waterAt(0.15, DIM.night)})`
+        : 'rgb(var(--canvas))';
 
 /**
  * Небо над айсбергом. Днём — почти белое, светлеющее кверху: величие здесь не в
@@ -581,12 +635,31 @@ export function Sky({ mood, seed, still }: { mood: Mood; seed: number; still: bo
   const top =
     mood === 'night'
       ? 'rgb(var(--deep))'
-      : mood === 'dusk'
-        ? 'color-mix(in oklab, rgb(var(--deep)) 82%, rgb(var(--water)))'
-        : 'rgb(var(--surface))';
+      : mood === 'blood'
+        ? 'color-mix(in oklab, rgb(var(--blood)) 22%, rgb(var(--deep)))'
+        : mood === 'dusk'
+          ? 'color-mix(in oklab, rgb(var(--deep)) 82%, rgb(var(--water)))'
+          : 'rgb(var(--surface))';
   const ground = `linear-gradient(to bottom, ${top}, ${skyFloor(mood)})`;
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden" style={{ background: ground }}>
+      {/* Кровавая луна, с двух до четырёх: круг с тёмным краем и тусклое
+          зарево вокруг — заливками, не тенью. */}
+      {mood === 'blood' ? (
+        <span className="absolute right-[12%] top-[16%] h-20 w-20 sm:h-28 sm:w-28">
+          <span
+            className="absolute -inset-[120%] rounded-full"
+            style={{ background: 'radial-gradient(circle, rgb(var(--blood) / 0.45), rgb(var(--blood) / 0) 60%)' }}
+          />
+          <span
+            className="absolute inset-0 rounded-full"
+            style={{
+              background:
+                'radial-gradient(circle at 38% 34%, color-mix(in oklab, rgb(var(--blood)) 70%, rgb(var(--halo))), rgb(var(--blood)) 55%, color-mix(in oklab, rgb(var(--blood)) 55%, rgb(var(--deep))))'
+            }}
+          />
+        </span>
+      ) : null}
       {mood === 'day'
         ? null
         : stars
@@ -629,7 +702,10 @@ export function Summit({ x, mood, still }: { x: number; mood: Mood; still: boole
       <span
         className="absolute left-0 top-0 h-[40rem] w-[22rem] -translate-x-1/2 -translate-y-1/2"
         style={{
-          background: `radial-gradient(ellipse 50% 50% at 50% 50%, rgb(var(--halo) / ${dark ? 0.24 : 0.65}), rgb(var(--halo) / 0) 72%)`
+          background:
+            mood === 'blood'
+              ? 'radial-gradient(ellipse 50% 50% at 50% 50%, rgb(var(--blood) / 0.4), rgb(var(--blood) / 0) 72%)'
+              : `radial-gradient(ellipse 50% 50% at 50% 50%, rgb(var(--halo) / ${dark ? 0.24 : 0.65}), rgb(var(--halo) / 0) 72%)`
         }}
       />
       {[0, 1, 2].map((i) => (
@@ -647,6 +723,27 @@ export function Summit({ x, mood, still }: { x: number; mood: Mood; still: boole
           }
         />
       ))}
+    </span>
+  );
+}
+
+/**
+ * Кольцо от ядра на каждую набранную букву: `n` растёт с каждым нажатием, и
+ * новый ключ запускает кольцо заново. Одно и короткое — отклик, а не салют.
+ */
+export function SummitPulse({ x, n, mood }: { x: number; n: number; mood: Mood }) {
+  if (n === 0) return null;
+  return (
+    <span aria-hidden="true" className="pointer-events-none absolute top-0 h-0 w-0" style={{ left: `${x}%` }}>
+      <span
+        key={n}
+        className="absolute left-0 top-0 h-40 w-40 rounded-full border"
+        style={{
+          borderColor: mood === 'day' ? 'rgb(var(--reactor) / 0.45)' : 'rgb(var(--reactor) / 0.6)',
+          opacity: 0,
+          animation: 'aura-ping 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both'
+        }}
+      />
     </span>
   );
 }

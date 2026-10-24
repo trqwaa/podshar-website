@@ -6,7 +6,6 @@ import { ALL_PLACES, BOOKMARKS, PRIMARY_NAV_SLOTS } from '@/lib/navigation';
 import { Link } from '@/i18n/routing';
 import { GameStats } from './GameStats';
 import { MemberAvatar } from './profile/MemberAvatar';
-import { PodsharWordmark } from './PodsharMark';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { PatchesRow } from './PatchesRow';
 import { SignOutButton } from './auth/SignOutButton';
@@ -91,18 +90,10 @@ export function LeftSidebar({
             controls where only one did anything. The switch stays, this one
             goes, and the panel is closed from the same place it was opened. */}
         <header className="flex items-center border-b border-rule-soft px-5 py-4">
-          {/* Same as the one in the top bar — see the note in AppShell. The
-              negative margins pull the hover surface back under the header
-              padding: sideways so the letters stay on the same line as
-              everything else, and vertically so the 44px a thumb needs does
-              not make the header 12px taller than it was. */}
-          <Link
-            href="/"
-            aria-label={tHome('goHome')}
-            className="-my-1.5 -ms-2 inline-flex min-h-11 items-center rounded px-2 transition-colors duration-drape ease-drape hover:bg-sunk"
-          >
-            <PodsharWordmark className="text-xs font-semibold text-ink" />
-          </Link>
+          {/* Здесь было имя сайта, второе: шапка рядом уже пишет его справа, и
+              при открытой шторке на экране стояли два «PODSHAR». Теперь —
+              подпись шторки, той же высоты, что прежняя ссылка. */}
+          <p className="ps-label flex min-h-8 items-center">{tHome('drawerTitle')}</p>
         </header>
 
         <div className="flex-1 overflow-y-auto overscroll-contain">

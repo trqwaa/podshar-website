@@ -278,7 +278,8 @@
     "close": "close",
     "footerLove": "made with love by three lovely bastards",
     "footerTelegram": "our Telegram group",
-    "footerRights": "© 2026 podshar · all rights ridiculed, bastards reserved"
+    "footerRights": "© 2026 podshar · all rights ridiculed, bastards reserved",
+    "drawerTitle": "where to"
   },
   "weather": {
     "label": "weather",

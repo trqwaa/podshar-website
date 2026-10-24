@@ -16,6 +16,7 @@ import { dailyLineOf, firstLineOf, pressLineOf } from '@/lib/epic';
 import { EPIC_COOKIE, SPLASH_COOKIE } from '@/lib/epic-keys';
 import { getCurrentMember } from '@/lib/session';
 import { resolveLocale } from '@/lib/locale';
+import { moodAt } from '@/lib/sun';
 
 /**
  * The signed-in half of the site.
@@ -98,6 +99,7 @@ export default async function AppLayout({
           day={today}
           enter={tHome('splashEnter')}
           label={tHome('splashLabel')}
+          dark={moodAt(now.getTime()) !== 'day'}
         />
       ) : null}
       {/* Here and not on the homepage: every signed-in page is being on the

@@ -86,6 +86,11 @@
     --water: 216 223 228; /* #d8dfe4  вода у поверхности */
     --deep: 19 24 32; /* #131820  дно Марианской впадины */
     --halo: 255 239 207; /* #ffefcf  свет над вершиной */
+    /* Кровавая луна пульта, с двух до четырёх ночи (решение владельца от 24
+       октября 2026). Не реактор: красный ядра — сигнальная лампа и обязан
+       оставаться единственным таким, а это цвет неба и воды в тот час —
+       глухой и винный. */
+    --blood: 128 22 30; /* #80161e */
   }
 
   /* ---- Option B — "Paper" ----------------------------------------------- */
@@ -336,6 +341,53 @@
   }
   to {
     transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Кольцо от ядра на набранную букву: одно и короткое. */
+@keyframes aura-ping {
+  from {
+    transform: translate(-50%, -50%) scale(0.05);
+    opacity: 0.9;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(0.75);
+    opacity: 0;
+  }
+}
+
+/* Набранная буква выпрыгивает: крупнее и прозрачнее — и на место. */
+@keyframes type-pop {
+  from {
+    transform: translateY(0.12em) scale(1.35);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Фраза дня разбивается от места нажатия: трещины бегут, осколки падают. */
+@keyframes crack-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes splash-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes shard-fall {
+  to {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
     opacity: 0;
   }
 }

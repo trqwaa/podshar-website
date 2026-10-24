@@ -31,11 +31,14 @@ const AFTER_WAVE = 0.42;
 export function EpicIntro({
   text,
   variant,
+  dark,
   still,
   onDone
 }: {
   text: string;
   variant: number;
+  /** Вечер и ночь — белым по тёмному, день — тёмным по белому (решение владельца). */
+  dark: boolean;
   still: boolean;
   onDone: () => void;
 }) {
@@ -111,7 +114,7 @@ export function EpicIntro({
     <motion.div
       aria-hidden="true"
       onPointerDown={skip}
-      className="absolute inset-0 z-20 grid cursor-pointer place-items-center overflow-hidden bg-ink px-6"
+      className={`absolute inset-0 z-20 grid cursor-pointer place-items-center overflow-hidden px-6 ${dark ? 'bg-ink' : 'bg-canvas'}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { duration: 0.22, delay: still ? 0 : start - 0.12 } }}
       exit={{ opacity: 0, transition: { duration: still ? 0.15 : 0.5, ease: EASE } }}
@@ -121,7 +124,9 @@ export function EpicIntro({
         : [0, 1, 2].map((i) => (
             <motion.span
               key={i}
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[70vmax] w-[70vmax] rounded-full border border-surface/20"
+              className={`pointer-events-none absolute left-1/2 top-1/2 h-[70vmax] w-[70vmax] rounded-full border ${
+                dark ? 'border-surface/20' : 'border-ink/15'
+              }`}
               // Сдвиг на половину — через framer, а не классом: он пишет весь
               // `transform` сам, и класс с translate молча проиграл бы.
               style={{ x: '-50%', y: '-50%' }}
@@ -137,7 +142,11 @@ export function EpicIntro({
           animate={still ? undefined : { scale: [0, 1.8, 1] }}
           transition={{ delay: start, duration: 0.6, times: [0, 0.4, 1], ease: 'easeOut' }}
         />
-        <p className="max-w-[15ch] text-balance text-[clamp(2.4rem,8vw,6.5rem)] font-bold leading-[0.95] tracking-tight text-surface">
+        <p
+          className={`max-w-[15ch] text-balance text-[clamp(2.4rem,8vw,6.5rem)] font-bold leading-[0.95] tracking-tight ${
+            dark ? 'text-surface' : 'text-ink'
+          }`}
+        >
           {phrase}
         </p>
       </div>

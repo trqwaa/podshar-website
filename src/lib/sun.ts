@@ -45,9 +45,17 @@ export function sunTimes(at: number): { rise: number; set: number } {
  * до восхода до получаса после. Не «после восьми — ночь»: в Цюрихе зимой в
  * пять уже темно, а летом в девять ещё светло.
  */
-export type Mood = 'day' | 'dusk' | 'night';
+export type Mood = 'day' | 'dusk' | 'night' | 'blood';
+
+/** Час по Цюриху, 0–23. */
+const zurichHour = (at: number) =>
+  Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', hour: '2-digit', hourCycle: 'h23' }).format(at));
 
 export function moodAt(at: number): Mood {
+  // С двух до четырёх ночи — кровавая луна, решение владельца от 24 октября
+  // 2026: в этот час на сайт заходят только те, кому не спится.
+  const hour = zurichHour(at);
+  if (hour >= 2 && hour < 4) return 'blood';
   const { rise, set } = sunTimes(at);
   const min = 60_000;
   if ((at >= set - 30 * min && at <= set + 75 * min) || (at >= rise - 40 * min && at <= rise + 30 * min)) return 'dusk';
