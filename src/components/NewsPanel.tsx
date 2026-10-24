@@ -36,6 +36,8 @@ import { MemberAvatar } from './profile/MemberAvatar';
  */
 
 const SEEN_KEY = 'podshar:news-seen';
+/** Номер последнего увиденного патча: у патчей нет часа, и время их не различает. */
+const SEEN_PATCH_KEY = 'podshar:news-seen-patch';
 /** Первый раз: «новым» считается то, что появилось за последние двое суток. */
 const FIRST_LOOK_MS = 2 * 86_400_000;
 /** Сколько плитка должна пробыть на экране, чтобы новое стало прочитанным. */
@@ -44,17 +46,25 @@ const LOOK_MS = 2000;
 export function NewsPanel({ news, className = '' }: { news: News; className?: string }) {
   const t = useTranslations('news');
   const tile = useRef<HTMLElement>(null);
-  const [seenAt, setSeenAt] = useState<number | null>(null);
+  /** Когда видел ленту и какой последний патч в ней был. */
+  const [seen, setSeen] = useState<{ at: number; seq: number | null } | null>(null);
 
   useEffect(() => {
-    let stored = NaN;
+    let at = NaN;
+    let seq = NaN;
     try {
-      stored = Number(window.localStorage.getItem(SEEN_KEY));
+      at = Number(window.localStorage.getItem(SEEN_KEY));
+      seq = Number(window.localStorage.getItem(SEEN_PATCH_KEY));
     } catch {
       // Приватное окно: точки покажутся за двое суток, и всё.
     }
-    setSeenAt(Number.isFinite(stored) && stored > 0 ? stored : Date.now() - FIRST_LOOK_MS);
+    setSeen({
+      at: Number.isFinite(at) && at > 0 ? at : Date.now() - FIRST_LOOK_MS,
+      seq: Number.isFinite(seq) && seq > 0 ? seq : null
+    });
   }, []);
+
+  const lastPatch = news.feed.reduce((max, entry) => Math.max(max, entry.seq ?? 0), 0);
 
   // Отметка — момент, когда сервер собрал ленту, а не «сейчас» в браузере:
   // пришедшее после него на экране не было. И время это серверное, как у самих
@@ -72,16 +82,26 @@ export function NewsPanel({ news, className = '' }: { news: News; className?: st
         // Доля на экране, а не «хоть краешек»: `isIntersecting` верен и для
         // плитки, выглядывающей снизу парой строк, и для пролистанной мимо.
         if (!seen || seen.intersectionRatio < 0.6) return;
-        timer = setTimeout(() => {
+        const mark = () => {
+          // Под окном — фразой дня, пультом — плитка «в кадре», но её не видно:
+          // ждём, пока окно закроют.
+          if (document.querySelector('[role="dialog"][aria-modal="true"]')) {
+            timer = setTimeout(mark, LOOK_MS);
+            return;
+          }
           watch.disconnect();
           try {
             if (news.now > Number(window.localStorage.getItem(SEEN_KEY) || 0)) {
               window.localStorage.setItem(SEEN_KEY, String(news.now));
             }
+            if (lastPatch > Number(window.localStorage.getItem(SEEN_PATCH_KEY) || 0)) {
+              window.localStorage.setItem(SEEN_PATCH_KEY, String(lastPatch));
+            }
           } catch {
             // Без хранилища точки просто вернутся в следующий раз.
           }
-        }, LOOK_MS);
+        };
+        timer = setTimeout(mark, LOOK_MS);
       },
       // Ноль — чтобы узнать и об уходе с экрана, а не только о пересечении 0.6.
       { threshold: [0, 0.6] }
@@ -91,9 +111,13 @@ export function NewsPanel({ news, className = '' }: { news: News; className?: st
       clearTimeout(timer);
       watch.disconnect();
     };
-  }, [news.now]);
+  }, [news.now, lastPatch]);
 
-  const unread = (entry: NewsEntry) => seenAt !== null && !entry.mine && entry.at > seenAt;
+  // Патч — по номеру, если номер уже запомнен; остальное и первый взгляд — по времени.
+  const unread = (entry: NewsEntry) =>
+    seen !== null &&
+    !entry.mine &&
+    (entry.seq !== undefined && seen.seq !== null ? entry.seq > seen.seq : entry.at > seen.at);
   const count = news.feed.filter(unread).length;
 
   return (

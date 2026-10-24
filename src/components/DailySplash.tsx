@@ -68,7 +68,11 @@ export function DailySplash({
     window.addEventListener('keydown', onKeys, true);
     return () => {
       window.removeEventListener('keydown', onKeys, true);
-      root.style.overflow = was;
+      // Под фразой могло успеть открыться другое окно (пульт по «назад»): тогда
+      // прокрутку держит оно, и отпустит её само.
+      root.style.overflow = document.querySelector('[role="dialog"][aria-modal="true"]:not([data-splash])')
+        ? 'hidden'
+        : was;
     };
   }, [open, enterSite]);
 
@@ -80,6 +84,7 @@ export function DailySplash({
       {open ? (
         <motion.div
           key="splash"
+          data-splash=""
           role="dialog"
           aria-modal="true"
           aria-label={label}

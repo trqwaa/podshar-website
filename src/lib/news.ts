@@ -6,7 +6,6 @@ import type { Locale } from '@/i18n/routing';
 import { authConfigured } from '@/lib/auth/config';
 import { rangeEvents, zurichMidnight, type CalendarEvent } from '@/lib/calendar/events';
 import { ZONE, dayKey, shiftDay } from '@/lib/calendar/scales';
-import { BUILD } from '@/lib/build';
 import { prisma } from '@/lib/db';
 import { PATCHES } from '@/lib/patches';
 
@@ -44,6 +43,8 @@ export type NewsEntry = {
   who: NewsPerson | null;
   /** Своё действие не бывает «новым» для себя. */
   mine: boolean;
+  /** Номер патча по порядку — только у патчей: прочитанное у них считается по нему. */
+  seq?: number;
   text: string;
   /** «вчера, 16:07» — посчитано на сервере. */
   when: string;
@@ -128,12 +129,14 @@ const notesPinned: Source = async ({ userId, since, t, dayAt }) => {
  * Вышедшие патчи — новости сайта, поэтому все, и свои тоже; свой только не
  * помечается новым.
  *
- * Дата у патча без времени. Самый свежий вышел вместе с этой сборкой, и его
- * момент — время сборки: в полдне патч, выкаченный в 16:07, так и не стал бы
- * новым для того, кто заглядывал в час дня. Остальные — полдень своего дня по
- * Цюриху: в ленте патч встаёт посреди своего дня, а не первой записью суток.
+ * Дата у патча без времени, поэтому в ленте он стоит в полдень своего дня по
+ * Цюриху, а пока полдень не наступил — «сейчас». Прочитанное у патчей считается
+ * по номеру (`seq`), а не по времени: полдень не годится — патч, выкаченный в
+ * 16:07, не стал бы новым для заглянувшего в час дня; время сборки тоже —
+ * каждая следующая выкатка в тот же день сдвигала его, и прочитанный патч
+ * снова загорался.
  */
-const patchesReleased: Source = async ({ userId, since, t, dayAt }) => {
+const patchesReleased: Source = async ({ userId, now, since, t, dayAt }) => {
   const fresh = PATCHES.filter((p) => zurichMidnight(p.date).getTime() >= since.getTime() - 86_400_000);
   if (fresh.length === 0) return [];
   const authors = await prisma.user.findMany({
@@ -141,9 +144,8 @@ const patchesReleased: Source = async ({ userId, since, t, dayAt }) => {
     select: { id: true, handle: true, displayName: true, avatarPreset: true }
   });
   const byHandle = new Map(authors.map((a) => [a.handle, a]));
-  const built = BUILD.at && dayKey(BUILD.at) === PATCHES[0]?.date ? BUILD.at.getTime() : null;
   return fresh.map((p) => {
-    const at = new Date(p === PATCHES[0] && built ? built : zurichMidnight(p.date).getTime() + 12 * 3600_000);
+    const at = new Date(Math.min(zurichMidnight(p.date).getTime() + 12 * 3600_000, now.getTime()));
     const author = byHandle.get(p.author);
     // В ленту — первая фраза: она и есть заголовок, целиком текст на странице
     // патчей. Длинная первая фраза режется по слову, а не посреди него.
@@ -155,6 +157,7 @@ const patchesReleased: Source = async ({ userId, since, t, dayAt }) => {
       at: at.getTime(),
       who: author ? person(author) : null,
       mine: author?.id === userId,
+      seq: PATCHES.length - PATCHES.indexOf(p),
       text: t('patch', { version: p.version, note }),
       when: dayAt(at, false),
       href: '/patches'

@@ -387,8 +387,8 @@ export function WeatherPending({ label, className = '' }: { label: string; class
       {/* По размерам настоящей плитки: число со значком, строка, полоса часов.
           Короче на полсотни пикселей — и при её приходе ряд вырастал, сдвигая
           цитату под ним. */}
-      <span className="inline-block h-[5.75rem] w-56 animate-pulse rounded-sm bg-sunk" />
-      <span className="inline-block h-6 w-64 max-w-full animate-pulse rounded-sm bg-sunk" />
+      <span className="inline-block h-[5.25rem] w-56 animate-pulse rounded-sm bg-sunk sm:h-[5.75rem]" />
+      <span className="inline-block h-5 w-64 max-w-full animate-pulse rounded-sm bg-sunk sm:h-6" />
       <span className="mt-auto inline-block h-[6.75rem] w-full animate-pulse rounded-sm bg-sunk" />
     </Frame>
   );

@@ -548,7 +548,14 @@ export function Pult({ epic = null }: { epic?: string | null }) {
     window.addEventListener('keydown', onKeys, true);
     return () => {
       window.removeEventListener('keydown', onKeys, true);
-      root.style.overflow = overflow;
+      // Под пультом открыто другое окно (фраза дня) — прокрутку держит оно. Нет —
+      // отпускаем совсем, даже если пульт застал её запертой: запиравшее окно
+      // могло закрыться раньше, и вернуть его «hidden» значило запереть сайт.
+      root.style.overflow = document.querySelector('[role="dialog"][aria-modal="true"]:not([data-pult])')
+        ? 'hidden'
+        : overflow === 'hidden'
+          ? ''
+          : overflow;
       document.body.style.paddingRight = paddingRight;
       returnTo.current?.focus?.();
     };

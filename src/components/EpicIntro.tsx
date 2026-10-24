@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 /**
@@ -39,12 +39,19 @@ export function EpicIntro({
   still: boolean;
   onDone: () => void;
 }) {
+  const born = useRef(0);
   useEffect(() => {
+    born.current = performance.now();
     const timer = window.setTimeout(onDone, still ? 1800 : HOLD_MS);
     return () => window.clearTimeout(timer);
   }, [onDone, still]);
 
   const start = still ? 0 : AFTER_WAVE;
+  // Пока заставка не проявилась, нажатия по ней — это второй щелчок по кнопке, а
+  // не «дальше»: иначе двойной клик съедал заставку, которую никто не видел.
+  const skip = () => {
+    if (performance.now() - born.current >= (start + 0.3) * 1000) onDone();
+  };
   const words = text.split(' ');
 
   const phrase = (() => {
@@ -103,7 +110,7 @@ export function EpicIntro({
   return (
     <motion.div
       aria-hidden="true"
-      onPointerDown={onDone}
+      onPointerDown={skip}
       className="absolute inset-0 z-20 grid cursor-pointer place-items-center overflow-hidden bg-ink px-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { duration: 0.22, delay: still ? 0 : start - 0.12 } }}
