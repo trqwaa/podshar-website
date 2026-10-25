@@ -10,7 +10,7 @@ import { PATCHES } from '@/lib/patches';
 import { listPresence } from '@/lib/presence';
 import { boardNotes } from '@/lib/todos/board';
 import { getTrains } from '@/lib/trains';
-import { getWeather } from '@/lib/weather';
+import { getWeather, type Condition } from '@/lib/weather';
 
 /**
  * Что пульт пишет справа от каждого раздела: одна строка живого ответа.
@@ -34,6 +34,13 @@ const BUDGET_MS = 1500;
 const ONLINE_MS = 2 * 60_000;
 
 export type PultAnswers = Partial<Record<string, string>>;
+
+/**
+ * Погода для неба пульта: что за окном и какой ветер, км/ч. Та же, что в
+ * плитке на главной, и из того же кеша: в пульте идёт тот же дождь, что над
+ * Цюрихом (решение владельца от 25 октября 2026).
+ */
+export type PultSky = { condition: Condition; wind: number | null };
 
 async function within<T>(work: Promise<T>): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -60,7 +67,7 @@ export async function pultAnswers({
   locale: Locale;
   userId: string;
   handle: string;
-}): Promise<PultAnswers> {
+}): Promise<{ answers: PultAnswers; sky: PultSky | null }> {
   const [t, tWeather] = await Promise.all([
     getTranslations({ locale, namespace: 'pult.answers' }),
     getTranslations({ locale, namespace: 'weather' })
@@ -167,5 +174,5 @@ export async function pultAnswers({
     )
   });
 
-  return answers;
+  return { answers, sky: weather ? { condition: weather.condition, wind: weather.wind } : null };
 }

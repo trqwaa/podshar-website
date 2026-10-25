@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Живые ответы для пульта: по строке на раздел.
+ * Живые ответы для пульта: по строке на раздел, и погода для его неба.
  *
  * Своим маршрутом, а не в разметке страницы: пульт открывается с любой
  * страницы, а ждать поезда и погоду при каждом её показе нельзя — «рендер не
@@ -32,6 +32,6 @@ export async function GET(request: Request) {
     handle = session.user.handle;
   }
 
-  const answers = await pultAnswers({ locale, userId, handle });
-  return NextResponse.json({ answers }, { headers: { 'cache-control': 'private, no-store' } });
+  const { answers, sky } = await pultAnswers({ locale, userId, handle });
+  return NextResponse.json({ answers, sky }, { headers: { 'cache-control': 'private, no-store' } });
 }
