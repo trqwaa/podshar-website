@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { bornAt, bornKey, greetedKey } from '@/lib/birthdays';
 import { dayKey } from '@/lib/calendar/scales';
+import { likelyTypo } from '@/lib/auth/email-typo';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
 import { DisplayName } from '@/lib/auth/names';
 import { readSession, destroySession } from '@/lib/auth/session';
@@ -35,7 +36,8 @@ import {
  * cookie is the only thing that says who is asking.
  */
 
-export type ProfileState = { error?: string; ok?: boolean };
+/** `suggestion` — исправленная почта, когда в набранной опечатка (`email-typo.ts`). */
+export type ProfileState = { error?: string; ok?: boolean; suggestion?: string };
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
@@ -134,6 +136,8 @@ export async function updateIdentity(
   }
 
   const { displayName, handle, email, locale, timeZone, avatarPreset } = parsed.data;
+  const typo = likelyTypo(email);
+  if (typo) return { error: 'emailTypo', suggestion: typo };
 
   // A new address costs the current password.
   //
@@ -250,9 +254,9 @@ const INVITE_DAYS = 14;
  * another.
  */
 export async function createInvite(
-  _prev: { token?: string; error?: string },
+  _prev: { token?: string; error?: string; suggestion?: string },
   formData: FormData
-): Promise<{ token?: string; error?: string }> {
+): Promise<{ token?: string; error?: string; suggestion?: string }> {
   const session = await readSession();
   if (!session) return { error: 'signedOut' };
   if (session.user.role !== 'OWNER') return { error: 'ownerOnly' };
@@ -270,6 +274,10 @@ export async function createInvite(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'invalid' };
 
   const { email, handle } = parsed.data;
+  // Отсюда почта переходит в аккаунт: опечатка здесь — сломанный «забыл пароль»
+  // у человека, который ещё даже не вошёл.
+  const typo = likelyTypo(email);
+  if (typo) return { error: 'emailTypo', suggestion: typo };
 
   // A handle or address already in use — by a member or by an invite nobody has
   // claimed yet — would collide the moment it was redeemed.

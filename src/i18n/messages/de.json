@@ -947,7 +947,8 @@
       "badTimeZone": "diese zeitzone gibt es nicht. zum beispiel: Europe/Zurich",
       "tooMany": "zu viele falsche passwörter. warte zehn minuten",
       "birthday": "dieses datum gibt es nicht",
-      "birthdayLocked": "das datum ist schon festgelegt"
+      "birthdayLocked": "das datum ist schon festgelegt",
+      "emailTypo": "sieht nach einem tippfehler aus. meintest du {suggestion}?"
     },
     "gameSaved": "gefunden: {player}",
     "gamePending": "verknüpft. opendota ist gerade lahm — der rang taucht gleich in der schublade auf",
@@ -986,7 +987,8 @@
       "badToken": "dieser link taugt nicht. vielleicht wurde er schon benutzt.",
       "expired": "dieser link ist abgelaufen. hol dir einen neuen.",
       "tooShort": "mindestens 10 zeichen.",
-      "mismatch": "die passwörter sind unterschiedlich."
+      "mismatch": "die passwörter sind unterschiedlich.",
+      "emailTypo": "sieht nach einem tippfehler aus. meintest du {suggestion}?"
     }
   },
   "gamesBoard": {

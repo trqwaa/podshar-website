@@ -68,6 +68,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '1.42A',
+    date: '2026-10-26',
+    author: 'trqwaa',
+    note: 'почту теперь проверяем на опечатки: «gamil.com» сайт не примет и подскажет «gmail.com» — в приглашении, в профиле и в «забыл пароль». старый адрес на vercel.app теперь сам ведёт на www.podshar.ch'
+  },
+  {
     version: '1.42',
     date: '2026-10-26',
     author: 'trqwaa',

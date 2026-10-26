@@ -947,7 +947,8 @@
       "badTimeZone": "no such time zone. for example: Europe/Zurich",
       "tooMany": "too many wrong passwords. wait ten minutes",
       "birthday": "that date doesn't exist",
-      "birthdayLocked": "the date is already locked in"
+      "birthdayLocked": "the date is already locked in",
+      "emailTypo": "looks like a typo in the address. did you mean {suggestion}?"
     },
     "gameSaved": "found: {player}",
     "gamePending": "linked. opendota is slow right now — the rank turns up in the drawer shortly",
@@ -986,7 +987,8 @@
       "badToken": "that link is no good. it may have been used already.",
       "expired": "that link has expired. ask for a new one.",
       "tooShort": "at least 10 characters.",
-      "mismatch": "the passwords are different."
+      "mismatch": "the passwords are different.",
+      "emailTypo": "looks like a typo in the address. did you mean {suggestion}?"
     }
   },
   "gamesBoard": {

@@ -95,7 +95,7 @@ function Footer({ state, label }: { state: ProfileState; label: string }) {
 
   const message = state.error
     ? t.has(`errors.${state.error}`)
-      ? t(`errors.${state.error}`)
+      ? t(`errors.${state.error}`, { suggestion: state.suggestion ?? '' })
       : t('errors.invalid')
     : state.ok
       ? t('saved')
@@ -442,7 +442,7 @@ export function SessionsForm() {
 export function InviteForm() {
   const t = useTranslations('profile');
   const locale = useLocale();
-  const [state, action] = useActionState<{ token?: string; error?: string }, FormData>(
+  const [state, action] = useActionState<{ token?: string; error?: string; suggestion?: string }, FormData>(
     createInvite,
     {}
   );
@@ -469,7 +469,7 @@ export function InviteForm() {
           </div>
         ) : null}
 
-        <Footer state={state.error ? { error: state.error } : {}} label={t('createInvite')} />
+        <Footer state={state.error ? { error: state.error, suggestion: state.suggestion } : {}} label={t('createInvite')} />
       </Section>
     </form>
   );

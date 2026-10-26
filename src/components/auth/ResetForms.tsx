@@ -24,7 +24,7 @@ function Footer({ state, label }: { state: ResetState; label: string }) {
 
   const message = state.error
     ? t.has(`errors.${state.error}`)
-      ? t(`errors.${state.error}`)
+      ? t(`errors.${state.error}`, { suggestion: state.suggestion ?? '' })
       : t('errors.invalid')
     : null;
 

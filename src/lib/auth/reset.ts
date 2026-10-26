@@ -7,6 +7,7 @@ import { getTranslations } from 'next-intl/server';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
+import { likelyTypo } from '@/lib/auth/email-typo';
 import { hashPassword } from '@/lib/auth/password';
 import { linkOrigin } from '@/lib/auth/origin';
 import { deliver } from '@/lib/mail';
@@ -27,7 +28,7 @@ import { resolveLocale } from '@/lib/locale';
  * actions, so the same form chrome renders them.
  */
 
-export type ResetState = { error?: string; sent?: boolean };
+export type ResetState = { error?: string; sent?: boolean; suggestion?: string };
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
@@ -97,6 +98,11 @@ export async function requestReset(
   // A malformed address is the one thing worth saying out loud: it is a typo in
   // what the visitor just typed, not a fact about who has an account.
   if (!parsed.success) return { error: 'badEmail' };
+  // Опечатка в домене (`gamil.com`) — сказать вслух по той же причине, и ссылку
+  // туда не слать: такие домены держат, чтобы ловить чужие письма. Решается по
+  // одному набранному, о существовании аккаунта не говорит.
+  const typo = likelyTypo(parsed.data.email);
+  if (typo) return { error: 'emailTypo', suggestion: typo };
 
   // The work happens after the answer has gone, not before it.
   //
