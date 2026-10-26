@@ -5,11 +5,13 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/routing';
 import { SIGNED_IN, clientMessages } from '@/i18n/client-messages';
 import { AppShell } from '@/components/AppShell';
+import { Birthday } from '@/components/Birthday';
 import { DailySplash } from '@/components/DailySplash';
 import { PatchList } from '@/components/Patches';
 import { PresenceBeat } from '@/components/Presence';
 import { readSession } from '@/lib/auth/session';
 import { guestModeAllowed } from '@/lib/auth/config';
+import { birthdayOf, isBirthday } from '@/lib/birthdays';
 import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
 import { dailyLineOf, firstLineOf, pressLineOf } from '@/lib/epic';
@@ -48,11 +50,14 @@ export default async function AppLayout({
 
   // Read only after the gate above has let the visitor through: the strings
   // behind the login are not built at all for someone who is being sent away.
-  const [profile, messages, tHome, jar] = await Promise.all([
+  const [profile, messages, tHome, jar, birthday] = await Promise.all([
     getCurrentMember(),
     clientMessages(locale, SIGNED_IN),
     getTranslations({ locale, namespace: 'home' }),
-    cookies()
+    cookies(),
+    // Своя дата рождения и поздравляли ли в этом году. Сбой базы стоит
+    // поздравления, а не сайта.
+    session ? birthdayOf(session.userId).catch(() => null) : null
   ]);
 
   // The epic lines (`lib/epic.ts`), picked here so that one line travels to the
@@ -71,6 +76,10 @@ export default async function AppLayout({
           // величию», the owner's line; the line of the day from then on.
           line: seen ? dailyLineOf(locale, sharedDayIndex(now)) : firstLineOf(locale)
         };
+  // День рождения (`lib/birthdays.ts`): в свой день, раз в год.
+  const year = Number(today.slice(0, 4));
+  const born = birthday?.born && isBirthday(birthday.born, today) && birthday.greeted !== year ? birthday.born : null;
+  const tBirthday = born ? await getTranslations({ locale, namespace: 'birthday' }) : null;
   const shown = Number(jar.get(EPIC_COOKIE)?.value);
   const epic = pressLineOf(locale, Number.isInteger(shown) && shown > 0 ? shown : 0, session?.userId ?? profile.handle);
 
@@ -96,6 +105,17 @@ export default async function AppLayout({
           enter={tHome('splashEnter')}
           label={tHome('splashLabel')}
           dark={moodAt(now.getTime()) !== 'day'}
+        />
+      ) : null}
+      {born && tBirthday ? (
+        <Birthday
+          words={{
+            dialog: tBirthday('dialog'),
+            label: tBirthday('label'),
+            title: tBirthday('title', { name: profile.displayName }),
+            line: tBirthday('line', { age: year - born.year }),
+            thanks: tBirthday('thanks')
+          }}
         />
       ) : null}
       {/* Here and not on the homepage: every signed-in page is being on the

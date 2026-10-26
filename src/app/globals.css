@@ -394,6 +394,17 @@
   }
 }
 
+/* Ленточки поздравления с днём рождения: падают через весь экран, сносятся
+   вбок и крутятся. */
+@keyframes ribbon-fall {
+  from {
+    transform: translate(0, -10vh) rotate(0deg);
+  }
+  to {
+    transform: translate(var(--sway), 110vh) rotate(var(--spin));
+  }
+}
+
 @keyframes shard-fall {
   to {
     transform: translate(var(--dx), var(--dy)) rotate(var(--rot));

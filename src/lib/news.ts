@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import type { Locale } from '@/i18n/routing';
 import { authConfigured } from '@/lib/auth/config';
+import { hasBirthday } from '@/lib/birthdays';
 import { rangeEvents, zurichMidnight, type CalendarEvent } from '@/lib/calendar/events';
 import { ZONE, dayKey, shiftDay } from '@/lib/calendar/scales';
 import { prisma } from '@/lib/db';
@@ -61,6 +62,11 @@ export type News = {
   feed: NewsEntry[];
   /** Когда сервер собрал ленту, мс: всё, что было до него, зритель видел. */
   now: number;
+  /**
+   * День рождения не вписан — над лентой напоминание. Тёмной карточкой, первой
+   * в плитке: владелец просил, чтобы это было заметно (26 октября 2026).
+   */
+  askBirthday: boolean;
 };
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
@@ -197,7 +203,7 @@ export async function newsFor({ userId, locale }: { userId: string; locale: Loca
     return withTime ? t('at', { day, time: clock.format(at) }) : day;
   };
 
-  if (!authConfigured()) return { next: null, days: [], feed: [], now: now.getTime() };
+  if (!authConfigured()) return { next: null, days: [], feed: [], now: now.getTime(), askBirthday: false };
 
   // ── Скоро в календаре ──
   const keys = Array.from({ length: AHEAD_DAYS }, (_, i) => shiftDay(todayKey, i));
@@ -249,19 +255,22 @@ export async function newsFor({ userId, locale }: { userId: string; locale: Loca
 
   // ── Что нового ──
   const ctx: Context = { userId, locale, now, since: new Date(now.getTime() - FEED_DAYS * 86_400_000), t, dayAt };
-  const parts = await Promise.all(
-    SOURCES.map((source) =>
-      source(ctx).catch((error) => {
-        // Сломанный источник стоит ленте его записей, а не всей ленты.
-        console.warn('[podshar] news source failed:', error instanceof Error ? error.message : error);
-        return [] as NewsEntry[];
-      })
-    )
-  );
+  const [parts, born] = await Promise.all([
+    Promise.all(
+      SOURCES.map((source) =>
+        source(ctx).catch((error) => {
+          // Сломанный источник стоит ленте его записей, а не всей ленты.
+          console.warn('[podshar] news source failed:', error instanceof Error ? error.message : error);
+          return [] as NewsEntry[];
+        })
+      )
+    ),
+    userId ? hasBirthday(userId) : true
+  ]);
   const feed = parts
     .flat()
     .sort((a, b) => b.at - a.at)
     .slice(0, FEED_LIMIT);
 
-  return { next: next ?? nextAllDay, days, feed, now: now.getTime() };
+  return { next: next ?? nextAllDay, days, feed, now: now.getTime(), askBirthday: !born };
 }

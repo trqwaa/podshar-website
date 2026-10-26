@@ -1,12 +1,16 @@
 import { getTranslations } from 'next-intl/server';
 
 import {
+  BirthdayForm,
+  BirthdaysAdmin,
   GameAccountForm,
   IdentityForm,
   InviteForm,
   PasswordForm,
   SessionsForm
 } from '@/components/profile/ProfileForms';
+import { birthdayOf, birthdaysOf } from '@/lib/birthdays';
+import { dayKey } from '@/lib/calendar/scales';
 import { prisma } from '@/lib/db';
 import { readSession } from '@/lib/auth/session';
 import { guestModeAllowed } from '@/lib/auth/config';
@@ -27,7 +31,8 @@ export async function generateMetadata({
  * The profile page.
  *
  * Everything about *you* that the site can change, in one place: who you are,
- * how you sign in, and — if you own the place — who else may. The home station
+ * when your birthday is, how you sign in, and — if you own the place — who else
+ * may, and whose birthday to unlock. The home station
  * used to live here too; it moved to `/trains`, where the rest of the train
  * things are.
  *
@@ -57,11 +62,21 @@ export default async function ProfilePage({
   // Все аккаунты, отмеченный первым. Их может быть несколько — смурфы, старый
   // аккаунт, чужой на посмотреть, — и список под полем избавляет от привычки
   // держать ссылки на них где-то в заметках.
-  const games = await prisma.gameAccount.findMany({
-    where: { userId: user.id },
-    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
-    select: { game: true, externalId: true, tag: true, isPrimary: true }
-  });
+  // День рождения: свой и кто его разблокирует. Владельцу — ещё и у всех, с
+  // кнопкой «разблокировать».
+  const [games, own, owner, members] = await Promise.all([
+    prisma.gameAccount.findMany({
+      where: { userId: user.id },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
+      select: { game: true, externalId: true, tag: true, isPrimary: true }
+    }),
+    birthdayOf(user.id),
+    prisma.user.findFirst({ where: { role: 'OWNER' }, orderBy: { createdAt: 'asc' }, select: { displayName: true } }),
+    user.role === 'OWNER'
+      ? prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: { id: true, displayName: true } })
+      : null
+  ]);
+  const dates = members ? await birthdaysOf(members.map((member) => member.id)) : null;
   const dota = games.filter((g) => g.game === 'DOTA2');
   const brawl = games.filter((g) => g.game === 'BRAWL_STARS');
 
@@ -83,6 +98,15 @@ export default async function ProfilePage({
             timeZone: user.timeZone,
             avatarPreset: user.avatarPreset
           }}
+        />
+      </div>
+
+      {/* Якорь: напоминание над новостями ведёт сюда, а не на верх страницы. */}
+      <div id="birthday" className="animate-rise-in scroll-mt-20 [animation-delay:90ms]">
+        <BirthdayForm
+          born={own.born}
+          owner={owner?.displayName ?? ''}
+          thisYear={Number(dayKey(new Date()).slice(0, 4))}
         />
       </div>
 
@@ -111,6 +135,14 @@ export default async function ProfilePage({
       {user.role === 'OWNER' ? (
         <div className="animate-rise-in [animation-delay:240ms]">
           <InviteForm />
+        </div>
+      ) : null}
+
+      {members && dates ? (
+        <div className="animate-rise-in [animation-delay:270ms]">
+          <BirthdaysAdmin
+            members={members.map((member) => ({ id: member.id, name: member.displayName, born: dates.get(member.id) ?? null }))}
+          />
         </div>
       ) : null}
     </div>

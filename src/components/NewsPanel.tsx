@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 
 import { Link } from '@/i18n/routing';
 import type { News, NewsEntry } from '@/lib/news';
+import { PersonButton } from './PersonPeek';
 import { ScrollPane } from './ScrollPane';
 import { TagIcon } from './Icons';
 import { MemberAvatar } from './profile/MemberAvatar';
@@ -20,7 +21,8 @@ import { MemberAvatar } from './profile/MemberAvatar';
  * Карточка того же синего, что весь интерактив сайта, и это намеренно: на
  * рабочем портале владельца, откуда взят образец, ближайшая встреча стоит
  * именно так, и глаз находит её первой. Красный — нет: он только у ядра
- * кнопки ПХ.
+ * кнопки ПХ. Над ней, пока не вписан день рождения, — тёмная карточка с
+ * напоминанием: владелец просил, чтобы её было не пропустить.
  *
  * Все строки приходят с сервера готовыми (`lib/news.ts`), здесь только
  * раскладка и «непрочитано».
@@ -137,6 +139,20 @@ export function NewsPanel({ news, className = '' }: { news: News; className?: st
           двадцать строк вытянула бы колонку, а с ней и кнопку. */}
       <ScrollPane label={t('label')} className="h-80 md:h-72">
         <div className="flex flex-col gap-5">
+          {news.askBirthday ? (
+            <Link
+              href="/profile#birthday"
+              className="block rounded-block bg-ink px-4 py-3 text-canvas transition-opacity duration-180 hover:opacity-90"
+            >
+              <span className="flex items-center gap-2 text-sm opacity-80">
+                <span aria-hidden="true" className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-canvas" />
+                {t('birthdayAsk')}
+              </span>
+              <span className="mt-0.5 block text-base font-semibold">{t('birthdayTitle')}</span>
+              <span className="block text-sm opacity-80">{t('birthdayHint')}</span>
+            </Link>
+          ) : null}
+
           {news.next ? (
             <Link
               href={news.next.href}
@@ -158,13 +174,8 @@ export function NewsPanel({ news, className = '' }: { news: News; className?: st
             {news.feed.length ? (
               <ul className="flex flex-col">
                 {news.feed.map((entry) => (
-                  <li key={entry.id}>
-                    <Link
-                      href={entry.href}
-                      className="-mx-2 flex rounded px-2 py-2 transition-colors duration-180 hover:bg-sunk"
-                    >
-                      <Row entry={entry} unread={unread(entry)} />
-                    </Link>
+                  <li key={entry.id} className="relative -mx-2 flex rounded px-2 py-2 transition-colors duration-180 hover:bg-sunk">
+                    <Row entry={entry} unread={unread(entry)} />
                   </li>
                 ))}
               </ul>
@@ -221,12 +232,27 @@ function Badge({ count, label }: { count: number; label: string }) {
 /**
  * Строка ленты: кто, когда, что. Как во входящих: имя жирным, время справа,
  * под ними текст в две строки, и синяя точка у нового.
+ *
+ * Туда, где это случилось, ведёт вся строка — ссылкой, растянутой по ней
+ * (`after:inset-0`), а не обёрткой: аватарка и имя — свои кнопки
+ * (`PersonButton`), а кнопка внутри ссылки — недопустимая вложенность. Кнопки
+ * стоят над растянутой ссылкой (`z-10`) и забирают свои нажатия.
  */
 function Row({ entry, unread }: { entry: NewsEntry; unread: boolean }) {
+  const name = (
+    <span className="flex min-w-0 items-center gap-1.5">
+      {unread ? <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
+      <span className={`truncate text-sm text-ink ${unread ? 'font-semibold' : 'font-medium'}`}>
+        {entry.who?.name ?? 'podshar'}
+      </span>
+    </span>
+  );
   return (
     <span className="flex w-full min-w-0 items-start gap-3">
       {entry.who ? (
-        <MemberAvatar preset={entry.who.avatarPreset} displayName={entry.who.name} className="h-8 w-8" />
+        <PersonButton who={entry.who} className="relative z-10 shrink-0 rounded-full">
+          <MemberAvatar preset={entry.who.avatarPreset} displayName={entry.who.name} className="h-8 w-8" />
+        </PersonButton>
       ) : (
         <span
           aria-hidden="true"
@@ -237,15 +263,18 @@ function Row({ entry, unread }: { entry: NewsEntry; unread: boolean }) {
       )}
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-3">
-          <span className="flex min-w-0 items-center gap-1.5">
-            {unread ? <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-accent" /> : null}
-            <span className={`truncate text-sm text-ink ${unread ? 'font-semibold' : 'font-medium'}`}>
-              {entry.who?.name ?? 'podshar'}
-            </span>
-          </span>
+          {entry.who ? (
+            <PersonButton who={entry.who} className="relative z-10 min-w-0">
+              {name}
+            </PersonButton>
+          ) : (
+            name
+          )}
           <span className="shrink-0 text-xs tabular-nums text-ink-muted">{entry.when}</span>
         </span>
-        <span className="line-clamp-2 text-sm text-ink-muted">{entry.text}</span>
+        <Link href={entry.href} className="line-clamp-2 text-sm text-ink-muted after:absolute after:inset-0">
+          {entry.text}
+        </Link>
       </span>
     </span>
   );

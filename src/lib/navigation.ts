@@ -137,6 +137,8 @@ export const PROFILE: Place = {
     { id: 'avatar', terms: ['аватар', 'картинк', 'фотк', 'avatar', 'picture', 'bild'] },
     { id: 'security', terms: ['пароль', 'пароля', 'безопасн', 'безпек', 'password', 'passwort', 'security'] },
     { id: 'invite', terms: ['пригласи', 'запроси', 'инвайт', 'invite', 'einladung'] },
+    // «др» сюда не идёт: подстрокой оно сидит в «друг», «адрес», «андрей».
+    { id: 'birthday', terms: ['рожден', 'народжен', 'днюх', 'birthday', 'bday', 'geburtstag'] },
     {
       id: 'dota',
       // 'rang' тут нет намеренно: оно сидит внутри orange, strange и arrange, а

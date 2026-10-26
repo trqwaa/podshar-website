@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { BrawlerIcon, Delta, HeroIcon, ResultChip } from '@/components/games/bits';
 import { Medal } from '@/components/games/Overview';
+import { PersonButton } from '@/components/PersonPeek';
 import { MemberAvatar } from '@/components/profile/MemberAvatar';
 import type { Locale } from '@/i18n/routing';
 import { brawler, dotaHero } from '@/lib/game-catalog';
@@ -92,18 +93,23 @@ export async function Compare({ locale, userId }: { locale: Locale; userId: stri
             className="block-card animate-rise-in flex flex-col gap-4 p-6"
             style={{ animationDelay: `${120 + i * 60}ms` }}
           >
-            <header className="flex items-center gap-3">
-              <MemberAvatar
-                preset={m.avatarPreset}
-                displayName={m.displayName}
-                className="h-10 w-10"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-lg font-semibold normal-case leading-tight text-ink">
-                  {m.displayName}
-                </p>
-                <p className="ps-label">{m.me ? t('you') : `@${m.handle}`}</p>
-              </div>
+            <header>
+              <PersonButton
+                who={{ name: m.displayName, avatarPreset: m.avatarPreset, handle: m.handle }}
+                className="flex items-center gap-3"
+              >
+                <MemberAvatar
+                  preset={m.avatarPreset}
+                  displayName={m.displayName}
+                  className="h-10 w-10"
+                />
+                <span className="block min-w-0">
+                  <span className="block truncate text-lg font-semibold normal-case leading-tight text-ink">
+                    {m.displayName}
+                  </span>
+                  <span className="ps-label block">{m.me ? t('you') : `@${m.handle}`}</span>
+                </span>
+              </PersonButton>
             </header>
 
             <DayBlock

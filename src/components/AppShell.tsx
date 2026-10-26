@@ -8,6 +8,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { Modal } from './Modal';
 import { RightAIChat } from './RightAIChat';
 import { PodsharWordmark } from './PodsharMark';
+import { PeekHost } from './PersonPeek';
 import { Pult, backToPult } from './Pult';
 import type { MemberProfile } from '@/lib/types';
 
@@ -313,6 +314,10 @@ export function AppShell({
 
       {/* Пульт — над всем, включая мопса: он открывается поверх сайта целиком. */}
       <Pult epic={epic} />
+
+      {/* Окошко «профили скоро» — одно на весь сайт, его открывает нажатие на
+          любого человека (`PersonButton`). */}
+      <PeekHost />
 
       {/* Last, and over everything: the dog is fixed at z-50 and a panel that
           slid under him would be a panel you cannot fully read. */}

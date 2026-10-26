@@ -585,13 +585,14 @@
       "add": "der hinzufügen-knopf. name und tag, der rest nach lust. das datumsfeld ist unseres, nicht das vom browser"
     },
     "profile": {
-      "here": "dein profil. name, handle, mail, dota, brawl, passwort, zeichen",
+      "here": "dein profil. name, handle, mail, geburtstag, dota, brawl, passwort, zeichen",
       "identity": "der name ist für uns, mit dem handle meldest du dich an",
       "avatar": "acht zeichen. keine fotos, dafür nichts hochzuladen",
       "security": "passwort. änderst du es, fliegen alle anderen geräte raus",
       "invite": "holt eine vierte person. nur der besitzer",
       "dota": "dota-konto. steam-link rein, medaille steht in der schublade",
-      "brawl": "brawl-stars-konto. tag rein, pokale stehen in der schublade"
+      "brawl": "brawl-stars-konto. tag rein, pokale stehen in der schublade",
+      "birthday": "geburtstag. einmal eintragen, und die seite gratuliert dir am tag"
     },
     "todos": {
       "here": "das aufgabenbrett. zwei listen — eine gemeinsame und deine eigene, schalter oben",
@@ -944,11 +945,24 @@
       "brawlNotFound": "das sieht nicht nach einem spieler-tag aus.",
       "emailNeedsPassword": "eine neue e-mail nur mit dem aktuellen passwort",
       "badTimeZone": "diese zeitzone gibt es nicht. zum beispiel: Europe/Zurich",
-      "tooMany": "zu viele falsche passwörter. warte zehn minuten"
+      "tooMany": "zu viele falsche passwörter. warte zehn minuten",
+      "birthday": "dieses datum gibt es nicht",
+      "birthdayLocked": "das datum ist schon festgelegt"
     },
     "gameSaved": "gefunden: {player}",
     "gamePending": "verknüpft. opendota ist gerade lahm — der rang taucht gleich in der schublade auf",
-    "gameList": "deine konten"
+    "gameList": "deine konten",
+    "birthdayTitle": "geburtstag",
+    "birthdayHint": "an dem tag gratuliert dir die seite. einmal eintragen — ändern kann es danach nur {owner}",
+    "birthdayLocked": "festgelegt. vertippt? schreib {owner}, dann wird es freigeschaltet",
+    "birthdayDay": "tag",
+    "birthdayMonth": "monat",
+    "birthdayYear": "jahr",
+    "birthdaySave": "festlegen",
+    "birthdaysTitle": "geburtstage",
+    "birthdaysHint": "wer was eingetragen hat. freischalten löscht das datum, dann kann man es neu eintragen",
+    "birthdaysNone": "noch nicht eingetragen",
+    "birthdaysUnlock": "freischalten"
   },
   "reset": {
     "title": "passwort vergessen",
@@ -1142,6 +1156,21 @@
     "event": "in den kalender: „{title}“ · {when}",
     "note": "ans brett: „{title}“",
     "patch": "patch {version}: {note}",
-    "unread": "{n, plural, one {# neu} other {# neu}}"
+    "unread": "{n, plural, one {# neu} other {# neu}}",
+    "birthdayAsk": "die seite will es wissen",
+    "birthdayTitle": "wann hast du geburtstag?",
+    "birthdayHint": "dich erwartet eine überraschung"
+  },
+  "birthday": {
+    "dialog": "Alles Gute zum Geburtstag",
+    "label": "heute ist dein tag",
+    "title": "alles gute zum geburtstag, {name}",
+    "line": "{age, plural, one {# jahr} other {# jahre}}. die seite vergisst es nicht, auch wenn die anderen es tun",
+    "thanks": "danke"
+  },
+  "people": {
+    "open": "Profil: {name}",
+    "soon": "profile kommen bald",
+    "soonHint": "jede person bekommt eine seite: was sie spielt, hört und ans brett hängt. bis dahin name und zeichen"
   }
 }

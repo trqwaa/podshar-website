@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useMemo, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -8,17 +8,20 @@ import {
   changePassword,
   createInvite,
   revokeOtherSessions,
+  saveBirthday,
+  unlockBirthday,
   updateBrawlAccount,
   updateDotaAccount,
   updateIdentity,
   type GameState,
   type ProfileState,
 } from '@/lib/auth/profile';
+import type { Born } from '@/lib/birthdays';
 import { routing, LOCALE_LABELS, type Locale } from '@/i18n/routing';
 import { AVATAR_PRESETS, MemberAvatar } from './MemberAvatar';
 
 /**
- * The three forms on the profile page, plus the owner's invite box.
+ * The forms on the profile page, plus the owner's invite and birthday boxes.
  *
  * Each is its own `<form>` with its own action and its own state. One big form
  * would mean typing a password to change a display name, and a failure in any
@@ -252,6 +255,138 @@ export function IdentityForm({
         <Footer state={state} label={t('save')} />
       </Section>
     </form>
+  );
+}
+
+/**
+ * Дата прописью на языке страницы: «26 октября 2005 г.». Строчными, как все
+ * названия сайта: немецкий `Intl` пишет месяц с заглавной.
+ */
+const dateWords = (born: Born, locale: string) =>
+  new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(Date.UTC(born.year, born.month - 1, born.day, 12))
+    .toLocaleLowerCase(locale);
+
+/** Выпадающий список с пустым «—» первым: не выбрал — форма не уйдёт. */
+function Choice({ name, label, options }: { name: string; label: string; options: { value: number; label: string }[] }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-2">
+      <span className="ps-label">{label}</span>
+      <select
+        name={name}
+        required
+        defaultValue=""
+        // 16px на телефоне — по той же причине, что у полей: меньше — айфон зумит.
+        className="min-w-0 rounded border-2 border-rule bg-canvas px-3 py-2.5 text-[1rem] text-ink outline-none transition-colors focus:border-ink sm:text-[0.9375rem]"
+      >
+        <option value="" disabled>
+          —
+        </option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * День рождения (`lib/birthdays.ts`): три списка — день, месяц, год. Списки, а
+ * не системное поле даты: оно говорит на языке браузера, а не страницы, и на
+ * русской странице писало `TT.mm.jjjj` (та же причина, что у `DayField`). И не
+ * сетка месяца: листать её на двадцать лет назад — работа.
+ *
+ * Вписывается один раз: дальше дата закреплена, и поменять её можно только через
+ * владельца — решение владельца.
+ */
+export function BirthdayForm({ born, owner, thisYear }: { born: Born | null; owner: string; thisYear: number }) {
+  const t = useTranslations('profile');
+  const locale = useLocale();
+  const [state, action] = useActionState<ProfileState, FormData>(saveBirthday, {});
+  const months = useMemo(() => {
+    const name = new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' });
+    return Array.from({ length: 12 }, (_, i) => ({
+      value: i + 1,
+      label: name.format(Date.UTC(2000, i, 15)).toLocaleLowerCase(locale)
+    }));
+  }, [locale]);
+
+  if (born) {
+    return (
+      <Section title={t('birthdayTitle')} hint={t('birthdayLocked', { owner })}>
+        <p className="text-2xl font-semibold leading-tight text-ink">{dateWords(born, locale)}</p>
+      </Section>
+    );
+  }
+
+  const days = Array.from({ length: 31 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
+  const years = Array.from({ length: thisYear - 1939 }, (_, i) => ({ value: thisYear - i, label: String(thisYear - i) }));
+  return (
+    <form action={action}>
+      <Section title={t('birthdayTitle')} hint={t('birthdayHint', { owner })}>
+        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_6rem] gap-3">
+          <Choice name="day" label={t('birthdayDay')} options={days} />
+          <Choice name="month" label={t('birthdayMonth')} options={months} />
+          <Choice name="year" label={t('birthdayYear')} options={years} />
+        </div>
+        <Footer state={state} label={t('birthdaySave')} />
+      </Section>
+    </form>
+  );
+}
+
+/** Кнопка «разблокировать» — своя на каждого, с ожиданием на время запроса. */
+function UnlockButton({ label }: { label: string }) {
+  const t = useTranslations('profile');
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="shrink-0 rounded border-2 border-rule px-3 py-1.5 text-sm font-semibold text-ink transition-colors duration-180 hover:border-ink disabled:opacity-40"
+    >
+      {pending ? t('working') : label}
+    </button>
+  );
+}
+
+/**
+ * Дни рождения всех — только владельцу: кто что вписал и кнопка «разблокировать».
+ * Разблокировал — дата снята, и человек впишет её заново.
+ */
+export function BirthdaysAdmin({ members }: { members: { id: string; name: string; born: Born | null }[] }) {
+  const t = useTranslations('profile');
+  const locale = useLocale();
+  const [state, action] = useActionState<ProfileState, FormData>(unlockBirthday, {});
+
+  return (
+    <Section title={t('birthdaysTitle')} hint={t('birthdaysHint')}>
+      <ul className="flex flex-col divide-y divide-rule">
+        {members.map((member) => (
+          <li key={member.id} className="flex items-center justify-between gap-3 py-2.5">
+            <span className="min-w-0">
+              <span className="block truncate font-semibold text-ink">{member.name}</span>
+              <span className="block text-sm text-ink-muted">
+                {member.born ? dateWords(member.born, locale) : t('birthdaysNone')}
+              </span>
+            </span>
+            {member.born ? (
+              <form action={action}>
+                <input type="hidden" name="userId" value={member.id} />
+                <UnlockButton label={t('birthdaysUnlock')} />
+              </form>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {state.error ? (
+        <p role="status" className="text-sm text-reactor">
+          {t.has(`errors.${state.error}`) ? t(`errors.${state.error}`) : t('errors.invalid')}
+        </p>
+      ) : null}
+    </Section>
   );
 }
 

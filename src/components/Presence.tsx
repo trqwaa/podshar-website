@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { PersonButton } from './PersonPeek';
 import { MemberAvatar } from './profile/MemberAvatar';
 import type { PresenceEntry } from '@/lib/types';
 
@@ -188,31 +189,38 @@ export function PresenceBoard({
                 : ' ';
 
           return (
-            <li key={person.handle} className="flex items-center gap-3">
-              <span className="relative shrink-0">
-                <MemberAvatar
-                  preset={person.avatarPreset}
-                  displayName={person.displayName}
-                  className={`h-9 w-9 transition-opacity duration-drape ${here ? '' : 'opacity-45'}`}
-                />
-                {/* A filled dot for here, an empty ring for not — shape, not
-                    colour, so it reads without the palette's help. */}
-                <span
-                  aria-hidden="true"
-                  className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface ${
-                    here ? 'bg-ink' : 'bg-surface ring-1 ring-inset ring-rule'
-                  }`}
-                />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold leading-tight text-ink">
-                  {person.displayName}
-                  {person.handle === me ? (
-                    <span className="ps-label ms-2 text-ink-faint">{t('you')}</span>
-                  ) : null}
-                </p>
-                <p className="text-sm text-ink-muted">{status}</p>
-              </div>
+            <li key={person.handle}>
+              {/* Человек — кнопка: нажал — окошко его профиля (`PersonPeek`). */}
+              <PersonButton
+                who={{ name: person.displayName, avatarPreset: person.avatarPreset, handle: person.handle }}
+                className="flex w-full items-center gap-3"
+              >
+                <span className="relative shrink-0">
+                  <MemberAvatar
+                    preset={person.avatarPreset}
+                    displayName={person.displayName}
+                    className={`h-9 w-9 transition-opacity duration-drape ${here ? '' : 'opacity-45'}`}
+                  />
+                  {/* A filled dot for here, an empty ring for not — shape, not
+                      colour, so it reads without the palette's help. */}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface ${
+                      here ? 'bg-ink' : 'bg-surface ring-1 ring-inset ring-rule'
+                    }`}
+                  />
+                </span>
+                {/* Строчные теги: внутри кнопки блочным не место. */}
+                <span className="block min-w-0">
+                  <span className="block truncate text-base font-semibold leading-tight text-ink">
+                    {person.displayName}
+                    {person.handle === me ? (
+                      <span className="ps-label ms-2 text-ink-faint">{t('you')}</span>
+                    ) : null}
+                  </span>
+                  <span className="block text-sm text-ink-muted">{status}</span>
+                </span>
+              </PersonButton>
             </li>
           );
         })}

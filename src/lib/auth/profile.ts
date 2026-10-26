@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
+import { bornAt, bornKey, greetedKey } from '@/lib/birthdays';
+import { dayKey } from '@/lib/calendar/scales';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
 import { DisplayName } from '@/lib/auth/names';
 import { readSession, destroySession } from '@/lib/auth/session';
@@ -324,6 +326,73 @@ export async function revokeOtherSessions(): Promise<ProfileState> {
 /** Sign out here, used by the profile page's own button. */
 export async function endSession(): Promise<void> {
   await destroySession();
+}
+
+// ─── День рождения (`lib/birthdays.ts`) ─────────────────────────────────────
+
+/**
+ * Вписать свой день рождения — один раз. `create`, а не `upsert`: ключ в
+ * `countdowns` уникальный, и занятая запись не перезаписывается, даже если
+ * подделать форму. Поменять дату — только через владельца (`unlockBirthday`).
+ */
+export async function saveBirthday(_prev: ProfileState, formData: FormData): Promise<ProfileState> {
+  const session = await readSession();
+  if (!session) return { error: 'signedOut' };
+
+  const born = { day: Number(formData.get('day')), month: Number(formData.get('month')), year: Number(formData.get('year')) };
+  if (!Object.values(born).every(Number.isInteger) || born.year < 1900 || born.month < 1 || born.month > 12 || born.day < 1) {
+    return { error: 'birthday' };
+  }
+  const at = bornAt(born);
+  // 31 февраля `Date` молча превращает в 3 марта: день обязан остаться тем же.
+  // И не из будущего — по Цюриху, как «сегодня» у всего сайта.
+  if (at.getUTCDate() !== born.day || at.getUTCMonth() !== born.month - 1 || dayKey(at) > dayKey(new Date())) {
+    return { error: 'birthday' };
+  }
+
+  try {
+    await prisma.countdown.create({ data: { key: bornKey(session.userId), label: 'birthday', targetAt: at } });
+  } catch {
+    return { error: 'birthdayLocked' };
+  }
+  // Напоминание над новостями гаснет, а если день сегодня — поздравление
+  // выскакивает сразу: шелл перерисовывается целиком.
+  revalidatePath('/', 'layout');
+  return { ok: true };
+}
+
+/** Поздравление показано: в этом году больше не надо — ни здесь, ни на другом устройстве. */
+export async function markBirthdayGreeted(): Promise<void> {
+  const session = await readSession();
+  if (!session) return;
+  const key = greetedKey(session.userId);
+  await prisma.countdown.upsert({
+    where: { key },
+    create: { key, label: 'birthday-greeted', targetAt: new Date() },
+    update: { targetAt: new Date() }
+  });
+}
+
+/**
+ * Разблокировать чужой день рождения — только владельцу, роль проверяется здесь.
+ * Снимается и дата, и отметка о поздравлении: человек впишет верную дату и
+ * получит своё поздравление в свой день, даже если по ошибочной его уже
+ * поздравили.
+ */
+export async function unlockBirthday(_prev: ProfileState, formData: FormData): Promise<ProfileState> {
+  const session = await readSession();
+  if (!session) return { error: 'signedOut' };
+  if (session.user.role !== 'OWNER') return { error: 'ownerOnly' };
+
+  const userId = String(formData.get('userId') ?? '');
+  if (!userId) return { error: 'invalid' };
+  await prisma.countdown.deleteMany({ where: { key: { in: [bornKey(userId), greetedKey(userId)] } } });
+  await prisma.auditLog.create({
+    data: { action: 'birthday_unlocked', userId: session.userId, metadata: { member: userId } }
+  });
+
+  revalidatePath('/', 'layout');
+  return { ok: true };
 }
 
 /* Домашняя станция переехала в `lib/travel/actions.ts`: настройка поездная,

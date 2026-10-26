@@ -55,7 +55,8 @@ export const SIGNED_IN = [
   'todos',
   'profile',
   'pult',
-  'news'
+  'news',
+  'people'
 ] as const;
 
 type Tree = { [key: string]: string | Tree };

@@ -585,13 +585,14 @@
       "add": "the add button. a name and a day, the rest if you feel like it. the date picker is ours, not the browser's"
     },
     "profile": {
-      "here": "your profile. name, handle, email, dota, brawl, password, mark",
+      "here": "your profile. name, handle, email, birthday, dota, brawl, password, mark",
       "identity": "the name is for us, the handle is for signing in",
       "avatar": "eight marks. no photos, nothing to upload either",
       "security": "password. change it and every other device drops",
       "invite": "adds a fourth person. owner only",
       "dota": "dota account. paste a steam link, the drawer shows your medal",
-      "brawl": "brawl stars account. paste your player tag, cups show up in the drawer"
+      "brawl": "brawl stars account. paste your player tag, cups show up in the drawer",
+      "birthday": "birthday. set it once and the site congratulates you on the day"
     },
     "todos": {
       "here": "the task board. two lists — one shared between the three of you and your own, switch on top",
@@ -944,11 +945,24 @@
       "brawlNotFound": "that does not look like a player tag.",
       "emailNeedsPassword": "a new email needs your current password",
       "badTimeZone": "no such time zone. for example: Europe/Zurich",
-      "tooMany": "too many wrong passwords. wait ten minutes"
+      "tooMany": "too many wrong passwords. wait ten minutes",
+      "birthday": "that date doesn't exist",
+      "birthdayLocked": "the date is already locked in"
     },
     "gameSaved": "found: {player}",
     "gamePending": "linked. opendota is slow right now — the rank turns up in the drawer shortly",
-    "gameList": "accounts you have linked"
+    "gameList": "accounts you have linked",
+    "birthdayTitle": "birthday",
+    "birthdayHint": "on the day the site will congratulate you. set it once — after that only {owner} can change it",
+    "birthdayLocked": "locked in. got it wrong? message {owner} to unlock it",
+    "birthdayDay": "day",
+    "birthdayMonth": "month",
+    "birthdayYear": "year",
+    "birthdaySave": "lock it in",
+    "birthdaysTitle": "birthdays",
+    "birthdaysHint": "who has set what. unlock one and the date is cleared, so they can set it again",
+    "birthdaysNone": "not set yet",
+    "birthdaysUnlock": "unlock"
   },
   "reset": {
     "title": "forgot your password",
@@ -1142,6 +1156,21 @@
     "event": "to the calendar: “{title}” · {when}",
     "note": "to the board: “{title}”",
     "patch": "patch {version}: {note}",
-    "unread": "{n, plural, one {# new} other {# new}}"
+    "unread": "{n, plural, one {# new} other {# new}}",
+    "birthdayAsk": "the site wants to know",
+    "birthdayTitle": "when is your birthday?",
+    "birthdayHint": "a surprise awaits you"
+  },
+  "birthday": {
+    "dialog": "Happy birthday",
+    "label": "today is your day",
+    "title": "happy birthday, {name}",
+    "line": "{age, plural, one {# year} other {# years}}. the site remembers, even if the others forgot",
+    "thanks": "thanks"
+  },
+  "people": {
+    "open": "Profile: {name}",
+    "soon": "profiles coming soon",
+    "soonHint": "each person gets a page: what they play, what they listen to, what they pin to the board. for now, a name and a mark"
   }
 }

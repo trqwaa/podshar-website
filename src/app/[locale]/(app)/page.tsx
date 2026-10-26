@@ -9,6 +9,7 @@ import { PHButton } from '@/components/PHButton';
 import { PresenceBoard } from '@/components/Presence';
 import { QuoteCookie } from '@/components/QuoteCookie';
 import { NewsPending, NewsTile } from '@/components/NewsTile';
+import { PersonButton } from '@/components/PersonPeek';
 import { WeatherPending, WeatherTile } from '@/components/WeatherTile';
 import { getCurrentMember } from '@/lib/session';
 import { listPresence } from '@/lib/presence';
@@ -122,19 +123,22 @@ export default async function HomePage({
       {/* Identity */}
       <section className="block-card animate-rise-in flex flex-col gap-4 p-6 [animation-delay:180ms] md:col-span-2">
         <p className="ps-label">{t('memberLabel')}</p>
-        <div className="flex items-center gap-3">
+        <PersonButton
+          who={{ name: member.displayName, avatarPreset: member.avatarPreset ?? null, handle: member.handle }}
+          className="flex items-center gap-3"
+        >
           <MemberAvatar
             preset={member.avatarPreset}
             displayName={member.displayName}
             className="h-11 w-11"
           />
-          <div className="min-w-0">
-            <p className="truncate text-2xl font-semibold leading-tight text-ink">
+          <span className="block min-w-0">
+            <span className="block truncate text-2xl font-semibold leading-tight text-ink">
               {member.displayName}
-            </p>
-            <p className="truncate text-base text-ink-muted">@{member.handle}</p>
-          </div>
-        </div>
+            </span>
+            <span className="block truncate text-base text-ink-muted">@{member.handle}</span>
+          </span>
+        </PersonButton>
       </section>
 
       {/* Who is on the site. Read from the database here, so the first paint
