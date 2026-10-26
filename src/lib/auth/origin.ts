@@ -10,16 +10,18 @@
  * because of how today's hosting routes requests is not a defence.
  *
  * So the host is only *chosen from* this list, never taken on trust. A request
- * on the future domain produces a link on that domain, one on the vercel.app
- * address produces one there, and anything else — a preview URL, a forged
- * header — gets the canonical address.
+ * on www.podshar.ch produces a link there, and anything else — a preview URL, a
+ * forged header — gets the canonical address. The bare podshar.ch redirects to
+ * www (Vercel does that), and the old vercel.app address still serves the site
+ * alongside — why it is not redirected yet is in CLAUDE.md. A link built on
+ * either lands on the right site.
  *
  * Its own module, with no imports, so it can be checked with forged headers
  * directly rather than by waiting for a letter.
  */
-export const CANONICAL_ORIGIN = 'https://podshar-website.vercel.app';
+export const CANONICAL_ORIGIN = 'https://www.podshar.ch';
 
-const ALLOWED_HOSTS = new Set(['podshar-website.vercel.app', 'podshar.ch', 'www.podshar.ch']);
+const ALLOWED_HOSTS = new Set(['www.podshar.ch', 'podshar.ch', 'podshar-website.vercel.app']);
 
 export function linkOrigin(host: string | null, production: boolean): string {
   const name = (host ?? '').trim().toLowerCase();

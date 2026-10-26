@@ -5,12 +5,10 @@ import { getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/routing';
 import { SIGNED_IN, clientMessages } from '@/i18n/client-messages';
 import { AppShell } from '@/components/AppShell';
-import { Birthday } from '@/components/Birthday';
 import { DailySplash } from '@/components/DailySplash';
 import { PatchList } from '@/components/Patches';
 import { PresenceBeat } from '@/components/Presence';
 import { readSession } from '@/lib/auth/session';
-import { BIRTHDAY } from '@/lib/birthday';
 import { guestModeAllowed } from '@/lib/auth/config';
 import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
@@ -73,12 +71,6 @@ export default async function AppLayout({
           // величию», the owner's line; the line of the day from then on.
           line: seen ? dailyLineOf(locale, sharedDayIndex(now)) : firstLineOf(locale)
         };
-  // A one-off greeting (`lib/birthday.ts`): for one person, in its week, once.
-  const birthday =
-    session?.userId === BIRTHDAY.userId &&
-    today >= BIRTHDAY.from &&
-    today <= BIRTHDAY.until &&
-    !jar.get(BIRTHDAY.cookie);
   const shown = Number(jar.get(EPIC_COOKIE)?.value);
   const epic = pressLineOf(locale, Number.isInteger(shown) && shown > 0 ? shown : 0, session?.userId ?? profile.handle);
 
@@ -106,7 +98,6 @@ export default async function AppLayout({
           dark={moodAt(now.getTime()) !== 'day'}
         />
       ) : null}
-      {birthday ? <Birthday name={profile.displayName} /> : null}
       {/* Here and not on the homepage: every signed-in page is being on the
           site, and this layout is exactly the set of signed-in pages. */}
       <PresenceBeat />

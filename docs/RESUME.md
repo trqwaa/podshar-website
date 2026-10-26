@@ -84,7 +84,7 @@ npx prisma studio          # или свой скрипт через @prisma/cli
 ```sh
 npm run dev        # локально, http://localhost:3000
 npm run build      # проверка сборки
-npm run deploy     # выкатить на podshar-website.vercel.app
+npm run deploy     # выкатить на www.podshar.ch
 ```
 
 **Автодеплой работает** — пуш в `main` выкатывает прод сам, обычно за минуту.
@@ -97,11 +97,10 @@ npm run deploy     # выкатить на podshar-website.vercel.app
 
 ```sh
 npx vercel ls                    # свежий деплой должен быть минуты назад
-curl -s https://podshar-website.vercel.app/ru/login | grep -oE '[a-f0-9]{16}\.css'
+curl -sI https://www.podshar.ch/ru/login | grep -i x-podshar-build
 ```
 
-Хеш из ответа сравнить с именем файла в `.next/static/css` после локальной
-сборки. Совпало — приехало.
+Номер из ответа сравнить с `git rev-parse --short HEAD`. Совпал — приехало.
 
 **`npm run deploy` сейчас отвечает `Not authorized`** и выкатить не может:
 у Vercel CLI есть доступ на чтение (`ls`, `inspect`), но не на деплой. Лечится

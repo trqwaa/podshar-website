@@ -12,7 +12,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
  * and the only way to tell was to build locally and compare stylesheet hashes.
  * Now one look says which commit is live:
  *
- *   curl -sI https://podshar-website.vercel.app/ru/login | grep -i x-podshar-build
+ *   curl -sI https://www.podshar.ch/ru/login | grep -i x-podshar-build
  *
  * Vercel hands the commit over as an environment variable during the build. A
  * local build asks git instead. Neither answering is not a reason to fail the

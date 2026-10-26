@@ -513,8 +513,9 @@ IP (`45.79.218.79`), а у Vercel постоянного адреса нет. Н
 | | |
 |---|---|
 | Репозиторий | github.com/trqwaa/podshar-website — **публичный**: ни секретов, ни приглашений в коде |
-| Хостинг | vercel.com/trqwaa/podshar-website → **podshar-website.vercel.app** |
+| Хостинг | vercel.com/trqwaa/podshar-website → **www.podshar.ch** (с 1.42; podshar.ch ведёт туда же, старый podshar-website.vercel.app пока работает рядом) |
 | База | Neon `small-unit-17442214` / production, eu-central-1 |
+| Домен | podshar.ch у Hostpoint, DNS там же. Сайт — `A` и `www` на Vercel; почта — MX, SPF и записи Resend, их не трогать |
 | Секреты | `.env.local` (в gitignore), на Vercel — переменные проекта |
 
 **Автодеплой работает, но молча простаивал**: 27 сентября 2026 три пуша
@@ -524,11 +525,19 @@ IP (`45.79.218.79`), а у Vercel постоянного адреса нет. Н
 заголовком на каждом ответе и строкой над списком патчей:
 
 ```sh
-curl -sI https://podshar-website.vercel.app/ru/login | grep -i x-podshar-build
+curl -sI https://www.podshar.ch/ru/login | grep -i x-podshar-build
 ```
 
 Совпал с `git rev-parse --short HEAD` — приехало. Простой не виден ниоткуда
 больше: на GitHub новое, у троих на экране старое.
+
+**Старый адрес на vercel.app пока не переадресован на новый.** В сети, откуда
+работает владелец, фильтр FortiGuard отдаёт вместо www.podshar.ch свою страницу
+блокировки: категория «Newly Observed Domain», а снаружи тот же адрес отвечает
+200 (проверено 26 октября 2026). Переадресация отрезала бы сайт там, где он
+сейчас открывается. Включать — после переоценки домена фильтром; проверить из
+той сети: `curl -s http://www.podshar.ch/ru/login | grep -c FortiGuard` — ноль
+значит пускает. Оттуда же и проверка сборки — через vercel.app.
 
 **`npm run deploy` сейчас не работает** — Vercel CLI отвечает `Not authorized`.
 Читать он умеет (`npx vercel ls`, `inspect`), выкатывать — нет, у токена не тот
