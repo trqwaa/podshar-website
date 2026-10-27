@@ -92,22 +92,6 @@ const nextConfig = {
   // Inlined at build time, so the page shows the build it belongs to and not
   // whatever a server happens to have in its environment later.
   env: { PODSHAR_BUILD_SHA: BUILD.sha, PODSHAR_BUILD_AT: BUILD.at },
-  // С 1.42 у сайта свой адрес, www.podshar.ch. Старый, на vercel.app, с 1.42A
-  // ведёт туда же — со всем путём и параметрами, чтобы закладки и ссылки из
-  // старых писем не умирали. Включили, когда школьный фильтр FortiGuard
-  // перестал блокировать новый домен (см. CLAUDE.md). Только боевой адрес: у
-  // предпросмотров свои имена на vercel.app. Временный (307), а не постоянный:
-  // постоянный браузер запоминает навсегда, и откатить было бы нечем.
-  async redirects() {
-    return [
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'podshar-website.vercel.app' }],
-        destination: 'https://www.podshar.ch/:path*',
-        permanent: false
-      }
-    ];
-  },
   async headers() {
     return [
       {

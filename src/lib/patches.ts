@@ -68,6 +68,12 @@ export type Patch = {
 
 const ENTRIES: Patch[] = [
   {
+    version: '1.42B',
+    date: '2026-10-27',
+    author: 'trqwaa',
+    note: 'в школьной сети фильтр опять не пускает новый домен, поэтому старый адрес podshar-website.vercel.app снова открывает сайт сам, а не перекидывает на www.podshar.ch. дома и с телефона — www.podshar.ch'
+  },
+  {
     version: '1.42A',
     date: '2026-10-26',
     author: 'trqwaa',

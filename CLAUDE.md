@@ -532,7 +532,7 @@ IP (`45.79.218.79`), а у Vercel постоянного адреса нет. Н
 | | |
 |---|---|
 | Репозиторий | github.com/trqwaa/podshar-website — **публичный**: ни секретов, ни приглашений в коде |
-| Хостинг | vercel.com/trqwaa/podshar-website → **www.podshar.ch** (с 1.42; podshar.ch и, с 1.42A, старый podshar-website.vercel.app ведут туда же) |
+| Хостинг | vercel.com/trqwaa/podshar-website → **www.podshar.ch** (с 1.42; podshar.ch ведёт туда же, старый podshar-website.vercel.app работает рядом — см. ниже) |
 | База | Neon `small-unit-17442214` / production, eu-central-1 |
 | Домен | podshar.ch куплен у Hostpoint, DNS — в Cloudflare друга (`kallie`/`maciej.ns.cloudflare.com`). Сайт — `A` и `www` на Vercel, «DNS only», без прокси; почта — MX, SPF, `resend._domainkey`, `_dmarc` и `send` → `send.forge.rmta.net`, их не трогать |
 | Секреты | `.env.local` (в gitignore), на Vercel — переменные проекта |
@@ -550,12 +550,13 @@ curl -sI https://www.podshar.ch/ru/login | grep -i x-podshar-build
 Совпал с `git rev-parse --short HEAD` — приехало. Простой не виден ниоткуда
 больше: на GitHub новое, у троих на экране старое.
 
-**Старый адрес на vercel.app переадресован на новый только с 1.42A.** Сначала
-школьный фильтр FortiGuard блокировал www.podshar.ch как «Newly Observed Domain»
-(снаружи тот же адрес отвечал 200), и переадресация отрезала бы сайт там, где он
-открывался. Пустили в тот же день, 26 октября 2026. Снова заблокируют —
-переадресацию снять; проверить из той сети: `curl -s
-http://www.podshar.ch/ru/login | grep -c FortiGuard` — ноль значит пускает.
+**Старый адрес на vercel.app не переадресован на новый.** Школьный фильтр
+FortiGuard блокирует www.podshar.ch как «Newly Observed Domain», а снаружи тот же
+адрес отвечает 200. 26 октября днём один раз пустил, переадресацию включили
+(1.42A) — и наутро 27-го в школе сайт пропал целиком: старый адрес вёл на
+заблокированный. Сняли в 1.42B. Включать снова — только когда из школьной сети
+`curl -s http://www.podshar.ch/ru/login | grep -c FortiGuard` несколько дней
+подряд даёт ноль, а не один раз. Сборку из школы проверять через vercel.app.
 
 **DNS после переезда в Cloudflare проверять глазами.** Cloudflare при
 подключении скопировал старые записи и пустил сайт через свой прокси на

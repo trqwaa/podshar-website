@@ -12,8 +12,9 @@
  * So the host is only *chosen from* this list, never taken on trust. A request
  * on www.podshar.ch produces a link there, and anything else — a preview URL, a
  * forged header — gets the canonical address. The bare podshar.ch redirects to
- * www (Vercel does that), and since 1.42A so does the old vercel.app address
- * (`next.config.mjs`). A link built on either still lands on the right site.
+ * www (Vercel does that); the old vercel.app address serves the site alongside,
+ * because the school's web filter still blocks the new domain (CLAUDE.md). A
+ * link built on any of them lands on the right site.
  *
  * Its own module, with no imports, so it can be checked with forged headers
  * directly rather than by waiting for a letter.
