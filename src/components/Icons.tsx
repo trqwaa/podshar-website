@@ -167,6 +167,15 @@ export function GamepadIcon(props: IconProps) {
   );
 }
 
+/** Гантель — зал. */
+export function DumbbellIcon(props: IconProps) {
+  return (
+    <Frame {...props}>
+      <path d="M5.2 8h5.6M3.6 5.2v5.6M5.2 4.4v7.2M12.4 5.2v5.6M10.8 4.4v7.2M1.8 8h1.8M12.4 8h1.8" />
+    </Frame>
+  );
+}
+
 /** Ярлык с номером — версии и патчи. */
 export function TagIcon(props: IconProps) {
   return (

@@ -63,7 +63,7 @@ export const PRIMARY_NAV_SLOTS = 5;
  * переедет в базу на человека, а этот массив останется тем, что видит новичок.
  * Остаток до `PRIMARY_NAV_SLOTS` шторка добивает честными заглушками.
  */
-export const BOOKMARKS: string[] = ['calendar', 'todos', 'trains', 'games'];
+export const BOOKMARKS: string[] = ['calendar', 'todos', 'trains', 'games', 'gym'];
 
 /**
  * The homepage. Not part of `NAV_GROUPS` because it is not a nav destination —
@@ -272,9 +272,34 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         id: 'gym',
         href: '/gym',
-        status: 'planned',
+        status: 'live',
         labelKey: 'gym',
-        terms: ['gym', 'зал', 'workout', 'trening', 'тренир', 'тренув', 'качал']
+        // Подвальная качалка: тренировки, питание, сон и мопс-критик. Внутри
+        // три страницы (`/gym/training`, `/gym/food`, `/gym/sleep`), но место
+        // одно — `placeForPath` узнаёт их по началу пути.
+        //
+        // Без голых «сон» и «еда»: «сон» короче четырёх букв и сверяется целым
+        // словом, но «еда» сидит в «среда», «победа» и «обеда» — тот же
+        // капкан, что `rain` в `train`. Ловится «питани», «кбжу», «калори».
+        // Без голого «спал» — сидит в «спалился»; без «замер» — сидит в
+        // «замерз», и вопрос про холод уезжал бы в зал.
+        terms: [
+          'gym', 'зал', 'workout', 'trening', 'тренир', 'тренув', 'качал', 'качат',
+          'питани', 'харчуван', 'кбжу', 'кбжв', 'калори', 'ккал', 'ernährung', 'nutrition',
+          'сон', 'спать', 'сплю', 'спишь', 'выспал', 'проспал', 'поспал', 'не спал', 'спати', 'виспав',
+          'sleep', 'schlaf', 'замеры', 'замеров', 'замерить', 'замерь', 'заміри', 'замірів', 'бицепс', 'біцепс',
+          'жим', 'присед', 'присід', 'становая', 'бад', 'добавк', 'протеин', 'протеїн', 'креатин', 'supplement'
+        ],
+        elements: [
+          { id: 'critic', terms: ['критик', 'оценк', 'оцінк', 'разнос', 'рознос', 'critic', 'roast', 'kritik', 'бад', 'добавк', 'креатин', 'supplement'] },
+          { id: 'food', terms: ['питани', 'харчуван', 'кбжу', 'кбжв', 'калори', 'ккал', 'фастфуд', 'макдон', 'nutrition', 'ernährung', 'macros', 'makros'] },
+          { id: 'sleep', terms: ['сон', 'спать', 'сплю', 'выспал', 'проспал', 'виспав', 'спати', 'zepp', 'sleep', 'schlaf'] },
+          { id: 'measures', terms: ['замеры', 'замеров', 'замерить', 'заміри', 'бицепс', 'біцепс', 'талия', 'талія', 'measure', 'bizeps'] },
+          { id: 'goals', terms: ['цель', 'цели', 'ціль', 'цілі', 'масса', 'маса', 'сушк', 'goal', 'ziel'] },
+          { id: 'board', terms: ['план', 'доск', 'дошк', 'plan', 'board', 'tafel'] },
+          { id: 'workout', terms: ['тренировк', 'тренуван', 'подход', 'підхід', 'workout', 'set', 'satz', 'strong'] },
+          { id: 'scene', terms: ['подвал', 'підвал', 'качалк', 'basement', 'keller'] }
+        ]
       },
       {
         id: 'wallOfShame',
@@ -422,10 +447,18 @@ export function matchElement(place: Place, message: string): PlaceElement | unde
   return place.elements?.find((element) => matches(message, element.terms));
 }
 
-/** `path` is the pathname with the locale prefix already stripped by next-intl. */
+/**
+ * `path` is the pathname with the locale prefix already stripped by next-intl.
+ *
+ * Exact match first; then the section a nested page lives in — `/gym/food` is
+ * still the gym. Never the homepage by prefix: every path starts with `/`.
+ */
 export function placeForPath(path: string): Place | undefined {
   const clean = path.replace(/\/+$/, '') || '/';
-  return ALL_PLACES.find((place) => place.href === clean);
+  return (
+    ALL_PLACES.find((place) => place.href === clean) ??
+    ALL_PLACES.find((place) => place.href !== '/' && clean.startsWith(`${place.href}/`))
+  );
 }
 
 /** Phrases that mean "describe where I am standing", in all four languages. */

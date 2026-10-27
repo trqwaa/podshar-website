@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { usePathname } from '@/i18n/routing';
 import { PodsharMark } from './PodsharMark';
+import { PugAvatar } from './gym/PugFace';
 
 /**
  * Podshar's face: the pug in a hood.
@@ -21,6 +23,17 @@ import { PodsharMark } from './PodsharMark';
 export function AssistantAvatar({ className = 'h-11 w-11' }: { className?: string }) {
   const t = useTranslations('assistant');
   const [failed, setFailed] = useState(false);
+  // В зале мопс снимает капюшон: качок в майке (`gym/PugFace`). Рисунок, а не
+  // файл, — ему нечему не загрузиться.
+  const inGym = usePathname().startsWith('/gym');
+
+  if (inGym) {
+    return (
+      <span className={`grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-rule bg-sunk ${className}`}>
+        <PugAvatar className="h-full w-full translate-y-[6%] scale-110" title={t('avatarAlt')} />
+      </span>
+    );
+  }
 
   return (
     <span

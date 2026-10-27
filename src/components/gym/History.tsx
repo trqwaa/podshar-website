@@ -1,0 +1,83 @@
+'use client';
+
+import { useLocale, useTranslations } from 'next-intl';
+
+import type { Locale } from '@/i18n/routing';
+import { removeWorkout } from '@/lib/gym/actions';
+import type { WorkoutView } from '@/lib/gym/data';
+import { exerciseOf, oneRepMax } from '@/lib/gym/exercises';
+import { ErrorLine, useGymAction } from './ui';
+
+/** История: законченные тренировки, свежая сверху, с лучшим подходом каждого упражнения. */
+export function History({ workouts, editable }: { workouts: WorkoutView[]; editable: boolean }) {
+  const t = useTranslations('gym');
+  const locale = useLocale() as Locale;
+  const { run, pending, error } = useGymAction();
+  const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+  const date = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'Europe/Zurich' });
+
+  if (workouts.length === 0) return <p className="text-sm text-ink-muted">{t('history.empty')}</p>;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <ErrorLine message={error} />
+      <ul className="flex flex-col gap-3">
+        {workouts.map((w) => {
+          const working = w.sets.filter((s) => !s.warmup);
+          const volume = working.reduce((sum, s) => sum + (s.weight ?? 0) * (s.reps ?? 0), 0);
+          const minutes = w.finishedAt ? Math.max(1, Math.round((w.finishedAt - w.startedAt) / 60_000)) : 0;
+          const byExercise = new Map<string, { sets: number; best: { weight: number; reps: number } | null; score: number }>();
+          for (const s of working) {
+            const entry = byExercise.get(s.exercise) ?? { sets: 0, best: null, score: -1 };
+            entry.sets += 1;
+            const score = s.weight && s.reps ? oneRepMax(s.weight, s.reps) : (s.reps ?? 0) / 100;
+            if (score > entry.score) {
+              entry.score = score;
+              entry.best = { weight: s.weight ?? 0, reps: s.reps ?? 0 };
+            }
+            byExercise.set(s.exercise, entry);
+          }
+          return (
+            <li key={w.id} className="rounded-[10px] border-2 border-rule-soft p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-ink">{w.title || t('history.untitled')}</h3>
+                  <p className="ps-label mt-0.5">{date.format(w.startedAt).toLowerCase()}</p>
+                </div>
+                <p className="flex flex-wrap gap-x-3 text-sm text-ink-muted">
+                  <span>{t('history.minutes', { n: minutes })}</span>
+                  <span>{t('history.sets', { n: working.length })}</span>
+                  <span>{t('history.volume', { kg: num.format(volume) })}</span>
+                </p>
+              </div>
+              <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-0.5 text-sm sm:grid-cols-2">
+                {[...byExercise.entries()].map(([id, e]) => (
+                  <li key={id} className="flex justify-between gap-2">
+                    <span className="truncate text-ink">
+                      {e.sets} × {exerciseOf(id)?.name[locale] ?? id}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-ink-muted">
+                      {e.best ? (e.best.weight ? `${num.format(e.best.weight)} × ${e.best.reps}` : `× ${e.best.reps}`) : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {editable ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  className="ps-label mt-2 hover:text-loss"
+                  onClick={() => {
+                    if (window.confirm(t('history.removeConfirm'))) void run(removeWorkout, { id: w.id });
+                  }}
+                >
+                  {t('history.remove')}
+                </button>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}

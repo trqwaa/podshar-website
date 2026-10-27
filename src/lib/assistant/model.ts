@@ -15,7 +15,7 @@ import { WRITE_TOOLS, isWrite, runWrite } from '@/lib/assistant/write';
  * This is the cost dial and the only line that needs changing: add the model to
  * `PRICE_PER_MTOK` and nothing else here is model-specific.
  */
-const MODEL: keyof typeof PRICE_PER_MTOK = 'claude-sonnet-5';
+export const MODEL: keyof typeof PRICE_PER_MTOK = 'claude-sonnet-5';
 
 /**
  * Generous on purpose, and not a cost control.
@@ -66,7 +66,7 @@ const NAVIGATE: Anthropic.Beta.BetaTool = {
  * someone moves the dial above — which is exactly what happened once here, and
  * it under-reported by two and a half times. Cached reads bill at a tenth.
  */
-const PRICE_PER_MTOK = {
+export const PRICE_PER_MTOK = {
   // `serverFallbacks`: whether the model accepts the server-side retry that
   // rescues a safety refusal. Opus does; Sonnet answers a request carrying it
   // with a flat 400, which is a whole afternoon of the dog being mysteriously

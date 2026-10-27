@@ -49,6 +49,11 @@ const config: Config = {
         'note-sky': 'rgb(var(--note-sky) / <alpha-value>)',
         'note-peach': 'rgb(var(--note-peach) / <alpha-value>)',
         'note-plain': 'rgb(var(--note-plain) / <alpha-value>)',
+        // Зал: мопс, его маска, доска в подвале и зеленца, когда ему плохо.
+        pug: 'rgb(var(--pug) / <alpha-value>)',
+        'pug-mask': 'rgb(var(--pug-mask) / <alpha-value>)',
+        chalkboard: 'rgb(var(--chalkboard) / <alpha-value>)',
+        queasy: 'rgb(var(--queasy) / <alpha-value>)',
         // Derived, never hand-typed at call sites.
         'ink-muted': 'rgb(var(--ink) / 0.62)',
         'ink-faint': 'rgb(var(--ink) / 0.34)',
@@ -160,6 +165,45 @@ const config: Config = {
         'caret-blink': {
           '0%, 45%': { opacity: '1' },
           '55%, 100%': { opacity: '0' }
+        },
+        // Мопс в зале моргает: раз в пять секунд, быстро. Веко растёт сверху вниз.
+        'pug-blink': {
+          '0%, 93%, 100%': { transform: 'scaleY(0)' },
+          '96.5%': { transform: 'scaleY(1)' }
+        },
+        // «z» над невыспавшимся мопсом: всплывает и тает.
+        'pug-z': {
+          '0%': { opacity: '0', transform: 'translate(0, 4px)' },
+          '30%': { opacity: '1' },
+          '100%': { opacity: '0', transform: 'translate(6px, -12px)' }
+        },
+        // Подвал: лампочка качается на проводе, пыль плавает в свете, свет
+        // иногда мигает, за окном проходят ботинки. Всё медленное: подвал, а
+        // не дискотека.
+        'gym-swing': {
+          '0%, 100%': { transform: 'rotate(-2.4deg)' },
+          '50%': { transform: 'rotate(2.4deg)' }
+        },
+        'gym-flicker': {
+          '0%, 86%, 100%': { opacity: '1' },
+          '88%': { opacity: '0.55' },
+          '90%': { opacity: '1' },
+          '92%': { opacity: '0.7' }
+        },
+        'gym-mote': {
+          '0%': { opacity: '0', transform: 'translate(0, 0)' },
+          '25%': { opacity: '0.7' },
+          '100%': { opacity: '0', transform: 'translate(16px, -46px)' }
+        },
+        'gym-walk': {
+          '0%': { transform: 'translateX(0)' },
+          '30%': { transform: 'translateX(300px)' },
+          '100%': { transform: 'translateX(300px)' }
+        },
+        // Слюна у переспавшего тянется и подбирается.
+        'pug-drip': {
+          '0%, 100%': { transform: 'scaleY(1)' },
+          '50%': { transform: 'scaleY(1.45)' }
         }
       },
       animation: {
@@ -170,7 +214,14 @@ const config: Config = {
         'dot-hop': 'dot-hop 1.15s cubic-bezier(0.45, 0, 0.55, 1) infinite',
         'caret-blink': 'caret-blink 1.05s steps(1, end) infinite',
         'pop-in': 'pop-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both',
-        'slide-in': 'slide-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both'
+        'slide-in': 'slide-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'pug-blink': 'pug-blink 5.2s linear infinite',
+        'pug-z': 'pug-z 2.4s ease-out infinite',
+        'pug-drip': 'pug-drip 2.8s ease-in-out infinite',
+        'gym-swing': 'gym-swing 5.5s ease-in-out infinite',
+        'gym-flicker': 'gym-flicker 9s linear infinite',
+        'gym-mote': 'gym-mote 12s ease-in-out infinite',
+        'gym-walk': 'gym-walk 19s linear infinite'
       }
     }
   },

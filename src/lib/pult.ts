@@ -10,6 +10,8 @@ import { PATCHES } from '@/lib/patches';
 import { listPresence } from '@/lib/presence';
 import { boardNotes } from '@/lib/todos/board';
 import { getTrains } from '@/lib/trains';
+import { activeWorkout, planOf, weekdayOf } from '@/lib/gym/data';
+import { exerciseName } from '@/lib/gym/exercises';
 import { getWeather, type Condition } from '@/lib/weather';
 
 /**
@@ -81,14 +83,16 @@ export async function pultAnswers({
     hour12: false
   });
 
-  const [trains, weather, people, today, shared, mine, meta] = await Promise.all([
+  const [trains, weather, people, today, shared, mine, meta, plan, workout] = await Promise.all([
     within(getTrains()),
     within(getWeather()),
     within(listPresence()),
     within(rangeEvents([dayKey(new Date(now))])),
     userId ? within(boardNotes(userId, true)) : null,
     userId ? within(boardNotes(userId, false)) : null,
-    within(brawlMeta())
+    within(brawlMeta()),
+    userId ? within(planOf(userId)) : null,
+    userId ? within(activeWorkout(userId)) : null
   ]);
 
   const answers: PultAnswers = {};
@@ -161,6 +165,13 @@ export async function pultAnswers({
       shared: shared.filter((n) => !n.done).length,
       mine: mine.filter((n) => !n.done).length
     });
+  }
+
+  // Зал — что сегодня на доске. Идущая тренировка важнее плана.
+  if (workout) answers.gym = t('gymActive');
+  else if (plan) {
+    const day = plan.find((d) => d.weekday === weekdayOf(dayKey(new Date(now))) && d.items.length > 0);
+    answers.gym = plan.length === 0 ? t('gymNoPlan') : day ? t('gymToday', { title: day.title || exerciseName(day.items[0].exercise, locale) }) : t('gymRest');
   }
 
   const top = meta?.tier[0];

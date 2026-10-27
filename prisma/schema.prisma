@@ -201,6 +201,13 @@ model User {
   todosAssigned      TodoItem[]          @relation("TodoAssignee")
   savedRoutes        SavedRoute[]
   gymSessions        GymSession[]
+  gymProfile         GymProfile?
+  gymGoals           GymGoal[]
+  gymPlanDays        GymPlanDay[]
+  bodyMeasures       BodyMeasure[]
+  foodEntries        FoodEntry[]
+  sleepEntries       SleepEntry[]
+  gymVerdicts        GymVerdict[]
   shameAuthored      ShameEntry[]        @relation("ShameAuthor")
   shameReceived      ShameEntry[]        @relation("ShameTarget")
   shameReactions     ShameReaction[]
@@ -1109,6 +1116,9 @@ model TodoItem {
   @@map("todo_items")
 }
 
+/// Одна тренировка. Таблица была в схеме с первого дня, зал её и занял:
+/// `scheduledFor` — когда начал, `completedAt` пуст, пока тренировка идёт,
+/// `focus` — её название («ноги», «push»). Подходы — в `gym_sets`.
 model GymSession {
   id           String    @id @default(cuid())
   userId       String
@@ -1117,10 +1127,191 @@ model GymSession {
   focus        String?
   notes        String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sets GymSet[]
 
   @@index([userId, scheduledFor])
   @@map("gym_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// ЗАЛ: качалка, питание, сон
+//
+// Данные у каждого свои, а видят их все трое: дневник зала открыт на троих, как
+// календарь, только править можно своё. Выборка на запись идёт по сессии, не по
+// тому, что прислал браузер.
+//
+// Справочники — упражнения, еда, части тела, цели — живут в коде
+// (`lib/gym/*`), как герои доты: в базе лежит имя из набора, а не строка
+// справочника. День — строкой `YYYY-MM-DD` по Цюриху, как ключи календаря:
+// «что съел в понедельник» не должно зависеть от пояса того, кто смотрит.
+// ---------------------------------------------------------------------------
+
+/// Подход: вес, повторы, отмечен ли. Порядок упражнения в тренировке — `block`,
+/// подхода в упражнении — `index`.
+model GymSet {
+  id        String    @id @default(cuid())
+  sessionId String
+  /// Упражнение из `lib/gym/exercises.ts`, по id.
+  exercise  String
+  block     Int
+  index     Int
+  weight    Float?
+  reps      Int?
+  warmup    Boolean   @default(false)
+  done      Boolean   @default(false)
+  doneAt    DateTime?
+
+  session GymSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, block, index])
+  @@index([exercise])
+  @@map("gym_sets")
+}
+
+/// Цель и то, без чего не посчитать нормы. Одна строка на человека.
+model GymProfile {
+  userId    String   @id
+  /// hypertrophy | strength | cut — набор в `lib/gym/norms.ts`.
+  goal      String   @default("hypertrophy")
+  heightCm  Float?
+  /// Для формулы обмена: male | female.
+  sex       String   @default("male")
+  /// Сколько человек двигается вне зала: low | mid | high.
+  activity  String   @default("mid")
+  /// Год рождения, если дня рождения нет в `countdowns`. Нужен нормам сна.
+  bornYear  Int?
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("gym_profiles")
+}
+
+/// Конкретная цель: вес тела, рабочий вес в упражнении или замер.
+model GymGoal {
+  id         String    @id @default(cuid())
+  userId     String
+  /// bodyweight | lift | measure
+  kind       String
+  /// Упражнение для `lift`, часть тела для `measure`, пусто для веса тела.
+  subject    String?
+  target     Float
+  deadline   String?
+  achievedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("gym_goals")
+}
+
+/// День плана на доске: понедельник — 0. Упражнения дня — в `gym_plan_items`.
+model GymPlanDay {
+  id      String        @id @default(cuid())
+  userId  String
+  weekday Int
+  title   String
+  items   GymPlanItem[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekday])
+  @@map("gym_plan_days")
+}
+
+model GymPlanItem {
+  id       String @id @default(cuid())
+  dayId    String
+  exercise String
+  sets     Int
+  reps     Int
+  weight   Float?
+  /// Дробный индекс, как у записок: перестановка трогает одну строку.
+  position Float
+
+  day GymPlanDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@index([dayId, position])
+  @@map("gym_plan_items")
+}
+
+/// Замер: вес, процент жира или обхват части тела, в сантиметрах.
+model BodyMeasure {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Часть из `lib/gym/norms.ts`: weight, bodyfat, biceps, chest, waist…
+  part      String
+  value     Float
+  takenOn   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, part, takenOn])
+  @@map("gym_measures")
+}
+
+/// Что съел. КБЖУ записываются числами на момент записи, а не ссылкой на
+/// справочник: поправленная в коде калорийность не должна переписывать вчера.
+model FoodEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  eatenOn   String
+  /// breakfast | lunch | dinner | snack
+  meal      String
+  /// Еда из `lib/gym/foods.ts`, если взята оттуда; своя — пусто.
+  food      String?
+  name      String
+  grams     Float?
+  kcal      Float
+  protein   Float
+  fat       Float
+  carbs     Float
+  /// Фастфуд и прочее, от чего мопсу плохо.
+  junk      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, eatenOn])
+  @@map("gym_food")
+}
+
+/// Ночь сна. `night` — утро, в которое проснулся: ночь с 26-го на 27-е — это 27-е.
+model SleepEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  night     String
+  bedAt     DateTime
+  wakeAt    DateTime
+  minutes   Int
+  deep      Int?
+  rem       Int?
+  /// manual | zepp | csv
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, night])
+  @@map("gym_sleep")
+}
+
+/// Разнос от мопса-критика, когда его просили разнести моделью. Хранится, чтобы
+/// не платить за тот же разнос на каждый заход, и чтобы его видели все трое.
+model GymVerdict {
+  id        String   @id @default(cuid())
+  userId    String
+  locale    String
+  text      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("gym_verdicts")
 }
 
 model ShameEntry {

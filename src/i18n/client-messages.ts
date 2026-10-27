@@ -59,6 +59,16 @@ export const SIGNED_IN = [
   'people'
 ] as const;
 
+/**
+ * Зал (`/gym`) — свой провайдер внутри своего layout, поверх общего.
+ *
+ * Раздел большой — дневник, тренировка, питание, сон, — и его строки нужны
+ * только на его страницах. Положенные в `SIGNED_IN`, они ехали бы в браузер
+ * на каждой странице сайта, включая календарь и поезда. Внутри зала шторка и
+ * мопс читают свой, внешний провайдер; компоненты зала — этот.
+ */
+export const GYM = ['gym', 'calendar.prev', 'calendar.next', 'calendar.clear', 'calendar.noDate'] as const;
+
 type Tree = { [key: string]: string | Tree };
 
 export async function clientMessages(locale: Locale, paths: readonly string[]): Promise<Tree> {

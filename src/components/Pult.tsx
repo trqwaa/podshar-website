@@ -14,6 +14,7 @@ import { EpicIntro } from './EpicIntro';
 import {
   CalendarIcon,
   ChatIcon,
+  DumbbellIcon,
   GamepadIcon,
   HomeIcon,
   NoteIcon,
@@ -230,9 +231,9 @@ export function backToPult(pathname: string): boolean {
 // ─── Порядок слоёв ──────────────────────────────────────────────────────────
 
 /** Живые разделы от самого будничного к самому редкому. */
-const ORDER = ['trains', 'calendar', 'todos', 'games', 'home', 'patches', 'profile'];
+const ORDER = ['trains', 'calendar', 'todos', 'gym', 'games', 'home', 'patches', 'profile'];
 /** Будущие — от понятного всем к понятному троим. На дне — свои шутки. */
-const DEEP_ORDER = ['gym', 'memes', 'gallery', 'music', 'wallOfShame', 'radar', 'geopolitics', 'traphouse', 'ballick'];
+const DEEP_ORDER = ['memes', 'gallery', 'music', 'wallOfShame', 'radar', 'geopolitics', 'traphouse', 'ballick'];
 /** Ответы свежие минуту: поезд за это время не успевает уйти незамеченным. */
 const FRESH_MS = 60_000;
 /** Сколько трещина бежит до перехода: столько, чтобы её успели увидеть. */
@@ -243,6 +244,7 @@ const ICONS: Record<string, (p: { className?: string }) => React.ReactElement> =
   trains: RouteIcon,
   calendar: CalendarIcon,
   todos: NoteIcon,
+  gym: DumbbellIcon,
   games: GamepadIcon,
   home: HomeIcon,
   patches: TagIcon,

@@ -617,6 +617,17 @@
       "board": "the station board: what is leaving right now, from which platform and how late it runs",
       "roads": "the routes you saved. the name can change, the route opens in one press",
       "station": "your home station. it moved here from the profile, it is not there any more"
+    },
+    "gym": {
+      "here": "the gym. a basement gym: the plan board, the pug lifting today's exercise, and below — lifting, food and sleep",
+      "scene": "the basement: the pug does today's exercise from your plan, and on rest days sits on the bench in his hood",
+      "board": "the board with the week's plan. write the days and exercises in chalk — workouts start from it",
+      "workout": "a workout like in strong: sets, weights, reps, a tick and a rest timer",
+      "goals": "the goal — size, strength or a cut — and specific ones: bodyweight, bench, biceps. the pug sets targets by it",
+      "measures": "measurements: weight, biceps, waist and the rest, with history",
+      "food": "food: what you ate today and the macros. fast food makes the pug sick",
+      "sleep": "sleep: how long you slept. under seven hours — the pug is wrecked",
+      "critic": "the pug critic: grades the week, tears it apart, then says what to fix"
     }
   },
   "quotes": {
@@ -1136,7 +1147,11 @@
       "calendarMore": "{first} · {n} more",
       "todos": "shared: {shared} · yours: {mine}",
       "games": "brawl meta: {name}",
-      "patches": "v{version} · {date}"
+      "patches": "v{version} · {date}",
+      "gymToday": "today: {title}",
+      "gymRest": "rest day",
+      "gymActive": "workout in progress",
+      "gymNoPlan": "no plan"
     },
     "dog": "the pug",
     "dogHint": "lives at the very bottom. knows what is down there",
@@ -1174,5 +1189,331 @@
     "open": "Profile: {name}",
     "soon": "profiles coming soon",
     "soonHint": "each person gets a page: what they play, what they listen to, what they pin to the board. for now, a name and a mark"
+  },
+  "gym": {
+    "title": "gym",
+    "back": "to the basement",
+    "sceneLabel": "basement gym: the pug, the plan board, a rack, a fridge and a mattress",
+    "boardTitle": "plan",
+    "goalOn": "goal: {goal}",
+    "restDay": "—",
+    "menu": {
+      "training": "lifting",
+      "food": "food",
+      "sleep": "sleep"
+    },
+    "menuHint": {
+      "training": "the board, the workout, goals and measurements",
+      "food": "what you ate today, macros",
+      "sleep": "how long you slept and when you went to bed"
+    },
+    "lines": {
+      "trainingActive": "workout in progress · {n, plural, one {# set} other {# sets}}",
+      "trainingToday": "today: {title}",
+      "trainingDone": "already done today: {title}",
+      "trainingRest": "rest day",
+      "trainingNoPlan": "no plan — draw one on the board",
+      "food": "{kcal} of {target} kcal · protein {protein} g",
+      "foodEmpty": "nothing logged today",
+      "sleep": "last night: {hours} h",
+      "sleepEmpty": "last night not logged"
+    },
+    "pug": {
+      "bench": "the pug bench-presses {n} kg",
+      "row": "the pug rows a {n} kg barbell to his waist",
+      "squat": "the pug squats {n} kg",
+      "rest": "the pug sits on the bench in his hood: rest day",
+      "demo": "the pug shows: {name}"
+    },
+    "avatar": "the jacked pug in a tank top",
+    "who": {
+      "label": "whose diary",
+      "mine": "mine",
+      "readOnly": "this is the diary of {name}. you can look, you can only write in your own",
+      "guest": "no database, no diary: this is development guest mode"
+    },
+    "goals": {
+      "hypertrophy": "size",
+      "strength": "strength",
+      "cut": "cut"
+    },
+    "goalHint": {
+      "hypertrophy": "build muscle: 6–12 reps, a calorie surplus",
+      "strength": "move bigger weights: 3–6 reps, longer rests",
+      "cut": "lose fat, keep the muscle: a deficit and more protein"
+    },
+    "muscles": {
+      "chest": "chest",
+      "back": "back",
+      "shoulders": "shoulders",
+      "arms": "arms",
+      "legs": "legs",
+      "glutes": "glutes",
+      "core": "core"
+    },
+    "gear": {
+      "barbell": "barbell",
+      "dumbbell": "dumbbells",
+      "cable": "cable",
+      "machine": "machine",
+      "body": "bodyweight"
+    },
+    "critic": {
+      "title": "the pug critic",
+      "hint": "looks at the last seven days: food, training and sleep. no sugar-coating",
+      "areas": {
+        "food": "food",
+        "train": "lifting",
+        "sleep": "sleep",
+        "total": "overall"
+      },
+      "score": "{score} / 10",
+      "noScore": "no data",
+      "advice": "what to do",
+      "supplements": "supplements",
+      "take": "worth it",
+      "skip": "leave alone",
+      "disclaimer": "the pug is not a doctor. supplements and anything health-related — with a doctor, especially under eighteen",
+      "ask": "roast me properly",
+      "asking": "the pug is choosing the words that hurt most…",
+      "again": "roast me again",
+      "modelSaid": "roast from {date}",
+      "onlyOwn": "the proper roast is for your own diary only",
+      "facts": "what the roast is based on"
+    },
+    "tabs": {
+      "board": "board",
+      "workout": "workout",
+      "history": "history",
+      "body": "goals and measurements",
+      "library": "exercises"
+    },
+    "board": {
+      "hint": "the week's plan in chalk. a day without exercises is a rest day",
+      "titlePlaceholder": "name of the day",
+      "empty": "rest",
+      "add": "+ exercise",
+      "sets": "sets",
+      "reps": "reps",
+      "weight": "kg",
+      "remove": "erase",
+      "clearDay": "erase the day",
+      "today": "today",
+      "readOnly": "not your board — look only"
+    },
+    "workout": {
+      "startPlan": "start: {title}",
+      "startPlanUntitled": "start from the plan",
+      "startEmpty": "empty workout",
+      "noPlanToday": "nothing on the plan for today. start an empty one and add exercises",
+      "titlePlaceholder": "workout name",
+      "elapsed": "running {time}",
+      "finish": "finish",
+      "discard": "discard",
+      "discardConfirm": "discard it? the ticked sets will be lost",
+      "set": "set",
+      "previous": "last time",
+      "kg": "kg",
+      "reps": "reps",
+      "warmup": "w",
+      "warmupLabel": "warm-up set",
+      "done": "done",
+      "addSet": "+ set",
+      "addExercise": "+ exercise",
+      "removeSet": "remove set",
+      "removeExercise": "remove exercise",
+      "demo": "how to",
+      "rest": "rest {time}",
+      "restSkip": "skip",
+      "restMore": "+15 s",
+      "unchecked": "unticked sets will not be saved",
+      "finished": "saved. the pug is pleased and will never say so",
+      "empty": "not one set ticked — that was not a workout",
+      "volume": "volume",
+      "best": "best"
+    },
+    "history": {
+      "empty": "finished workouts will show up here",
+      "volume": "{kg} kg volume",
+      "sets": "{n, plural, one {# set} other {# sets}}",
+      "minutes": "{n, plural, one {# minute} other {# minutes}}",
+      "remove": "erase",
+      "removeConfirm": "erase this workout from history?",
+      "untitled": "workout",
+      "best": "best sets"
+    },
+    "picker": {
+      "title": "exercises",
+      "search": "find an exercise",
+      "all": "all",
+      "add": "add",
+      "back": "back to the list",
+      "technique": "technique",
+      "close": "close",
+      "nothing": "no such exercise. yet"
+    },
+    "body": {
+      "goal": "main goal",
+      "goalHint": "the pug sets your targets by it and judges you by it",
+      "profile": "for the targets",
+      "height": "height, cm",
+      "sex": "sex",
+      "sexes": {
+        "male": "m",
+        "female": "f"
+      },
+      "activity": "movement outside the gym",
+      "activities": {
+        "low": "little",
+        "mid": "average",
+        "high": "a lot"
+      },
+      "bornYear": "year of birth",
+      "age": "age: {age}",
+      "ageFromBirthday": "age from your profile birthday: {age}",
+      "ageUnknown": "age unknown — targets assume 17",
+      "targets": "daily target: {kcal} kcal · p {protein} · f {fat} · c {carbs}",
+      "weightGuess": "no weight measured yet — assuming 70 kg",
+      "save": "save",
+      "saved": "saved",
+      "goals": "specific goals",
+      "kinds": {
+        "bodyweight": "bodyweight",
+        "lift": "working weight",
+        "measure": "measurement"
+      },
+      "target": "target",
+      "deadline": "by",
+      "addGoal": "add goal",
+      "noGoals": "no specific goals. \"bench 100\" is a good first one",
+      "reached": "done",
+      "progress": "now {now} of {target}",
+      "progressNone": "not measured yet",
+      "removeGoal": "remove goal",
+      "measures": "measurements",
+      "addMeasure": "log",
+      "value": "value",
+      "date": "date",
+      "noMeasures": "no measurements. weigh yourself in the morning before eating — start there",
+      "remove": "remove",
+      "entries": "{n, plural, one {# entry} other {# entries}}",
+      "change": "{delta} in {days, plural, one {# day} other {# days}}",
+      "parts": {
+        "weight": "weight",
+        "bodyfat": "body fat %",
+        "neck": "neck",
+        "shoulders": "shoulders",
+        "chest": "chest",
+        "biceps": "biceps",
+        "forearm": "forearm",
+        "waist": "waist",
+        "hips": "hips",
+        "thigh": "thigh",
+        "calf": "calf"
+      },
+      "units": {
+        "kg": "kg",
+        "cm": "cm",
+        "%": "%"
+      }
+    },
+    "food": {
+      "title": "food",
+      "hint": "everything you ate today. macros add up by themselves",
+      "meals": {
+        "breakfast": "breakfast",
+        "lunch": "lunch",
+        "dinner": "dinner",
+        "snack": "snack"
+      },
+      "add": "add",
+      "search": "find food: oats, chicken, big mac…",
+      "grams": "g",
+      "custom": "your own food",
+      "customHint": "not on the list — type it in with the numbers from the pack",
+      "name": "name",
+      "kcal": "kcal",
+      "protein": "protein",
+      "fat": "fat",
+      "carbs": "carbs",
+      "recent": "recent",
+      "empty": "empty",
+      "day": "today's total",
+      "norm": "target",
+      "left": "{kcal} kcal left",
+      "over": "{kcal} kcal over",
+      "remove": "remove",
+      "today": "today",
+      "prev": "previous day",
+      "next": "next day",
+      "pickDay": "pick a day",
+      "junk": "fast food",
+      "units": {
+        "piece": "piece",
+        "can": "can",
+        "pack": "pack",
+        "slice": "slice",
+        "scoop": "scoop",
+        "tbsp": "tbsp",
+        "bowl": "bowl",
+        "serving": "serving",
+        "bottle": "bottle",
+        "glass": "glass"
+      },
+      "portion": "{n} × {unit}",
+      "week": "week",
+      "readOnly": "someone else's diary: only its owner logs food"
+    },
+    "sleep": {
+      "title": "sleep",
+      "hint": "how long you slept and when you went to bed. under seven hours — the pug is wrecked",
+      "add": "log a night",
+      "night": "morning",
+      "bed": "bed",
+      "wake": "woke up",
+      "hours": "{hours} h",
+      "norm": "target at {age}: {low}–{high} h",
+      "week": "two weeks",
+      "avg": "average {hours} h",
+      "empty": "no nights yet. log last night — it is just two times",
+      "remove": "remove",
+      "sources": {
+        "manual": "by hand",
+        "zepp": "zepp life",
+        "csv": "file"
+      },
+      "import": {
+        "title": "from a file",
+        "hint": "a zepp life export (the SLEEP folder, a .csv file) or any table with sleep start and end",
+        "button": "upload csv",
+        "done": "imported: {n, plural, one {# night} other {# nights}}",
+        "skipped": "nights logged by hand were left alone: {n}"
+      },
+      "connect": {
+        "title": "how to pull sleep from a watch",
+        "zepp": "zepp life has no public api. it does export: in the app — profile → settings → export data, the archive arrives by email; upload the file from its SLEEP folder here",
+        "apple": "iphone: zepp life writes sleep into apple health. sending it here automatically means a shortcut that posts last night to the site every morning (next step, not built yet)",
+        "android": "android: zepp life writes into health connect. only an app on the phone can read it, the website cannot — that needs a small companion app (also later)"
+      },
+      "readOnly": "someone else's diary: only its owner logs sleep"
+    },
+    "errors": {
+      "signedOut": "sign in first",
+      "invalid": "something is off with the numbers",
+      "notYours": "that is not yours",
+      "tooMany": "that is a lot. remove something",
+      "range": "that cannot be right. check the numbers",
+      "future": "you cannot log the future",
+      "empty": "it needs a name",
+      "noKcal": "at least the calories, please",
+      "noFile": "no file",
+      "tooBig": "that file is too big for a sleep export",
+      "format": "unknown format: it needs columns for sleep start and end",
+      "noNights": "no nights found in the file",
+      "cooldown": "the pug is still catching his breath after the last roast. give it a couple of minutes",
+      "dailyCap": "enough roasting for today",
+      "noModel": "no model at hand — the rule-based roast above will have to do",
+      "generic": "that did not work. again?"
+    }
   }
 }

@@ -617,6 +617,17 @@
       "board": "die abfahrtstafel: was gerade wegfährt, von welchem gleis und wie viel später",
       "roads": "die strecken, die du gemerkt hast. der name ist änderbar, die strecke öffnet mit einem druck",
       "station": "deine heimatstation. sie ist aus dem profil hierher gezogen, dort gibt es sie nicht mehr"
+    },
+    "gym": {
+      "here": "das gym. ein kellergym: die tafel mit dem plan, der mops stemmt die übung des tages, und unten — training, ernährung und schlaf",
+      "scene": "der keller: der mops macht die übung des tages nach deinem plan und sitzt am ruhetag mit kapuze auf der bank",
+      "board": "die tafel mit dem wochenplan. tage und übungen mit kreide — das training startet von hier",
+      "workout": "training wie in strong: sätze, gewichte, wiederholungen, ein häkchen und ein pausentimer",
+      "goals": "das ziel — masse, kraft oder diät — und konkrete: gewicht, bank, bizeps. danach rechnet der mops",
+      "measures": "masse: gewicht, bizeps, taille und der rest, mit verlauf",
+      "food": "ernährung: was du heute gegessen hast und die makros. von fast food wird dem mops schlecht",
+      "sleep": "schlaf: wie lange du geschlafen hast. unter sieben stunden ist der mops fertig",
+      "critic": "der mops-kritiker: bewertet die woche, zerlegt sie und sagt dann, was zu ändern ist"
     }
   },
   "quotes": {
@@ -1136,7 +1147,11 @@
       "calendarMore": "{first} · und {n} mehr",
       "todos": "gemeinsam: {shared} · deins: {mine}",
       "games": "brawl-meta: {name}",
-      "patches": "v{version} · {date}"
+      "patches": "v{version} · {date}",
+      "gymToday": "heute: {title}",
+      "gymRest": "heute ruhetag",
+      "gymActive": "training läuft",
+      "gymNoPlan": "kein plan"
     },
     "dog": "der mops",
     "dogHint": "wohnt ganz unten. weiss, was da liegt",
@@ -1174,5 +1189,331 @@
     "open": "Profil: {name}",
     "soon": "profile kommen bald",
     "soonHint": "jede person bekommt eine seite: was sie spielt, hört und ans brett hängt. bis dahin name und zeichen"
+  },
+  "gym": {
+    "title": "gym",
+    "back": "in den keller",
+    "sceneLabel": "kellergym: der mops, die tafel mit dem plan, ein rack, ein kühlschrank und eine matratze",
+    "boardTitle": "plan",
+    "goalOn": "ziel: {goal}",
+    "restDay": "—",
+    "menu": {
+      "training": "training",
+      "food": "ernährung",
+      "sleep": "schlaf"
+    },
+    "menuHint": {
+      "training": "plan an der tafel, training, ziele und masse",
+      "food": "was du heute gegessen hast, makros",
+      "sleep": "wie lange du geschlafen hast und wann du ins bett bist"
+    },
+    "lines": {
+      "trainingActive": "training läuft · {n, plural, one {# satz} other {# sätze}}",
+      "trainingToday": "heute: {title}",
+      "trainingDone": "heute schon erledigt: {title}",
+      "trainingRest": "heute ruhetag",
+      "trainingNoPlan": "kein plan — mal einen an die tafel",
+      "food": "{kcal} von {target} kcal · eiweiss {protein} g",
+      "foodEmpty": "heute nichts eingetragen",
+      "sleep": "letzte nacht: {hours} h",
+      "sleepEmpty": "letzte nacht nicht eingetragen"
+    },
+    "pug": {
+      "bench": "der mops drückt {n} kg auf der bank",
+      "row": "der mops rudert {n} kg zur hüfte",
+      "squat": "der mops macht kniebeugen mit {n} kg",
+      "rest": "der mops sitzt mit kapuze auf der bank: ruhetag",
+      "demo": "der mops zeigt: {name}"
+    },
+    "avatar": "der muskelmops im unterhemd",
+    "who": {
+      "label": "wessen tagebuch",
+      "mine": "meins",
+      "readOnly": "das ist das tagebuch von {name}. anschauen ja, schreiben nur ins eigene",
+      "guest": "ohne datenbank kein tagebuch: das ist der gastmodus der entwicklung"
+    },
+    "goals": {
+      "hypertrophy": "masse",
+      "strength": "kraft",
+      "cut": "diät"
+    },
+    "goalHint": {
+      "hypertrophy": "muskeln aufbauen: 6–12 wiederholungen, kalorienüberschuss",
+      "strength": "gewichte steigern: 3–6 wiederholungen, längere pausen",
+      "cut": "fett weg, muskeln halten: defizit und mehr eiweiss"
+    },
+    "muscles": {
+      "chest": "brust",
+      "back": "rücken",
+      "shoulders": "schultern",
+      "arms": "arme",
+      "legs": "beine",
+      "glutes": "po",
+      "core": "bauch"
+    },
+    "gear": {
+      "barbell": "langhantel",
+      "dumbbell": "kurzhanteln",
+      "cable": "kabelzug",
+      "machine": "maschine",
+      "body": "körpergewicht"
+    },
+    "critic": {
+      "title": "der mops-kritiker",
+      "hint": "schaut auf die letzten sieben tage: essen, training und schlaf. ohne zuckerguss",
+      "areas": {
+        "food": "ernährung",
+        "train": "training",
+        "sleep": "schlaf",
+        "total": "gesamt"
+      },
+      "score": "{score} / 10",
+      "noScore": "keine daten",
+      "advice": "was tun",
+      "supplements": "supplements",
+      "take": "sinnvoll",
+      "skip": "finger weg",
+      "disclaimer": "der mops ist kein arzt. supplements und alles zur gesundheit — mit dem arzt, besonders unter achtzehn",
+      "ask": "richtig zerlegen",
+      "asking": "der mops sucht die worte, die am meisten wehtun…",
+      "again": "nochmal zerlegen",
+      "modelSaid": "verriss vom {date}",
+      "onlyOwn": "richtig zerlegt wird nur das eigene tagebuch",
+      "facts": "worauf der verriss beruht"
+    },
+    "tabs": {
+      "board": "tafel",
+      "workout": "training",
+      "history": "verlauf",
+      "body": "ziele und masse",
+      "library": "übungen"
+    },
+    "board": {
+      "hint": "der wochenplan mit kreide an der tafel. ein tag ohne übungen ist ein ruhetag",
+      "titlePlaceholder": "name des tages",
+      "empty": "ruhe",
+      "add": "+ übung",
+      "sets": "sätze",
+      "reps": "wdh",
+      "weight": "kg",
+      "remove": "wegwischen",
+      "clearDay": "tag wegwischen",
+      "today": "heute",
+      "readOnly": "nicht deine tafel — nur anschauen"
+    },
+    "workout": {
+      "startPlan": "starten: {title}",
+      "startPlanUntitled": "nach plan starten",
+      "startEmpty": "leeres training",
+      "noPlanToday": "für heute steht nichts im plan. starte ein leeres und füge übungen hinzu",
+      "titlePlaceholder": "name des trainings",
+      "elapsed": "läuft {time}",
+      "finish": "beenden",
+      "discard": "verwerfen",
+      "discardConfirm": "wirklich verwerfen? die abgehakten sätze sind dann weg",
+      "set": "satz",
+      "previous": "letztes mal",
+      "kg": "kg",
+      "reps": "wdh",
+      "warmup": "a",
+      "warmupLabel": "aufwärmsatz",
+      "done": "erledigt",
+      "addSet": "+ satz",
+      "addExercise": "+ übung",
+      "removeSet": "satz entfernen",
+      "removeExercise": "übung entfernen",
+      "demo": "so gehts",
+      "rest": "pause {time}",
+      "restSkip": "weiter",
+      "restMore": "+15 s",
+      "unchecked": "nicht abgehakte sätze werden nicht gespeichert",
+      "finished": "gespeichert. der mops ist zufrieden und sagt es nie",
+      "empty": "kein einziger satz abgehakt — das war kein training",
+      "volume": "volumen",
+      "best": "rekord"
+    },
+    "history": {
+      "empty": "hier erscheinen die beendeten trainings",
+      "volume": "{kg} kg volumen",
+      "sets": "{n, plural, one {# satz} other {# sätze}}",
+      "minutes": "{n, plural, one {# minute} other {# minuten}}",
+      "remove": "löschen",
+      "removeConfirm": "dieses training aus dem verlauf löschen?",
+      "untitled": "training",
+      "best": "beste sätze"
+    },
+    "picker": {
+      "title": "übungen",
+      "search": "übung suchen",
+      "all": "alle",
+      "add": "hinzufügen",
+      "back": "zur liste",
+      "technique": "technik",
+      "close": "schliessen",
+      "nothing": "diese übung gibt es nicht. noch nicht"
+    },
+    "body": {
+      "goal": "hauptziel",
+      "goalHint": "danach rechnet der mops deine werte und danach urteilt er",
+      "profile": "für die berechnung",
+      "height": "grösse, cm",
+      "sex": "geschlecht",
+      "sexes": {
+        "male": "m",
+        "female": "w"
+      },
+      "activity": "bewegung ausserhalb des gyms",
+      "activities": {
+        "low": "wenig",
+        "mid": "mittel",
+        "high": "viel"
+      },
+      "bornYear": "geburtsjahr",
+      "age": "alter: {age}",
+      "ageFromBirthday": "alter laut geburtstag im profil: {age}",
+      "ageUnknown": "alter unbekannt — gerechnet wird mit 17",
+      "targets": "tagesziel: {kcal} kcal · e {protein} · f {fat} · k {carbs}",
+      "weightGuess": "noch kein gewicht gemessen — gerechnet wird mit 70 kg",
+      "save": "speichern",
+      "saved": "gespeichert",
+      "goals": "konkrete ziele",
+      "kinds": {
+        "bodyweight": "körpergewicht",
+        "lift": "arbeitsgewicht",
+        "measure": "mass"
+      },
+      "target": "ziel",
+      "deadline": "bis",
+      "addGoal": "ziel hinzufügen",
+      "noGoals": "keine konkreten ziele. \"bank 100\" ist ein gutes erstes",
+      "reached": "geschafft",
+      "progress": "jetzt {now} von {target}",
+      "progressNone": "noch nicht gemessen",
+      "removeGoal": "ziel entfernen",
+      "measures": "masse",
+      "addMeasure": "eintragen",
+      "value": "wert",
+      "date": "datum",
+      "noMeasures": "keine masse. wieg dich morgens nüchtern — damit fangen wir an",
+      "remove": "entfernen",
+      "entries": "{n, plural, one {# eintrag} other {# einträge}}",
+      "change": "{delta} in {days, plural, one {# tag} other {# tagen}}",
+      "parts": {
+        "weight": "gewicht",
+        "bodyfat": "körperfett %",
+        "neck": "hals",
+        "shoulders": "schultern",
+        "chest": "brust",
+        "biceps": "bizeps",
+        "forearm": "unterarm",
+        "waist": "taille",
+        "hips": "hüfte",
+        "thigh": "oberschenkel",
+        "calf": "wade"
+      },
+      "units": {
+        "kg": "kg",
+        "cm": "cm",
+        "%": "%"
+      }
+    },
+    "food": {
+      "title": "ernährung",
+      "hint": "alles, was du heute gegessen hast. die makros rechnen sich selbst",
+      "meals": {
+        "breakfast": "frühstück",
+        "lunch": "mittagessen",
+        "dinner": "abendessen",
+        "snack": "snack"
+      },
+      "add": "hinzufügen",
+      "search": "essen suchen: haferflocken, poulet, big mac…",
+      "grams": "g",
+      "custom": "eigenes essen",
+      "customHint": "nicht in der liste — selbst eintragen, mit den zahlen von der packung",
+      "name": "name",
+      "kcal": "kcal",
+      "protein": "eiweiss",
+      "fat": "fett",
+      "carbs": "kohlenhydrate",
+      "recent": "zuletzt",
+      "empty": "leer",
+      "day": "heute gesamt",
+      "norm": "ziel",
+      "left": "noch {kcal} kcal",
+      "over": "{kcal} kcal zu viel",
+      "remove": "entfernen",
+      "today": "heute",
+      "prev": "tag davor",
+      "next": "tag danach",
+      "pickDay": "tag wählen",
+      "junk": "fast food",
+      "units": {
+        "piece": "stück",
+        "can": "dose",
+        "pack": "packung",
+        "slice": "scheibe",
+        "scoop": "messlöffel",
+        "tbsp": "esslöffel",
+        "bowl": "teller",
+        "serving": "portion",
+        "bottle": "flasche",
+        "glass": "glas"
+      },
+      "portion": "{n} × {unit}",
+      "week": "woche",
+      "readOnly": "fremdes tagebuch: essen trägt nur der besitzer ein"
+    },
+    "sleep": {
+      "title": "schlaf",
+      "hint": "wie lange du geschlafen hast und wann du ins bett bist. unter sieben stunden — der mops ist fertig",
+      "add": "nacht eintragen",
+      "night": "morgen",
+      "bed": "ins bett",
+      "wake": "aufgestanden",
+      "hours": "{hours} h",
+      "norm": "ziel mit {age}: {low}–{high} h",
+      "week": "zwei wochen",
+      "avg": "im schnitt {hours} h",
+      "empty": "noch keine nächte. trag die letzte ein — das sind nur zwei uhrzeiten",
+      "remove": "entfernen",
+      "sources": {
+        "manual": "von hand",
+        "zepp": "zepp life",
+        "csv": "datei"
+      },
+      "import": {
+        "title": "aus einer datei",
+        "hint": "ein zepp-life-export (ordner SLEEP, eine .csv-datei) oder eine tabelle mit schlafbeginn und -ende",
+        "button": "csv hochladen",
+        "done": "importiert: {n, plural, one {# nacht} other {# nächte}}",
+        "skipped": "von hand eingetragene nächte blieben unberührt: {n}"
+      },
+      "connect": {
+        "title": "schlaf von der uhr holen",
+        "zepp": "zepp life hat keine offene api. es gibt einen export: in der app — profil → einstellungen → daten exportieren, das archiv kommt per mail; die datei aus dem ordner SLEEP hier hochladen",
+        "apple": "iphone: zepp life schreibt den schlaf in apple health. automatisch hierher geht es über einen kurzbefehl, der jeden morgen die nacht an die seite schickt (nächster schritt, noch nicht gebaut)",
+        "android": "android: zepp life schreibt in health connect. lesen kann das nur eine app auf dem handy, die website nicht — dafür braucht es eine kleine begleit-app (auch später)"
+      },
+      "readOnly": "fremdes tagebuch: schlaf trägt nur der besitzer ein"
+    },
+    "errors": {
+      "signedOut": "zuerst anmelden",
+      "invalid": "mit den zahlen stimmt was nicht",
+      "notYours": "das gehört dir nicht",
+      "tooMany": "das ist zu viel. nimm etwas weg",
+      "range": "das kann nicht stimmen. prüf die zahlen",
+      "future": "die zukunft kann man nicht eintragen",
+      "empty": "es braucht einen namen",
+      "noKcal": "wenigstens die kalorien",
+      "noFile": "keine datei",
+      "tooBig": "die datei ist zu gross für einen schlafexport",
+      "format": "format unbekannt: es braucht spalten für schlafbeginn und -ende",
+      "noNights": "in der datei sind keine nächte",
+      "cooldown": "der mops schnauft noch vom letzten verriss. in ein paar minuten",
+      "dailyCap": "genug verrisse für heute",
+      "noModel": "kein modell zur hand — der verriss nach regeln oben muss reichen",
+      "generic": "hat nicht geklappt. nochmal?"
+    }
   }
 }
