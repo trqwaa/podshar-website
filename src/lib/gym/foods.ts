@@ -23,11 +23,17 @@ export type Quality = 'clean' | 'meh' | 'junk';
 /** Порция, которую предлагает форма. Название — ключ `gym.food.unit.*` в каталогах. */
 export type Unit = 'piece' | 'can' | 'pack' | 'slice' | 'scoop' | 'tbsp' | 'bowl' | 'serving' | 'bottle' | 'glass';
 
+/**
+ * Остальное с этикетки, как в FatSecret: клетчатка, сахар, насыщенные жиры —
+ * граммы; натрий, холестерин, калий — миллиграммы. Всё на 100 г.
+ */
+export type Extras = { fiber: number; sugar: number; satFat: number; sodium: number; cholesterol: number; potassium: number };
+
 export type Food = {
   id: string;
   name: Words;
-  /** На 100 г: ккал, белки, жиры, углеводы. */
-  per100: { kcal: number; p: number; f: number; c: number };
+  /** На 100 г: ккал, белки, жиры, углеводы и остальное с этикетки. */
+  per100: { kcal: number; p: number; f: number; c: number } & Extras;
   portion: { unit: Unit; grams: number };
   quality: Quality;
 };
@@ -38,7 +44,88 @@ const food = (
   [kcal, p, f, c]: [number, number, number, number],
   [unit, grams]: [Unit, number],
   quality: Quality = 'clean'
-): Food => ({ id, name: { ru, en, uk, de }, per100: { kcal, p, f, c }, portion: { unit, grams }, quality });
+): Food => ({ id, name: { ru, en, uk, de }, per100: { kcal, p, f, c, ...extrasOf(id) }, portion: { unit, grams }, quality });
+
+/**
+ * Клетчатка, сахар, насыщенные жиры (г), натрий, холестерин, калий (мг) на
+ * 100 г — по тем же открытым таблицам и сайтам сетей. Отдельной таблицей, чтобы
+ * строки справочника выше оставались читаемыми.
+ */
+const EXTRA: Record<string, [number, number, number, number, number, number]> = {
+  'chicken-breast': [0, 0, 1, 74, 85, 256],
+  'beef-steak': [0, 0, 6.8, 60, 90, 315],
+  'ground-beef': [0, 0, 6, 72, 88, 290],
+  pork: [0, 0, 5, 60, 80, 360],
+  salmon: [0, 0, 2.5, 60, 63, 384],
+  tuna: [0, 0, 0.3, 247, 30, 237],
+  eggs: [0, 0.4, 3.1, 142, 373, 138],
+  'egg-whites': [0, 0.7, 0, 166, 0, 163],
+  'cottage-cheese': [0, 1.8, 3, 40, 15, 112],
+  skyr: [0, 4, 0.1, 50, 5, 150],
+  'greek-yogurt': [0, 3.6, 1.3, 36, 10, 141],
+  milk: [0, 4.7, 1.6, 44, 10, 150],
+  kefir: [0, 4, 0.6, 50, 4, 150],
+  cheese: [0, 2.2, 17.6, 819, 114, 121],
+  whey: [1, 5, 3, 160, 100, 500],
+  'protein-bar': [6, 15, 4, 250, 10, 300],
+  tofu: [0.3, 0.6, 0.7, 7, 0, 121],
+  lentils: [7.9, 1.8, 0.1, 2, 0, 369],
+  oats: [10.6, 1, 1.2, 2, 0, 362],
+  bircher: [2.5, 8, 1, 20, 3, 180],
+  buckwheat: [2.7, 0.9, 0.2, 4, 0, 88],
+  rice: [0.4, 0.1, 0.1, 1, 0, 35],
+  pasta: [1.8, 0.6, 0.2, 1, 0, 44],
+  potatoes: [1.8, 0.9, 0, 5, 0, 328],
+  bread: [2.7, 5, 0.7, 490, 0, 115],
+  'wholegrain-bread': [7, 4, 0.7, 450, 0, 250],
+  banana: [2.6, 12.2, 0.1, 1, 0, 358],
+  apple: [2.4, 10.4, 0, 1, 0, 107],
+  orange: [2.4, 9.4, 0, 0, 0, 181],
+  berries: [2.4, 7, 0, 1, 0, 150],
+  honey: [0.2, 82, 0, 4, 0, 52],
+  broccoli: [2.6, 1.7, 0, 33, 0, 316],
+  salad: [1.2, 2.5, 0, 10, 0, 200],
+  avocado: [6.7, 0.7, 2.1, 7, 0, 485],
+  nuts: [7, 4, 4.5, 3, 0, 650],
+  'peanut-butter': [6, 9, 10, 430, 0, 560],
+  'olive-oil': [0, 0, 14, 2, 0, 1],
+  butter: [0, 0.1, 51, 11, 215, 24],
+  borscht: [1.5, 3, 0.8, 250, 5, 200],
+  pelmeni: [1.5, 1, 5, 400, 40, 150],
+  plov: [1, 1, 2, 300, 20, 150],
+  blini: [0.8, 5, 3, 300, 60, 120],
+  syrniki: [0.5, 8, 4, 200, 80, 150],
+  vareniki: [1.5, 1, 1, 350, 10, 200],
+  'greek-salad': [1.3, 2.5, 3.5, 380, 15, 180],
+  sushi: [0.8, 4, 0.6, 400, 10, 100],
+  roesti: [2, 0.5, 2, 350, 5, 400],
+  cervelat: [0, 0.5, 10, 1000, 70, 200],
+  sausage: [0, 1, 8, 900, 60, 180],
+  croissant: [2.6, 11, 12, 470, 67, 118],
+  'ice-cream': [0.7, 21, 7, 80, 44, 199],
+  'dark-chocolate': [10.9, 24, 24.5, 20, 3, 715],
+  'big-mac': [1.4, 4.1, 5, 460, 36, 180],
+  cheeseburger: [1.3, 6, 5.3, 600, 35, 200],
+  whopper: [1, 4, 4.5, 340, 30, 200],
+  nuggets: [1, 0.3, 2.5, 500, 40, 250],
+  fries: [3.8, 0.2, 2, 210, 0, 600],
+  'fried-chicken': [0.5, 0, 4, 700, 90, 230],
+  'hot-dog': [1, 4, 6.5, 750, 30, 150],
+  doner: [1.5, 2, 4, 550, 30, 250],
+  shawarma: [1.5, 2, 3.5, 550, 30, 250],
+  pizza: [2.3, 3.6, 4.5, 600, 17, 170],
+  'instant-noodles': [2.4, 2, 7.5, 1700, 0, 120],
+  chips: [4.4, 0.5, 3.5, 500, 0, 1200],
+  gummies: [0, 46, 0.1, 25, 0, 5],
+  cola: [0, 10.6, 0, 4, 0, 2],
+  'energy-drink': [0, 11, 0, 80, 0, 0],
+  beer: [0, 0, 0, 4, 0, 27]
+};
+
+function extrasOf(id: string): Extras {
+  const [fiber, sugar, satFat, sodium, cholesterol, potassium] = EXTRA[id] ?? [0, 0, 0, 0, 0, 0];
+  return { fiber, sugar, satFat, sodium, cholesterol, potassium };
+}
 
 export const FOODS: Food[] = [
   // Белок
@@ -85,6 +172,11 @@ export const FOODS: Food[] = [
   // Домашнее и здешнее
   food('borscht', ['борщ', 'borscht', 'борщ', 'borschtsch'], [50, 2, 2.5, 5], ['bowl', 350]),
   food('pelmeni', ['пельмени', 'pelmeni', 'пельмені', 'pelmeni'], [275, 12, 12, 29], ['serving', 250], 'meh'),
+  food('plov', ['плов', 'plov (pilaf)', 'плов', 'plov (pilaw)'], [180, 6, 7, 23], ['bowl', 300], 'meh'),
+  food('blini', ['блины', 'blini (crêpes)', 'млинці', 'blini (crêpes)'], [230, 6, 9, 30], ['piece', 50], 'meh'),
+  food('syrniki', ['сырники', 'syrniki (cottage cheese pancakes)', 'сирники', 'syrniki (quarkplätzchen)'], [220, 14, 9, 21], ['piece', 60], 'meh'),
+  food('vareniki', ['вареники с картошкой', 'vareniki with potato', 'вареники з картоплею', 'wareniki mit kartoffeln'], [200, 5, 4, 36], ['serving', 250], 'meh'),
+  food('greek-salad', ['греческий салат', 'greek salad', 'грецький салат', 'griechischer salat'], [110, 3, 9, 4], ['bowl', 250]),
   food('sushi', ['роллы', 'sushi rolls', 'роли', 'sushi'], [150, 6, 3.5, 23], ['serving', 250]),
   food('roesti', ['рёшти', 'rösti', 'решті', 'rösti'], [180, 2, 10, 20], ['serving', 250], 'meh'),
   food('cervelat', ['цервелат', 'cervelat', 'цервелат', 'cervelat'], [286, 12, 26, 1], ['piece', 100], 'meh'),
@@ -115,15 +207,62 @@ const BY_ID = new Map(FOODS.map((f) => [f.id, f]));
 
 export const foodOf = (id: string): Food | undefined => BY_ID.get(id);
 
-/** КБЖУ на порцию в граммах, округлённые так, как их показывает дневник. */
+const tenth = (v: number) => Math.round(v * 10) / 10;
+
+/** КБЖУ и остальное с этикетки на порцию в граммах, округлённые, как их показывает дневник. */
 export function macrosFor(item: Food, grams: number) {
   const k = grams / 100;
+  const v = item.per100;
   return {
-    kcal: Math.round(item.per100.kcal * k),
-    protein: Math.round(item.per100.p * k * 10) / 10,
-    fat: Math.round(item.per100.f * k * 10) / 10,
-    carbs: Math.round(item.per100.c * k * 10) / 10
+    kcal: Math.round(v.kcal * k),
+    protein: tenth(v.p * k),
+    fat: tenth(v.f * k),
+    carbs: tenth(v.c * k),
+    fiber: tenth(v.fiber * k),
+    sugar: tenth(v.sugar * k),
+    satFat: tenth(v.satFat * k),
+    sodium: Math.round(v.sodium * k),
+    cholesterol: Math.round(v.cholesterol * k),
+    potassium: Math.round(v.potassium * k)
   };
+}
+
+/**
+ * Что нарисовать у холодильника: еда группами, которые мопс узнаёт на глаз.
+ * Человек ел в основном это — значит, это и стоит у холодильника.
+ */
+export type FridgeGroup = 'burger' | 'fries' | 'soda' | 'pizza' | 'doner' | 'chicken' | 'rice' | 'shaker' | 'eggs' | 'veg' | 'fruit' | 'sweets' | 'dairy' | 'fish';
+
+const GROUP_OF: Record<string, FridgeGroup> = {
+  'big-mac': 'burger', cheeseburger: 'burger', whopper: 'burger', 'hot-dog': 'burger', 'fried-chicken': 'burger', nuggets: 'burger',
+  fries: 'fries', chips: 'fries',
+  cola: 'soda', 'energy-drink': 'soda', beer: 'soda',
+  pizza: 'pizza',
+  doner: 'doner', shawarma: 'doner',
+  'chicken-breast': 'chicken', 'beef-steak': 'chicken', 'ground-beef': 'chicken', pork: 'chicken', cervelat: 'chicken', sausage: 'chicken',
+  rice: 'rice', buckwheat: 'rice', pasta: 'rice', potatoes: 'rice', plov: 'rice', oats: 'rice', bircher: 'rice', lentils: 'rice', pelmeni: 'rice', vareniki: 'rice',
+  whey: 'shaker', 'protein-bar': 'shaker',
+  eggs: 'eggs', 'egg-whites': 'eggs',
+  broccoli: 'veg', salad: 'veg', 'greek-salad': 'veg', avocado: 'veg', borscht: 'veg',
+  banana: 'fruit', apple: 'fruit', orange: 'fruit', berries: 'fruit',
+  gummies: 'sweets', 'ice-cream': 'sweets', 'dark-chocolate': 'sweets', croissant: 'sweets', honey: 'sweets', 'instant-noodles': 'sweets',
+  'cottage-cheese': 'dairy', skyr: 'dairy', 'greek-yogurt': 'dairy', milk: 'dairy', kefir: 'dairy', cheese: 'dairy', syrniki: 'dairy', blini: 'dairy',
+  salmon: 'fish', tuna: 'fish', sushi: 'fish'
+};
+
+/** Группа по еде из справочника, своя еда — по названию (фастфуд узнаётся, остальное нет). */
+export function fridgeGroupOf(food: string | null, name: string): FridgeGroup | null {
+  if (food && GROUP_OF[food]) return GROUP_OF[food];
+  const n = ` ${name.toLowerCase()} `;
+  if (/бургер|burger|мак|whopper|воппер/.test(n)) return 'burger';
+  if (/пицц|піц|pizza/.test(n)) return 'pizza';
+  if (/шаурм|шаверм|д[её]нер|doner|döner|kebab|кебаб/.test(n)) return 'doner';
+  if (/ кола|cola|пепси|pepsi|энергетик|енергетик|energy|пиво|beer|bier/.test(n)) return 'soda';
+  if (/фри |fries|pommes|чипс|chips/.test(n)) return 'fries';
+  if (/протеин|протеїн|whey|шейк|shake/.test(n)) return 'shaker';
+  if (/кур|chicken|poulet|грудк/.test(n)) return 'chicken';
+  if (/рис|rice|reis|греч|buckwheat|макарон|pasta/.test(n)) return 'rice';
+  return null;
 }
 
 /**

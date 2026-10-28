@@ -7,6 +7,7 @@ import { GymHeader } from '@/components/gym/GymHeader';
 import { History } from '@/components/gym/History';
 import { PlanBoard } from '@/components/gym/PlanBoard';
 import { Workout } from '@/components/gym/Workout';
+import { TAB } from '@/components/gym/styles';
 import { dayKey } from '@/lib/calendar/scales';
 import { gymContext, weekdayNames } from '@/lib/gym/context';
 import { activeWorkout, bestLifts, goalsOf, gymProfile, measuresOf, planOf, previousSets, recentWorkouts, weekdayOf } from '@/lib/gym/data';
@@ -76,7 +77,7 @@ export default async function TrainingPage({
           key={name}
           href={{ pathname: '/gym/training', query: { ...whoQuery, tab: name } }}
           aria-current={tab === name ? 'page' : undefined}
-          className={`ps-press shrink-0 rounded border-2 px-3 py-1.5 text-sm font-semibold lowercase ${
+          className={`${TAB} ${
             tab === name ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'
           }`}
         >

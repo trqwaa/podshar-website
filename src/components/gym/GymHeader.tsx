@@ -1,6 +1,7 @@
 import { Link } from '@/i18n/routing';
 import type { GymMember } from '@/lib/gym/data';
-import { PugAvatar } from './PugFace';
+import { PugAvatar } from './PugAvatar';
+import { TAB } from './styles';
 
 /**
  * Шапка каждой страницы зала: аватар мопса-качка, название, назад в подвал и
@@ -28,9 +29,9 @@ export function GymHeader({
   labels: { who: string; mine: string; avatar: string; readOnly: string | null; extraQuery?: Record<string, string> };
 }) {
   return (
-    <section className="block-card animate-rise-in flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-7">
+    <section className="block-card animate-rise-in flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:gap-4 sm:px-7 sm:py-5">
       <div className="flex min-w-0 items-center gap-4">
-        <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-rule bg-sunk sm:h-20 sm:w-20">
+        <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-rule bg-sunk sm:h-20 sm:w-20">
           <PugAvatar className="h-full w-full translate-y-[6%] scale-110" title={labels.avatar} />
         </span>
         <div className="min-w-0">
@@ -39,8 +40,8 @@ export function GymHeader({
               ← {back}
             </Link>
           ) : null}
-          <h1 className="text-2xl font-semibold leading-tight text-ink sm:text-3xl">{title}</h1>
-          {hint ? <p className="mt-1 max-w-xl text-sm text-ink-muted">{hint}</p> : null}
+          <h1 className="text-xl font-semibold leading-tight text-ink sm:text-3xl">{title}</h1>
+          {hint ? <p className="mt-1 max-w-xl text-xs text-ink-muted sm:text-sm">{hint}</p> : null}
         </div>
       </div>
 
@@ -56,7 +57,7 @@ export function GymHeader({
                   key={m.id}
                   href={{ pathname: path, query: { ...(labels.extraQuery ?? {}), ...(self ? {} : { who: m.handle }) } }}
                   aria-current={current ? 'page' : undefined}
-                  className={`ps-press rounded border-2 px-3 py-1.5 text-sm font-semibold lowercase ${
+                  className={`${TAB} ${
                     current ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'
                   }`}
                 >

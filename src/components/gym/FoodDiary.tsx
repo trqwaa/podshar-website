@@ -8,6 +8,7 @@ import { addFood, removeFood } from '@/lib/gym/actions';
 import type { FoodView } from '@/lib/gym/data';
 import { foodOf, macrosFor, searchFoods, type Food } from '@/lib/gym/foods';
 import type { Targets } from '@/lib/gym/norms';
+import { FoodPhoto } from './FoodPhoto';
 import { BUTTON, CHIP, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
 
 /**
@@ -22,9 +23,10 @@ import { BUTTON, CHIP, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type Meal = (typeof MEALS)[number];
 
-function Bar({ label, value, target, unit }: { label: string; value: number; target: number; unit: string }) {
+function Bar({ label, value, target, unit, limit = false }: { label: string; value: number; target: number; unit: string; limit?: boolean }) {
   const share = target > 0 ? value / target : 0;
-  const over = share > 1.08;
+  // У норм перебор — это плохо выше 8%, у потолков (сахар, соль) — сразу.
+  const over = share > (limit ? 1 : 1.08);
   return (
     <div className="min-w-0">
       <div className="flex items-baseline justify-between gap-2 text-sm">
@@ -114,15 +116,26 @@ function AddPanel({ meal, day, recent, onDone }: { meal: Meal; day: string; rece
           e.preventDefault();
           const data = new FormData(e.currentTarget);
           const num = (k: string) => parseNumber(String(data.get(k) ?? ''));
-          void add({ name: String(data.get('name') ?? ''), grams: num('grams'), kcal: num('kcal'), protein: num('protein'), fat: num('fat'), carbs: num('carbs') });
+          void add({
+            name: String(data.get('name') ?? ''),
+            grams: num('grams'),
+            kcal: num('kcal'),
+            protein: num('protein'),
+            fat: num('fat'),
+            carbs: num('carbs'),
+            fiber: num('fiber'),
+            sugar: num('sugar'),
+            satFat: num('satFat'),
+            sodium: num('sodium')
+          });
         }}
       >
         <p className="text-xs text-ink-muted">{t('food.customHint')}</p>
         <input name="name" required maxLength={80} autoFocus placeholder={t('food.name')} aria-label={t('food.name')} className={INPUT} />
         <div className="grid grid-cols-5 gap-2">
-          {(['grams', 'kcal', 'protein', 'fat', 'carbs'] as const).map((k) => (
+          {(['grams', 'kcal', 'protein', 'fat', 'carbs', 'fiber', 'sugar', 'satFat', 'sodium'] as const).map((k) => (
             <label key={k} className="flex flex-col gap-1 text-[0.7rem] text-ink-muted">
-              {t(`food.${k}`)}
+              {k === 'sodium' ? `${t('food.sodium')}, ${t('food.mg')}` : t(`food.${k}`)}
               <input name={k} inputMode="decimal" required={k === 'kcal'} className={`${INPUT} w-full px-2`} />
             </label>
           ))}
@@ -142,6 +155,7 @@ function AddPanel({ meal, day, recent, onDone }: { meal: Meal; day: string; rece
 
   return (
     <div className="flex flex-col gap-2 rounded-[10px] border-2 border-ink p-3">
+      <FoodPhoto day={day} meal={meal} onDone={onDone} />
       <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('food.search')} aria-label={t('food.search')} className={INPUT} />
       {query ? (
         <ul className="flex flex-col divide-y divide-rule-soft">
@@ -215,12 +229,32 @@ export function FoodDiary({
   const [adding, setAdding] = useState<Meal | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const shown = entries.filter((e) => !hidden.has(e.id));
-  const sum = shown.reduce((s, e) => ({ kcal: s.kcal + e.kcal, protein: s.protein + e.protein, fat: s.fat + e.fat, carbs: s.carbs + e.carbs }), {
-    kcal: 0,
-    protein: 0,
-    fat: 0,
-    carbs: 0
-  });
+  const sum = shown.reduce(
+    (s, e) => ({
+      kcal: s.kcal + e.kcal,
+      protein: s.protein + e.protein,
+      fat: s.fat + e.fat,
+      carbs: s.carbs + e.carbs,
+      fiber: s.fiber + (e.fiber ?? 0),
+      sugar: s.sugar + (e.sugar ?? 0),
+      satFat: s.satFat + (e.satFat ?? 0),
+      sodium: s.sodium + (e.sodium ?? 0),
+      cholesterol: s.cholesterol + (e.cholesterol ?? 0),
+      potassium: s.potassium + (e.potassium ?? 0)
+    }),
+    { kcal: 0, protein: 0, fat: 0, carbs: 0, fiber: 0, sugar: 0, satFat: 0, sodium: 0, cholesterol: 0, potassium: 0 }
+  );
+  // Ориентиры, как у FatSecret и ВОЗ: клетчатка — 14 г на 1000 ккал, сахар и
+  // насыщенные жиры — не больше 10% калорий, натрий — не больше 2300 мг,
+  // холестерин — 300 мг, калий — 3500 мг.
+  const extras = {
+    fiber: Math.round((targets.kcal / 1000) * 14),
+    sugar: Math.round((targets.kcal * 0.1) / 4),
+    satFat: Math.round((targets.kcal * 0.1) / 9),
+    sodium: 2300,
+    cholesterol: 300,
+    potassium: 3500
+  };
   const left = targets.kcal - sum.kcal;
   const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
 
@@ -233,6 +267,18 @@ export function FoodDiary({
         <Bar label={t('food.carbs')} value={sum.carbs} target={targets.carbs} unit={t('food.grams')} />
       </div>
       <p className="text-sm font-medium text-ink">{left >= 0 ? t('food.left', { kcal: num.format(left) }) : t('food.over', { kcal: num.format(-left) })}</p>
+      <details className="rounded-[10px] border-2 border-rule-soft px-3 py-2">
+        <summary className="ps-label cursor-pointer">{t('food.details')}</summary>
+        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Bar label={t('food.fiber')} value={sum.fiber} target={extras.fiber} unit={t('food.grams')} />
+          <Bar label={t('food.sugar')} value={sum.sugar} target={extras.sugar} unit={t('food.grams')} limit />
+          <Bar label={t('food.satFat')} value={sum.satFat} target={extras.satFat} unit={t('food.grams')} limit />
+          <Bar label={t('food.sodium')} value={sum.sodium} target={extras.sodium} unit={t('food.mg')} limit />
+          <Bar label={t('food.cholesterol')} value={sum.cholesterol} target={extras.cholesterol} unit={t('food.mg')} limit />
+          <Bar label={t('food.potassium')} value={sum.potassium} target={extras.potassium} unit={t('food.mg')} />
+        </div>
+        <p className="mt-2 text-xs text-ink-muted">{t('food.detailsHint')}</p>
+      </details>
 
       {MEALS.map((meal) => {
         const list = shown.filter((e) => e.meal === meal);
@@ -255,6 +301,11 @@ export function FoodDiary({
                       <p className="truncate text-ink">
                         {item ? item.name[locale] : e.name}
                         {e.junk ? <span className="ml-1.5 text-xs font-bold text-loss">{t('food.junk')}</span> : null}
+                        {e.estimated ? (
+                          <span className="ml-1.5 text-xs text-ink-muted" title={t('food.estimated')}>
+                            ≈ {t('food.byPhoto')}
+                          </span>
+                        ) : null}
                       </p>
                       <p className="text-xs tabular-nums text-ink-muted">
                         {e.grams ? `${Math.round(e.grams)} ${t('food.grams')} · ` : ''}

@@ -1158,6 +1158,10 @@ model GymSet {
   index     Int
   weight    Float?
   reps      Int?
+  /// Для упражнений на время и на расстояние (планка, бег, гребля): секунды
+  /// и километры. Какие поля значат — решает вид упражнения в справочнике.
+  seconds   Int?
+  distance  Float?
   warmup    Boolean   @default(false)
   done      Boolean   @default(false)
   doneAt    DateTime?
@@ -1228,6 +1232,8 @@ model GymPlanItem {
   sets     Int
   reps     Int
   weight   Float?
+  /// Цель на подход для упражнений на время, секунды.
+  seconds  Int?
   /// Дробный индекс, как у записок: перестановка трогает одну строку.
   position Float
 
@@ -1269,8 +1275,19 @@ model FoodEntry {
   protein   Float
   fat       Float
   carbs     Float
+  /// Остальное, что показывает FatSecret: клетчатка, сахар и насыщенные жиры —
+  /// в граммах; натрий, холестерин и калий — в миллиграммах. Пусто значит
+  /// «неизвестно», а не ноль: своя еда с упаковки этого обычно не знает.
+  fiber       Float?
+  sugar       Float?
+  satFat      Float?
+  sodium      Float?
+  cholesterol Float?
+  potassium   Float?
   /// Фастфуд и прочее, от чего мопсу плохо.
   junk      Boolean  @default(false)
+  /// Оценка по фото: цифры прикинула модель, а не взвесил человек.
+  estimated Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

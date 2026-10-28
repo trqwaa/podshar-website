@@ -1193,7 +1193,7 @@
   "gym": {
     "title": "gym",
     "back": "to the basement",
-    "sceneLabel": "basement gym: the pug, the plan board, a rack, a fridge and a mattress",
+    "sceneLabel": "basement gym: the pug, the plan on a chalkboard, a rack, dumbbells, a fridge, a mattress and portraits of legends",
     "boardTitle": "plan",
     "goalOn": "goal: {goal}",
     "restDay": "—",
@@ -1249,14 +1249,22 @@
       "arms": "arms",
       "legs": "legs",
       "glutes": "glutes",
-      "core": "core"
+      "core": "core",
+      "full": "full body",
+      "cardio": "cardio"
     },
     "gear": {
       "barbell": "barbell",
       "dumbbell": "dumbbells",
       "cable": "cable",
       "machine": "machine",
-      "body": "bodyweight"
+      "body": "bodyweight",
+      "kettlebell": "kettlebell",
+      "smith": "smith machine",
+      "band": "band",
+      "plate": "plate",
+      "cardio": "cardio",
+      "other": "other"
     },
     "critic": {
       "title": "the pug critic",
@@ -1299,7 +1307,8 @@
       "remove": "erase",
       "clearDay": "erase the day",
       "today": "today",
-      "readOnly": "not your board — look only"
+      "readOnly": "not your board — look only",
+      "time": "time"
     },
     "workout": {
       "startPlan": "start: {title}",
@@ -1330,7 +1339,11 @@
       "finished": "saved. the pug is pleased and will never say so",
       "empty": "not one set ticked — that was not a workout",
       "volume": "volume",
-      "best": "best"
+      "best": "best",
+      "plusKg": "+kg",
+      "minusKg": "−kg",
+      "time": "time",
+      "km": "km"
     },
     "history": {
       "empty": "finished workouts will show up here",
@@ -1350,7 +1363,11 @@
       "back": "back to the list",
       "technique": "technique",
       "close": "close",
-      "nothing": "no such exercise. yet"
+      "nothing": "no such exercise. yet",
+      "view": "view",
+      "side": "side",
+      "front": "front",
+      "count": "{n, plural, one {# exercise} other {# exercises}}"
     },
     "body": {
       "goal": "main goal",
@@ -1462,7 +1479,23 @@
       },
       "portion": "{n} × {unit}",
       "week": "week",
-      "readOnly": "someone else's diary: only its owner logs food"
+      "readOnly": "someone else's diary: only its owner logs food",
+      "photo": "from a photo",
+      "photoLooking": "the pug is looking…",
+      "photoHint": "snap the plate — the pug will guess what’s on it and how much",
+      "photoEstimate": "by eye, not by scale: fix the grams if you know better",
+      "photoAdd": "add · {kcal} kcal",
+      "fiber": "fiber",
+      "sugar": "sugar",
+      "satFat": "saturated fat",
+      "sodium": "sodium",
+      "cholesterol": "cholesterol",
+      "potassium": "potassium",
+      "mg": "mg",
+      "details": "more: fiber, sugar, salt",
+      "detailsHint": "food typed in by hand usually lacks these — then they aren’t counted",
+      "byPhoto": "by photo",
+      "estimated": "numbers guessed by the pug from a photo, not weighed"
     },
     "sleep": {
       "title": "sleep",
@@ -1513,7 +1546,46 @@
       "cooldown": "the pug is still catching his breath after the last roast. give it a couple of minutes",
       "dailyCap": "enough roasting for today",
       "noModel": "no model at hand — the rule-based roast above will have to do",
-      "generic": "that did not work. again?"
+      "generic": "that did not work. again?",
+      "photoCooldown": "the pug is still chewing on the last photo. a few seconds",
+      "photoCap": "enough photos for today — type it in by hand",
+      "photoNoModel": "the pug can’t see right now — type it in",
+      "notFood": "that’s not food. or the pug is missing something",
+      "photoUnreadable": "couldn’t open that photo. another one?"
+    },
+    "kinds": {
+      "weight": "weight & reps",
+      "body": "bodyweight",
+      "assisted": "assisted",
+      "time": "for time",
+      "cardio": "distance & time"
+    },
+    "slogan": "the iron never lies",
+    "legends": {
+      "ronnie": {
+        "name": "ronnie",
+        "title": "ronnie coleman · 1st place"
+      },
+      "levrone": {
+        "name": "levrone",
+        "title": "kevin levrone · 2nd place"
+      },
+      "arnold": {
+        "name": "arnie",
+        "title": "arnold schwarzenegger"
+      },
+      "dorian": {
+        "name": "dorian",
+        "title": "dorian yates"
+      },
+      "vlasov": {
+        "name": "vlasov",
+        "title": "yury vlasov"
+      },
+      "alekseyev": {
+        "name": "alekseyev",
+        "title": "vasily alekseyev"
+      }
     }
   }
 }

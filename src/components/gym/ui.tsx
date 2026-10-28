@@ -12,16 +12,7 @@ import type { GymResult } from '@/lib/gym/actions';
  * айфон зумит страницу при тапе и оставляет её зумнутой.
  */
 
-export const INPUT =
-  'min-w-0 rounded border-2 border-rule bg-canvas px-3 py-2 text-[1rem] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink sm:text-[0.9375rem]';
-export const SMALL_INPUT =
-  'w-full min-w-0 rounded border-2 border-rule bg-canvas px-2 py-1.5 text-center text-[1rem] tabular-nums text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink sm:text-[0.9375rem]';
-export const BUTTON =
-  'ps-press rounded border-2 border-ink bg-ink px-4 py-2 text-sm font-semibold lowercase text-surface hover:opacity-90 disabled:opacity-40';
-export const GHOST =
-  'ps-press rounded border-2 border-rule px-3 py-2 text-sm font-semibold lowercase text-ink hover:border-ink disabled:opacity-40';
-export const CHIP =
-  'ps-press rounded-full border-2 px-3 py-1 text-xs font-semibold lowercase transition-colors';
+export { BUTTON, CHIP, GHOST, INPUT, SMALL_INPUT, TAB } from './styles';
 
 /**
  * Вызвать серверное действие и запомнить ошибку ключом каталога.

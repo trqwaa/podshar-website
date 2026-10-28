@@ -7,6 +7,8 @@ CREATE TABLE "gym_sets" (
     "index" INTEGER NOT NULL,
     "weight" DOUBLE PRECISION,
     "reps" INTEGER,
+    "seconds" INTEGER,
+    "distance" DOUBLE PRECISION,
     "warmup" BOOLEAN NOT NULL DEFAULT false,
     "done" BOOLEAN NOT NULL DEFAULT false,
     "doneAt" TIMESTAMP(3),
@@ -59,6 +61,7 @@ CREATE TABLE "gym_plan_items" (
     "sets" INTEGER NOT NULL,
     "reps" INTEGER NOT NULL,
     "weight" DOUBLE PRECISION,
+    "seconds" INTEGER,
     "position" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "gym_plan_items_pkey" PRIMARY KEY ("id")
@@ -89,7 +92,14 @@ CREATE TABLE "gym_food" (
     "protein" DOUBLE PRECISION NOT NULL,
     "fat" DOUBLE PRECISION NOT NULL,
     "carbs" DOUBLE PRECISION NOT NULL,
+    "fiber" DOUBLE PRECISION,
+    "sugar" DOUBLE PRECISION,
+    "satFat" DOUBLE PRECISION,
+    "sodium" DOUBLE PRECISION,
+    "cholesterol" DOUBLE PRECISION,
+    "potassium" DOUBLE PRECISION,
     "junk" BOOLEAN NOT NULL DEFAULT false,
+    "estimated" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "gym_food_pkey" PRIMARY KEY ("id")

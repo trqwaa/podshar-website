@@ -1,64 +1,56 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
-import { CUES, EXERCISES, MUSCLES, type Muscle } from '@/lib/gym/exercises';
-import { PugRig } from './PugRig';
-import { CHIP } from './ui';
+import { MUSCLES, type Muscle } from '@/lib/gym/exercises';
+import { ExercisePicker, MuscleChips, searchExercises } from './ExercisePicker';
+import { INPUT } from './styles';
 
 /**
- * Все упражнения сразу, и в каждом мопс показывает технику.
+ * Все упражнения списком по мышцам — весь каталог Strong. Нажал — мопс
+ * показывает технику сбоку и спереди.
  *
- * Анимация каждого мопса засыпает, пока он за краем экрана (`PugRig`), так что
- * тридцать мопсов на странице стоят столько же, сколько видимые три-четыре.
+ * Двести с лишним анимированных мопсов на одной странице — это DOM на
+ * десятки тысяч узлов, даже если анимация спит. Поэтому здесь список, а мопс
+ * — в окне по нажатию, как в самом Strong.
  */
 export function ExerciseLibrary() {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
+  const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<Muscle | null>(null);
-  const list = EXERCISES.filter((e) => !muscle || e.muscle === muscle);
+  const [open, setOpen] = useState<string | null>(null);
+  const list = useMemo(() => searchExercises(query, muscle), [query, muscle]);
+  const groups = MUSCLES.map((m) => ({ muscle: m, items: list.filter((e) => e.muscle === m) })).filter((g) => g.items.length);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          onClick={() => setMuscle(null)}
-          className={`${CHIP} ${muscle === null ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'}`}
-        >
-          {t('picker.all')}
-        </button>
-        {MUSCLES.map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMuscle(m === muscle ? null : m)}
-            className={`${CHIP} ${muscle === m ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'}`}
-          >
-            {t(`muscles.${m}`)}
-          </button>
-        ))}
-      </div>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {list.map((e) => (
-          <li key={e.id} className="flex flex-col rounded-[10px] border-2 border-rule-soft p-3">
-            <div className="rounded-[8px] bg-sunk/60">
-              <PugRig motion={e.motion} gear={e.gear} title={t('pug.demo', { name: e.name[locale] })} className="aspect-[32/30] w-full" />
-            </div>
-            <h3 className="mt-2 font-semibold text-ink">{e.name[locale]}</h3>
-            <p className="ps-label">
-              {t(`muscles.${e.muscle}`)} · {t(`gear.${e.gear}`)}
-            </p>
-            <ul className="mt-1.5 space-y-0.5 text-sm leading-snug text-ink-muted">
-              {CUES[e.motion][locale].map((cue) => (
-                <li key={cue}>— {cue}</li>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('picker.search')} aria-label={t('picker.search')} className={INPUT} />
+      <MuscleChips muscle={muscle} onChange={setMuscle} />
+      <p className="ps-label">{t('picker.count', { n: list.length })}</p>
+      <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+        {groups.map((g) => (
+          <section key={g.muscle}>
+            <h3 className="ps-label mb-1 font-semibold !text-ink">
+              {t(`muscles.${g.muscle}`)} · {g.items.length}
+            </h3>
+            <ul className="flex flex-col divide-y divide-rule-soft">
+              {g.items.map((e) => (
+                <li key={e.id}>
+                  <button type="button" onClick={() => setOpen(e.id)} className="flex w-full items-baseline justify-between gap-3 py-2 text-left text-sm hover:text-accent">
+                    <span className="text-ink">{e.name[locale]}</span>
+                    <span className="ps-label shrink-0">{t(`gear.${e.gear}`)}</span>
+                  </button>
+                </li>
               ))}
             </ul>
-          </li>
+          </section>
         ))}
-      </ul>
+      </div>
+      {list.length === 0 ? <p className="text-sm text-ink-muted">{t('picker.nothing')}</p> : null}
+      {open ? <ExercisePicker initial={open} onClose={() => setOpen(null)} /> : null}
     </div>
   );
 }

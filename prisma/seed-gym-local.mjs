@@ -116,7 +116,7 @@ async function plan(userId, days) {
     await prisma.gymPlanDay.create({
       data: {
         userId, weekday: weekdayIndex, title,
-        items: { create: items.map(([exercise, sets, reps, weight], i) => ({ exercise, sets, reps, weight, position: i + 1 })) }
+        items: { create: items.map(([exercise, sets, reps, weight, seconds = null], i) => ({ exercise, sets, reps, weight, seconds, position: i + 1 })) }
       }
     });
   }
@@ -129,7 +129,7 @@ async function workout(userId, day, start, minutes, title, blocks) {
       userId, scheduledFor: startedAt, completedAt: new Date(startedAt.getTime() + minutes * 60000), focus: title,
       sets: {
         create: blocks.flatMap(([exercise, sets], block) =>
-          sets.map(([weight, reps], index) => ({ exercise, block, index, weight, reps, done: true, doneAt: new Date(startedAt.getTime() + (block * 12 + index * 3) * 60000) }))
+          sets.map(([weight, reps, seconds = null, distance = null], index) => ({ exercise, block, index, weight, reps, seconds, distance, done: true, doneAt: new Date(startedAt.getTime() + (block * 12 + index * 3) * 60000) }))
         )
       }
     }
@@ -152,10 +152,10 @@ for (const u of [kach, sonya, junk]) await wipe(u.id);
 // ── Качок: всё по плану ────────────────────────────────────────────────────
 await prisma.gymProfile.create({ data: { userId: kach.id, goal: 'hypertrophy', heightCm: 180, sex: 'male', activity: 'mid', bornYear: 2008 } });
 const KACH_PLAN = [
-  [0, 'грудь и трицепс', [['bench-press', 4, 8, 80], ['incline-bench', 3, 10, 60], ['dips', 3, 10, null], ['triceps-pushdown', 3, 12, 25]]],
-  [1, 'спина', [['barbell-row', 4, 8, 70], ['pull-up', 4, 8, null], ['lat-pulldown', 3, 12, 55], ['biceps-curl', 3, 10, 30]]],
-  [3, 'ноги', [['squat', 5, 5, 100], ['rdl', 3, 8, 80], ['leg-press', 3, 12, 160], ['calf-raise', 4, 15, 60]]],
-  [5, 'плечи и руки', [['ohp', 4, 6, 45], ['lateral-raise', 3, 15, 10], ['hammer-curl', 3, 12, 14]]]
+  [0, '', [['bench-press', 4, 8, 80], ['incline-bench', 3, 10, 60], ['dips', 3, 10, null], ['triceps-pushdown', 3, 12, 25]]],
+  [1, '', [['barbell-row', 4, 8, 70], ['pull-up', 4, 8, null], ['lat-pulldown', 3, 12, 55], ['biceps-curl', 3, 10, 30]]],
+  [3, '', [['squat', 5, 5, 100], ['rdl', 3, 8, 80], ['leg-press', 3, 12, 160], ['calf-raise', 4, 15, 60], ['running', 1, 1, null, 1500]]],
+  [5, '', [['ohp', 4, 6, 45], ['lateral-raise', 3, 15, 10], ['hammer-curl', 3, 12, 14], ['plank', 3, 1, null, 60]]]
 ];
 await plan(kach.id, KACH_PLAN);
 for (let back = 13; back >= 1; back--) {
@@ -164,7 +164,11 @@ for (let back = 13; back >= 1; back--) {
   const planDay = KACH_PLAN.find((p) => p[0] === w);
   if (!planDay) continue;
   const bump = back > 6 ? 0 : 2.5;
-  await workout(kach.id, day, '17:30', 62, planDay[1], planDay[2].map(([exercise, sets, reps, weight]) => [exercise, Array.from({ length: sets }, () => [weight ? weight + bump : null, reps])]));
+  // Подходы на время и кардио — секундами и километрами, как у таких упражнений в Strong.
+  await workout(kach.id, day, '17:30', 62, planDay[1], planDay[2].map(([exercise, sets, reps, weight, seconds]) => [
+    exercise,
+    Array.from({ length: sets }, () => (seconds ? [null, null, seconds + (back > 6 ? 0 : 15), exercise === 'running' ? (back > 6 ? 4.2 : 4.6) : null] : [weight ? weight + bump : null, reps]))
+  ]));
 }
 for (let back = 9; back >= 0; back--) {
   const day = shift(today, -back);
@@ -196,9 +200,9 @@ await prisma.gymGoal.createMany({ data: [
 // ── Соня: план есть, сна нет ───────────────────────────────────────────────
 await prisma.gymProfile.create({ data: { userId: sonya.id, goal: 'strength', heightCm: 176, sex: 'male', activity: 'low', bornYear: 2009 } });
 await plan(sonya.id, [
-  [0, 'всё тело', [['squat', 3, 5, 80], ['bench-press', 3, 5, 65], ['barbell-row', 3, 5, 55]]],
-  [2, 'всё тело', [['deadlift', 3, 5, 100], ['ohp', 3, 5, 40], ['pull-up', 3, 6, null]]],
-  [4, 'всё тело', [['squat', 3, 5, 80], ['bench-press', 3, 5, 65], ['barbell-row', 3, 5, 55]]]
+  [0, '', [['squat', 3, 5, 80], ['bench-press', 3, 5, 65], ['barbell-row', 3, 5, 55]]],
+  [2, '', [['deadlift', 3, 5, 100], ['ohp', 3, 5, 40], ['pull-up', 3, 6, null]]],
+  [4, '', [['squat', 3, 5, 80], ['bench-press', 3, 5, 65], ['barbell-row', 3, 5, 55]]]
 ]);
 await workout(sonya.id, shift(today, -4), '19:00', 50, 'всё тело', [['squat', [[80, 5], [80, 5], [80, 4]]], ['bench-press', [[65, 5], [65, 5], [65, 3]]]]);
 for (let back = 13; back >= 0; back--) {

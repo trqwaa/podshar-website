@@ -8,9 +8,10 @@ import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
 import { gymContext, weekdayNames } from '@/lib/gym/context';
 import { pickLine, verdictOf, hoursOf, type Dossier } from '@/lib/gym/critic';
-import { latestVerdict, type PlanDayView, type WeekDigest } from '@/lib/gym/data';
+import { foodDay, latestVerdict, type PlanDayView, type WeekDigest } from '@/lib/gym/data';
 import { dossierFor } from '@/lib/gym/dossier';
-import { SHOWCASES, exerciseOf, showcaseFor, type Showcase } from '@/lib/gym/exercises';
+import { SHOWCASES, musclesOf, showcaseFor, type Showcase } from '@/lib/gym/exercises';
+import { fridgeGroupOf, type FridgeGroup } from '@/lib/gym/foods';
 import { DEFAULTS, targetsFor } from '@/lib/gym/norms';
 import { resolveLocale } from '@/lib/locale';
 import { moodAt } from '@/lib/sun';
@@ -68,7 +69,9 @@ export default async function GymPage({
     weights: []
   };
   const verdict = verdictOf(dossier, locale, seed);
-  const model = member ? await latestVerdict(member.id) : null;
+  const [model, eatenToday] = member ? await Promise.all([latestVerdict(member.id, locale), foodDay(member.id, today)]) : [null, []];
+  // У холодильника — то, что съедено сегодня: по группе на продукт, без повторов.
+  const fridge = [...new Set(eatenToday.map((f) => fridgeGroupOf(f.food, f.name)).filter((g): g is FridgeGroup => g !== null))];
 
   // ── Упражнение дня ──
   const hasPlan = digest.plan.some((d) => d.items.length > 0);
@@ -94,8 +97,7 @@ export default async function GymPage({
   const titleOf = (day: PlanDayView | undefined) => {
     if (!day || day.items.length === 0) return t('restDay');
     if (day.title) return day.title;
-    const muscles = [...new Set(day.items.map((i) => exerciseOf(i.exercise)?.muscle).filter(Boolean))] as string[];
-    return muscles.map((m) => t(`muscles.${m}`)).join(', ');
+    return musclesOf(day.items.map((i) => i.exercise)).map((m) => t(`muscles.${m}`)).join(' · ');
   };
   const names = weekdayNames(locale);
   const todayIndex = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7;
@@ -159,22 +161,23 @@ export default async function GymPage({
           speech={pickLine(speechKey, locale, seed)}
           pugTitle={showcase === 'rest' ? t('pug.rest') : t(`pug.${showcase}`, { n: plate })}
           sceneLabel={t('sceneLabel')}
+          food={fridge}
         />
-        <nav aria-label={t('title')} className="mt-2 grid grid-cols-1 gap-2 sm:mt-3 sm:grid-cols-3">
+        <nav aria-label={t('title')} className="mt-2 grid grid-cols-3 gap-1.5 sm:mt-3 sm:gap-2">
           {links.map((link) => (
             <Link
               key={link.kind}
               href={{ pathname: link.href, query }}
-              className="ps-press group flex flex-col gap-1 rounded-[10px] border-2 border-rule px-4 py-3 hover:border-ink"
+              className="ps-press group flex min-w-0 flex-col gap-0.5 rounded-[10px] border-2 border-rule px-2 py-2 hover:border-ink sm:gap-1 sm:px-4 sm:py-3"
             >
-              <span className="flex items-center justify-between">
-                <span className="text-lg font-semibold lowercase text-ink">{link.label}</span>
-                <span aria-hidden="true" className="text-ink-faint transition-transform group-hover:translate-x-0.5">
+              <span className="flex items-center justify-between gap-1">
+                <span className="truncate text-sm font-semibold lowercase text-ink sm:text-lg">{link.label}</span>
+                <span aria-hidden="true" className="hidden text-ink-faint transition-transform group-hover:translate-x-0.5 sm:inline">
                   →
                 </span>
               </span>
-              <span className="text-xs text-ink-muted">{t(`menuHint.${link.kind}`)}</span>
-              {link.line ? <span className="text-sm font-medium text-ink">{link.line}</span> : null}
+              <span className="hidden text-xs text-ink-muted sm:block">{t(`menuHint.${link.kind}`)}</span>
+              {link.line ? <span className="line-clamp-2 text-[0.7rem] font-medium leading-snug text-ink sm:text-sm">{link.line}</span> : null}
             </Link>
           ))}
         </nav>

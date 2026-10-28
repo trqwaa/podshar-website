@@ -139,15 +139,25 @@ export async function removePlanDay(input: unknown): Promise<GymResult> {
 const Sets = z.coerce.number().int().min(1).max(12);
 const Reps = z.coerce.number().int().min(1).max(100);
 const Weight = z.coerce.number().min(0).max(600);
+/** Подход на время — до суток, кардио — до тысячи километров: больше — опечатка. */
+const Seconds = z.coerce.number().int().min(0).max(86_400);
+const Distance = z.coerce.number().min(0).max(1000);
 
 export async function addPlanItem(input: unknown): Promise<GymResult> {
   const userId = await me();
   if (!userId) return { error: 'signedOut' };
   const parsed = z
-    .object({ weekday: Weekday, exercise: z.string().refine(isExercise), sets: Sets, reps: Reps, weight: Weight.nullable().optional() })
+    .object({
+      weekday: Weekday,
+      exercise: z.string().refine(isExercise),
+      sets: Sets,
+      reps: Reps,
+      weight: Weight.nullable().optional(),
+      seconds: Seconds.nullable().optional()
+    })
     .safeParse(input);
   if (!parsed.success) return { error: 'invalid' };
-  const { weekday, exercise, sets, reps, weight } = parsed.data;
+  const { weekday, exercise, sets, reps, weight, seconds } = parsed.data;
 
   const day = await prisma.gymPlanDay.upsert({
     where: { userId_weekday: { userId, weekday } },
@@ -158,7 +168,7 @@ export async function addPlanItem(input: unknown): Promise<GymResult> {
   if (day.items.length >= MAX_PLAN_ITEMS) return { error: 'tooMany' };
 
   const created = await prisma.gymPlanItem.create({
-    data: { dayId: day.id, exercise, sets, reps, weight: weight ?? null, position: (day.items[0]?.position ?? 0) + 1 },
+    data: { dayId: day.id, exercise, sets, reps, weight: weight ?? null, seconds: seconds ?? null, position: (day.items[0]?.position ?? 0) + 1 },
     select: { id: true }
   });
   refresh();
@@ -174,7 +184,7 @@ export async function updatePlanItem(input: unknown): Promise<GymResult> {
   const userId = await me();
   if (!userId) return { error: 'signedOut' };
   const parsed = z
-    .object({ id: Id, sets: Sets.optional(), reps: Reps.optional(), weight: Weight.nullable().optional() })
+    .object({ id: Id, sets: Sets.optional(), reps: Reps.optional(), weight: Weight.nullable().optional(), seconds: Seconds.nullable().optional() })
     .safeParse(input);
   if (!parsed.success) return { error: 'invalid' };
   const { id, ...data } = parsed.data;
@@ -241,7 +251,9 @@ export async function startWorkout(input: unknown): Promise<GymResult> {
             block,
             index,
             weight: item.weight ?? before[item.exercise]?.[index]?.weight ?? before[item.exercise]?.[0]?.weight ?? null,
-            reps: item.reps
+            reps: item.reps,
+            seconds: item.seconds ?? before[item.exercise]?.[index]?.seconds ?? before[item.exercise]?.[0]?.seconds ?? null,
+            distance: before[item.exercise]?.[index]?.distance ?? before[item.exercise]?.[0]?.distance ?? null
           }))
         )
       }
@@ -277,7 +289,9 @@ export async function addExercise(input: unknown): Promise<GymResult> {
       block,
       index,
       weight: before[index]?.weight ?? before[0]?.weight ?? null,
-      reps: before[index]?.reps ?? before[0]?.reps ?? null
+      reps: before[index]?.reps ?? before[0]?.reps ?? null,
+      seconds: before[index]?.seconds ?? before[0]?.seconds ?? null,
+      distance: before[index]?.distance ?? before[0]?.distance ?? null
     }))
   });
   refresh();
@@ -297,7 +311,7 @@ export async function addSet(input: unknown): Promise<GymResult> {
   if (!last) return { error: 'invalid' };
   if (last.index + 1 >= MAX_SETS_PER_BLOCK) return { error: 'tooMany' };
   const created = await prisma.gymSet.create({
-    data: { sessionId, exercise: last.exercise, block, index: last.index + 1, weight: last.weight, reps: last.reps },
+    data: { sessionId, exercise: last.exercise, block, index: last.index + 1, weight: last.weight, reps: last.reps, seconds: last.seconds, distance: last.distance },
     select: { id: true }
   });
   refresh();
@@ -317,6 +331,8 @@ export async function updateSet(input: unknown): Promise<GymResult> {
       id: Id,
       weight: Weight.nullable().optional(),
       reps: z.coerce.number().int().min(0).max(1000).nullable().optional(),
+      seconds: Seconds.nullable().optional(),
+      distance: Distance.nullable().optional(),
       done: z.boolean().optional(),
       warmup: z.boolean().optional()
     })
@@ -451,23 +467,77 @@ export async function removeMeasure(input: unknown): Promise<GymResult> {
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const MAX_FOOD_PER_DAY = 60;
 
+const Nutrient = (max: number) => z.coerce.number().min(0).max(max).nullable().optional();
+
+/** Своя еда и еда с фото: цифры приходят готовыми, справочник их не знает. */
+const Custom = z.object({
+  name: z.string().trim().max(80).nullable().optional(),
+  grams: z.coerce.number().positive().max(3000).nullable().optional(),
+  kcal: Nutrient(5000),
+  protein: Nutrient(500),
+  fat: Nutrient(500),
+  carbs: Nutrient(800),
+  fiber: Nutrient(200),
+  sugar: Nutrient(500),
+  satFat: Nutrient(300),
+  sodium: Nutrient(20000),
+  cholesterol: Nutrient(5000),
+  potassium: Nutrient(20000),
+  /** С фото: модель решила, что это фастфуд. Название проверяется ещё и словарём. */
+  junk: z.boolean().optional(),
+  estimated: z.boolean().optional()
+});
+
+type FoodRow = {
+  food: string | null;
+  name: string;
+  grams: number | null;
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  fiber: number | null;
+  sugar: number | null;
+  satFat: number | null;
+  sodium: number | null;
+  cholesterol: number | null;
+  potassium: number | null;
+  junk: boolean;
+  estimated: boolean;
+};
+
+function customRow(data: z.infer<typeof Custom>): FoodRow | { error: string } {
+  const name = data.name?.trim();
+  if (!name) return { error: 'empty' };
+  if (data.kcal == null) return { error: 'noKcal' };
+  return {
+    food: null,
+    name,
+    grams: data.grams ?? null,
+    kcal: Math.round(data.kcal),
+    protein: data.protein ?? 0,
+    fat: data.fat ?? 0,
+    carbs: data.carbs ?? 0,
+    fiber: data.fiber ?? null,
+    sugar: data.sugar ?? null,
+    satFat: data.satFat ?? null,
+    sodium: data.sodium ?? null,
+    cholesterol: data.cholesterol ?? null,
+    potassium: data.potassium ?? null,
+    junk: Boolean(data.junk) || junkByName(name),
+    estimated: Boolean(data.estimated)
+  };
+}
+
 export async function addFood(input: unknown): Promise<GymResult> {
   const userId = await me();
   if (!userId) return { error: 'signedOut' };
-  const parsed = z
-    .object({
-      day: Day,
-      meal: z.enum(MEALS),
-      locale: z.enum(routing.locales).default('ru'),
-      food: z.string().max(40).nullable().optional(),
-      grams: z.coerce.number().positive().max(3000).nullable().optional(),
-      name: z.string().trim().max(80).nullable().optional(),
-      kcal: z.coerce.number().min(0).max(5000).nullable().optional(),
-      protein: z.coerce.number().min(0).max(500).nullable().optional(),
-      fat: z.coerce.number().min(0).max(500).nullable().optional(),
-      carbs: z.coerce.number().min(0).max(800).nullable().optional()
-    })
-    .safeParse(input);
+  const parsed = Custom.extend({
+    day: Day,
+    meal: z.enum(MEALS),
+    locale: z.enum(routing.locales).default('ru'),
+    food: z.string().max(40).nullable().optional()
+  }).safeParse(input);
   if (!parsed.success) return { error: 'invalid' };
   const data = parsed.data;
   if (!notFuture(data.day)) return { error: 'future' };
@@ -478,24 +548,14 @@ export async function addFood(input: unknown): Promise<GymResult> {
   const item = data.food ? foodOf(data.food) : undefined;
   if (data.food && !item) return { error: 'invalid' };
 
-  let row: { food: string | null; name: string; grams: number | null; kcal: number; protein: number; fat: number; carbs: number; junk: boolean };
+  let row: FoodRow;
   if (item) {
     const grams = data.grams ?? item.portion.grams;
-    row = { food: item.id, name: item.name[data.locale], grams, ...macrosFor(item, grams), junk: item.quality === 'junk' };
+    row = { food: item.id, name: item.name[data.locale], grams, ...macrosFor(item, grams), junk: item.quality === 'junk', estimated: false };
   } else {
-    const name = data.name?.trim();
-    if (!name) return { error: 'empty' };
-    if (data.kcal == null) return { error: 'noKcal' };
-    row = {
-      food: null,
-      name,
-      grams: data.grams ?? null,
-      kcal: Math.round(data.kcal),
-      protein: data.protein ?? 0,
-      fat: data.fat ?? 0,
-      carbs: data.carbs ?? 0,
-      junk: junkByName(name)
-    };
+    const made = customRow(data);
+    if ('error' in made) return made;
+    row = made;
   }
 
   const created = await prisma.foodEntry.create({
@@ -504,6 +564,30 @@ export async function addFood(input: unknown): Promise<GymResult> {
   });
   refresh();
   return { ok: true, id: created.id };
+}
+
+/** Всё с одного фото разом: тарелка — это несколько записей, но одно нажатие. */
+export async function addFoods(input: unknown): Promise<GymResult> {
+  const userId = await me();
+  if (!userId) return { error: 'signedOut' };
+  const parsed = z
+    .object({ day: Day, meal: z.enum(MEALS), items: z.array(Custom).min(1).max(12) })
+    .safeParse(input);
+  if (!parsed.success) return { error: 'invalid' };
+  const { day, meal, items } = parsed.data;
+  if (!notFuture(day)) return { error: 'future' };
+  const already = await prisma.foodEntry.count({ where: { userId, eatenOn: day } });
+  if (already + items.length > MAX_FOOD_PER_DAY) return { error: 'tooMany' };
+
+  const rows: FoodRow[] = [];
+  for (const item of items) {
+    const made = customRow({ ...item, estimated: true });
+    if ('error' in made) return made;
+    rows.push(made);
+  }
+  await prisma.foodEntry.createMany({ data: rows.map((row) => ({ userId, eatenOn: day, meal, ...row })) });
+  refresh();
+  return { ok: true, count: rows.length };
 }
 
 export async function removeFood(input: unknown): Promise<GymResult> {

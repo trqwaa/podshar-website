@@ -17,7 +17,7 @@ import {
   updateSet
 } from '@/lib/gym/actions';
 import type { SetView, WorkoutView } from '@/lib/gym/data';
-import { exerciseOf, oneRepMax } from '@/lib/gym/exercises';
+import { countsVolume, exerciseOf, oneRepMax, type Kind } from '@/lib/gym/exercises';
 import { ExercisePicker } from './ExercisePicker';
 import { BUTTON, ErrorLine, GHOST, SMALL_INPUT, parseNumber, useGymAction } from './ui';
 
@@ -40,7 +40,27 @@ const clock = (seconds: number) => {
   return h ? `${h}:${String(m).padStart(2, '0')}:${rest}` : `${m}:${rest}`;
 };
 
-type Previous = Record<string, { weight: number | null; reps: number | null }[]>;
+/** «1:30», «90», «1:02:03» — в секунды. Пусто или мусор — `null`. */
+export function parseClock(text: string): number | null {
+  const parts = text.trim().split(':').map((p) => p.trim());
+  if (!parts[0] || parts.some((p) => !/^\d+(?:[.,]\d+)?$/.test(p))) return null;
+  const n = parts.map((p) => Number(p.replace(',', '.')));
+  const total = n.reduce((acc, v) => acc * 60 + v, 0);
+  return Number.isFinite(total) ? Math.round(total) : null;
+}
+
+type Past = { weight: number | null; reps: number | null; seconds: number | null; distance: number | null };
+type Previous = Record<string, Past[]>;
+type Field = 'weight' | 'reps' | 'seconds' | 'distance';
+
+/** Какие поля у подхода — как категории Strong. */
+const FIELDS: Record<Kind, Field[]> = {
+  weight: ['weight', 'reps'],
+  body: ['weight', 'reps'],
+  assisted: ['weight', 'reps'],
+  time: ['seconds'],
+  cardio: ['distance', 'seconds']
+};
 
 export function Workout({
   workout,
@@ -90,7 +110,9 @@ export function Workout({
     return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([block, list]) => ({ block, list: list.sort((a, b) => a.index - b.index) }));
   }, [sets]);
 
-  const volume = sets.filter((s) => s.done && !s.warmup).reduce((sum, s) => sum + (s.weight ?? 0) * (s.reps ?? 0), 0);
+  const volume = sets
+    .filter((s) => s.done && !s.warmup && countsVolume(exerciseOf(s.exercise)?.kind ?? 'weight'))
+    .reduce((sum, s) => sum + (s.weight ?? 0) * (s.reps ?? 0), 0);
   const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
 
   const patch = (id: string, change: Partial<SetView>) => setSets((all) => all.map((s) => (s.id === id ? { ...s, ...change } : s)));
@@ -150,6 +172,22 @@ export function Workout({
         const name = exercise?.name[locale] ?? list[0].exercise;
         const before = previous[list[0].exercise] ?? [];
         const record = best[list[0].exercise] ?? 0;
+        const kind: Kind = exercise?.kind ?? 'weight';
+        const fields = FIELDS[kind];
+        const label = (f: Field) =>
+          f === 'weight' ? (kind === 'body' ? t('workout.plusKg') : kind === 'assisted' ? t('workout.minusKg') : t('workout.kg')) : f === 'reps' ? t('workout.reps') : f === 'seconds' ? t('workout.time') : t('workout.km');
+        const show = (f: Field, v: number | null | undefined) => (v == null ? '' : f === 'seconds' ? clock(v) : num.format(v));
+        const read = (f: Field, text: string): number | null => {
+          if (f === 'seconds') return parseClock(text);
+          const v = parseNumber(text);
+          return v === null ? null : f === 'reps' ? Math.round(v) : v;
+        };
+        const pastLine = (p: Past) =>
+          kind === 'time'
+            ? p.seconds != null ? clock(p.seconds) : '—'
+            : kind === 'cardio'
+              ? [p.distance != null ? `${num.format(p.distance)} ${t('workout.km')}` : null, p.seconds != null ? clock(p.seconds) : null].filter(Boolean).join(' · ') || '—'
+              : `${p.weight ? (kind === 'body' ? '+' : kind === 'assisted' ? '−' : '') + num.format(p.weight) + ' ' : ''}× ${p.reps ?? '—'}`;
         return (
           <section key={block} className="rounded-[10px] border-2 border-rule-soft p-3 sm:p-4">
             <header className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -175,18 +213,22 @@ export function Workout({
             <table className="w-full table-fixed border-separate border-spacing-y-1 text-sm">
               <thead>
                 <tr className="text-left">
-                  <th className="ps-label w-14 font-semibold">{t('workout.set')}</th>
+                  <th className="ps-label w-12 font-semibold sm:w-14">{t('workout.set')}</th>
                   <th className="ps-label font-semibold">{t('workout.previous')}</th>
-                  <th className="ps-label w-[4.5rem] text-center font-semibold">{t('workout.kg')}</th>
-                  <th className="ps-label w-[4rem] text-center font-semibold">{t('workout.reps')}</th>
-                  <th className="w-11" aria-label={t('workout.done')} />
-                  {editable ? <th className="w-7" /> : null}
+                  {fields.map((f) => (
+                    <th key={f} className={`ps-label text-center font-semibold ${f === 'seconds' ? 'w-[4.75rem]' : 'w-[4rem] sm:w-[4.5rem]'}`}>
+                      {label(f)}
+                    </th>
+                  ))}
+                  <th className="w-10 sm:w-11" aria-label={t('workout.done')} />
+                  {editable ? <th className="w-6 sm:w-7" /> : null}
                 </tr>
               </thead>
               <tbody>
                 {list.map((s, i) => {
                   const prev = before[i - list.filter((x, j) => j < i && x.warmup).length] ?? null;
-                  const pr = s.done && !s.warmup && (s.weight ?? 0) > 0 && (s.reps ?? 0) > 0 && record > 0 && oneRepMax(s.weight ?? 0, s.reps ?? 0) > record + 0.01;
+                  const pr =
+                    kind === 'weight' && s.done && !s.warmup && (s.weight ?? 0) > 0 && (s.reps ?? 0) > 0 && record > 0 && oneRepMax(s.weight ?? 0, s.reps ?? 0) > record + 0.01;
                   const workingIndex = list.slice(0, i + 1).filter((x) => !x.warmup).length;
                   return (
                     <tr key={s.id} className={s.done ? 'bg-win/10' : ''}>
@@ -205,46 +247,30 @@ export function Workout({
                         </button>
                       </td>
                       <td className="truncate text-ink-muted tabular-nums">
-                        {prev && prev.weight != null ? `${num.format(prev.weight)} × ${prev.reps ?? '—'}` : prev ? `× ${prev.reps ?? '—'}` : '—'}
+                        {prev ? pastLine(prev) : '—'}
                         {pr ? <span className="ml-1.5 rounded bg-amber/15 px-1.5 py-0.5 text-[0.7rem] font-bold text-amber">{t('workout.best')}</span> : null}
                       </td>
-                      <td className="px-1">
-                        <input
-                          key={`${s.id}-w`}
-                          defaultValue={s.weight ?? ''}
-                          disabled={!editable}
-                          inputMode="decimal"
-                          placeholder={prev?.weight != null ? num.format(prev.weight) : '—'}
-                          aria-label={`${name}, ${t('workout.set')} ${i + 1}, ${t('workout.kg')}`}
-                          className={SMALL_INPUT}
-                          onBlur={(e) => {
-                            const weight = parseNumber(e.target.value);
-                            if (weight !== s.weight) {
-                              patch(s.id, { weight });
-                              void run(updateSet, { id: s.id, weight });
-                            }
-                          }}
-                        />
-                      </td>
-                      <td className="px-1">
-                        <input
-                          key={`${s.id}-r`}
-                          defaultValue={s.reps ?? ''}
-                          disabled={!editable}
-                          inputMode="numeric"
-                          placeholder={prev?.reps != null ? String(prev.reps) : '—'}
-                          aria-label={`${name}, ${t('workout.set')} ${i + 1}, ${t('workout.reps')}`}
-                          className={SMALL_INPUT}
-                          onBlur={(e) => {
-                            const reps = parseNumber(e.target.value);
-                            const value = reps === null ? null : Math.round(reps);
-                            if (value !== s.reps) {
-                              patch(s.id, { reps: value });
-                              void run(updateSet, { id: s.id, reps: value });
-                            }
-                          }}
-                        />
-                      </td>
+                      {fields.map((f) => (
+                        <td key={f} className="px-0.5 sm:px-1">
+                          <input
+                            key={`${s.id}-${f}`}
+                            data-field={f}
+                            defaultValue={show(f, s[f])}
+                            disabled={!editable}
+                            inputMode={f === 'reps' ? 'numeric' : f === 'seconds' ? 'text' : 'decimal'}
+                            placeholder={prev && prev[f] != null ? show(f, prev[f]) : f === 'seconds' ? '0:00' : '—'}
+                            aria-label={`${name}, ${t('workout.set')} ${i + 1}, ${label(f)}`}
+                            className={SMALL_INPUT}
+                            onBlur={(e) => {
+                              const value = read(f, e.target.value);
+                              if (value !== s[f]) {
+                                patch(s.id, { [f]: value });
+                                void run(updateSet, { id: s.id, [f]: value });
+                              }
+                            }}
+                          />
+                        </td>
+                      ))}
                       <td className="text-center">
                         <button
                           type="button"
@@ -254,14 +280,14 @@ export function Workout({
                           onClick={(e) => {
                             // Поле, из которого пришли, ещё не успело сохраниться: берём
                             // цифры прямо из строки, чтобы галочка не ушла с пустыми.
-                            const row = (e.currentTarget.closest('tr') as HTMLTableRowElement | null)?.querySelectorAll('input');
-                            const weight = row?.[0] ? parseNumber(row[0].value) : s.weight;
-                            const reps = row?.[1] ? parseNumber(row[1].value) : s.reps;
+                            const row = e.currentTarget.closest('tr') as HTMLTableRowElement | null;
                             const done = !s.done;
-                            const filled = {
-                              weight: weight ?? (done ? (prev?.weight ?? null) : s.weight),
-                              reps: reps === null ? (done ? (prev?.reps ?? null) : s.reps) : Math.round(reps)
-                            };
+                            const filled: Partial<Record<Field, number | null>> = {};
+                            for (const f of fields) {
+                              const input = row?.querySelector<HTMLInputElement>(`input[data-field="${f}"]`);
+                              const typed = input ? read(f, input.value) : s[f];
+                              filled[f] = typed ?? (done ? (prev?.[f] ?? null) : s[f]);
+                            }
                             patch(s.id, { done, ...filled });
                             void run(updateSet, { id: s.id, done, ...filled });
                             if (done && !s.warmup) setRestUntil(Date.now() + restSeconds * 1000);

@@ -201,29 +201,3 @@ function Mouth({ face }: { face: Face }) {
       return <ellipse cx={60} cy={95} rx={5.5} ry={6.5} className="fill-ink" />;
   }
 }
-
-/**
- * Аватар мопса для зала: без капюшона, в майке-алкоголичке, огромный.
- *
- * Та же морда, только поверх трапеций, которые начинаются от ушей. Им мопс
- * встречает в подвале и сидит в углу экрана, пока ты в зале.
- */
-export function PugAvatar({ className = '', title }: { className?: string; title?: string }) {
-  return (
-    <svg viewBox="0 0 120 120" role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} className={className}>
-      {/* Плечи и трапеции: шире головы, от ушей вниз. */}
-      <path d="M2 122C2 98 14 86 30 82C36 70 48 62 60 62C72 62 84 70 90 82C106 86 118 98 118 122Z" className="fill-pug stroke-ink" strokeWidth={2.5} />
-      <circle cx={17} cy={101} r={16} className="fill-pug stroke-ink" strokeWidth={2.5} />
-      <circle cx={103} cy={101} r={16} className="fill-pug stroke-ink" strokeWidth={2.5} />
-      <path d="M8 104Q14 96 24 96M112 104Q106 96 96 96" className="stroke-pug-mask/40" strokeWidth={1.6} fill="none" />
-      {/* Майка-алкоголичка: глубокие проймы, белая. */}
-      <path d="M34 122C36 108 40 96 46 82H54C52 94 55 104 60 107C65 104 68 94 66 82H74C80 96 84 108 86 122Z" className="fill-surface stroke-ink" strokeWidth={2} strokeLinejoin="round" />
-      <path d="M46 112Q60 104 74 112" className="stroke-ink/25" strokeWidth={1.4} fill="none" />
-      {/* Грудь в вырезе. */}
-      <path d="M54 84Q60 92 66 84" className="stroke-pug-mask/40" strokeWidth={1.4} fill="none" />
-      <g transform="translate(22 0) scale(0.64)">
-        <PugFace face="proud" />
-      </g>
-    </svg>
-  );
-}

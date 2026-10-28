@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { authConfigured } from '@/lib/auth/config';
 import { birthdayOf } from '@/lib/birthdays';
 import { shiftDay } from '@/lib/calendar/scales';
-import { oneRepMax } from './exercises';
+import { kindOf, oneRepMax } from './exercises';
 import {
   DEFAULTS,
   PARTS,
@@ -113,7 +113,7 @@ export async function gymProfile(userId: string, today: string): Promise<GymProf
 
 // ─── План на доске ──────────────────────────────────────────────────────────
 
-export type PlanItemView = { id: string; exercise: string; sets: number; reps: number; weight: number | null };
+export type PlanItemView = { id: string; exercise: string; sets: number; reps: number; weight: number | null; seconds: number | null };
 export type PlanDayView = { id: string; weekday: number; title: string; items: PlanItemView[] };
 
 export async function planOf(userId: string): Promise<PlanDayView[]> {
@@ -127,7 +127,7 @@ export async function planOf(userId: string): Promise<PlanDayView[]> {
     id: d.id,
     weekday: d.weekday,
     title: d.title,
-    items: d.items.map((i) => ({ id: i.id, exercise: i.exercise, sets: i.sets, reps: i.reps, weight: i.weight }))
+    items: d.items.map((i) => ({ id: i.id, exercise: i.exercise, sets: i.sets, reps: i.reps, weight: i.weight, seconds: i.seconds }))
   }));
 }
 
@@ -146,6 +146,9 @@ export type SetView = {
   index: number;
   weight: number | null;
   reps: number | null;
+  /** Упражнения на время и кардио: секунды и километры. */
+  seconds: number | null;
+  distance: number | null;
   warmup: boolean;
   done: boolean;
 };
@@ -179,6 +182,8 @@ const SET_FIELDS = {
   index: true,
   weight: true,
   reps: true,
+  seconds: true,
+  distance: true,
   warmup: true,
   done: true
 } as const;
@@ -209,24 +214,23 @@ export async function recentWorkouts(userId: string, limit = 12): Promise<Workou
  * «Прошлый раз» для колонки как в Strong: подходы этого упражнения из
  * последней законченной тренировки, где оно было.
  */
-export async function previousSets(
-  userId: string,
-  exercises: string[]
-): Promise<Record<string, { weight: number | null; reps: number | null }[]>> {
+export type PastSet = { weight: number | null; reps: number | null; seconds: number | null; distance: number | null };
+
+export async function previousSets(userId: string, exercises: string[]): Promise<Record<string, PastSet[]>> {
   if (!authConfigured() || exercises.length === 0) return {};
   const rows = await prisma.gymSet.findMany({
     where: { exercise: { in: exercises }, done: true, session: { userId, completedAt: { not: null } } },
     orderBy: [{ session: { completedAt: 'desc' } }, { index: 'asc' }],
-    select: { exercise: true, sessionId: true, weight: true, reps: true, warmup: true },
+    select: { exercise: true, sessionId: true, weight: true, reps: true, seconds: true, distance: true, warmup: true },
     take: 400
   });
-  const out: Record<string, { weight: number | null; reps: number | null }[]> = {};
+  const out: Record<string, PastSet[]> = {};
   const sessionOf: Record<string, string> = {};
   for (const row of rows) {
     if (row.warmup) continue;
     sessionOf[row.exercise] ??= row.sessionId;
     if (sessionOf[row.exercise] !== row.sessionId) continue;
-    (out[row.exercise] ??= []).push({ weight: row.weight, reps: row.reps });
+    (out[row.exercise] ??= []).push({ weight: row.weight, reps: row.reps, seconds: row.seconds, distance: row.distance });
   }
   return out;
 }
@@ -243,6 +247,8 @@ export async function bestLifts(userId: string): Promise<Record<string, BestLift
   });
   const out: Record<string, BestLift> = {};
   for (const row of rows) {
+    // Вес в гравитроне — помощь, а не нагрузка: рекордом он не бывает.
+    if (kindOf(row.exercise) !== 'weight' && kindOf(row.exercise) !== 'body') continue;
     const weight = row.weight ?? 0;
     const e1rm = oneRepMax(weight, row.reps ?? 0);
     const top = Math.max(out[row.exercise]?.top ?? 0, weight);
@@ -310,26 +316,42 @@ export type FoodView = {
   protein: number;
   fat: number;
   carbs: number;
+  fiber: number | null;
+  sugar: number | null;
+  satFat: number | null;
+  sodium: number | null;
+  cholesterol: number | null;
+  potassium: number | null;
   junk: boolean;
+  estimated: boolean;
 };
+
+const FOOD_FIELDS = {
+  id: true,
+  meal: true,
+  food: true,
+  name: true,
+  grams: true,
+  kcal: true,
+  protein: true,
+  fat: true,
+  carbs: true,
+  fiber: true,
+  sugar: true,
+  satFat: true,
+  sodium: true,
+  cholesterol: true,
+  potassium: true,
+  junk: true,
+  estimated: true
+} as const;
 
 export async function foodDay(userId: string, day: string): Promise<FoodView[]> {
   if (!authConfigured()) return [];
   return prisma.foodEntry.findMany({
     where: { userId, eatenOn: day },
     orderBy: { createdAt: 'asc' },
-    select: {
-      id: true,
-      meal: true,
-      food: true,
-      name: true,
-      grams: true,
-      kcal: true,
-      protein: true,
-      fat: true,
-      carbs: true,
-      junk: true
-    }
+    select: FOOD_FIELDS
   });
 }
 
@@ -375,18 +397,7 @@ export async function recentFoods(userId: string, limit = 8): Promise<FoodView[]
     where: { userId },
     orderBy: { createdAt: 'desc' },
     take: 120,
-    select: {
-      id: true,
-      meal: true,
-      food: true,
-      name: true,
-      grams: true,
-      kcal: true,
-      protein: true,
-      fat: true,
-      carbs: true,
-      junk: true
-    }
+    select: FOOD_FIELDS
   });
   const seen = new Set<string>();
   const out: FoodView[] = [];
@@ -471,8 +482,13 @@ export async function weekDigest(userId: string, today: string): Promise<WeekDig
   };
 }
 
-export async function latestVerdict(userId: string): Promise<{ text: string; at: number; locale: string } | null> {
+/**
+ * Последний разнос модели — на языке страницы. Разнос пишется словами, его не
+ * перевести: на другом языке сайта показывается последний, написанный на нём,
+ * а если такого нет — разносы по правилам, которые переводятся сами.
+ */
+export async function latestVerdict(userId: string, locale: string): Promise<{ text: string; at: number; locale: string } | null> {
   if (!authConfigured()) return null;
-  const row = await prisma.gymVerdict.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' } });
+  const row = await prisma.gymVerdict.findFirst({ where: { userId, locale }, orderBy: { createdAt: 'desc' } });
   return row ? { text: row.text, at: row.createdAt.getTime(), locale: row.locale } : null;
 }

@@ -1193,7 +1193,7 @@
   "gym": {
     "title": "gym",
     "back": "in den keller",
-    "sceneLabel": "kellergym: der mops, die tafel mit dem plan, ein rack, ein kühlschrank und eine matratze",
+    "sceneLabel": "kellerstudio: der mops, der plan an der tafel, ein rack, hanteln, ein kühlschrank, eine matratze und porträts der legenden",
     "boardTitle": "plan",
     "goalOn": "ziel: {goal}",
     "restDay": "—",
@@ -1249,14 +1249,22 @@
       "arms": "arme",
       "legs": "beine",
       "glutes": "po",
-      "core": "bauch"
+      "core": "bauch",
+      "full": "ganzkörper",
+      "cardio": "cardio"
     },
     "gear": {
       "barbell": "langhantel",
       "dumbbell": "kurzhanteln",
       "cable": "kabelzug",
       "machine": "maschine",
-      "body": "körpergewicht"
+      "body": "körpergewicht",
+      "kettlebell": "kettlebell",
+      "smith": "multipresse",
+      "band": "band",
+      "plate": "hantelscheibe",
+      "cardio": "cardio",
+      "other": "sonstiges"
     },
     "critic": {
       "title": "der mops-kritiker",
@@ -1299,7 +1307,8 @@
       "remove": "wegwischen",
       "clearDay": "tag wegwischen",
       "today": "heute",
-      "readOnly": "nicht deine tafel — nur anschauen"
+      "readOnly": "nicht deine tafel — nur anschauen",
+      "time": "zeit"
     },
     "workout": {
       "startPlan": "starten: {title}",
@@ -1330,7 +1339,11 @@
       "finished": "gespeichert. der mops ist zufrieden und sagt es nie",
       "empty": "kein einziger satz abgehakt — das war kein training",
       "volume": "volumen",
-      "best": "rekord"
+      "best": "rekord",
+      "plusKg": "+kg",
+      "minusKg": "−kg",
+      "time": "zeit",
+      "km": "km"
     },
     "history": {
       "empty": "hier erscheinen die beendeten trainings",
@@ -1350,7 +1363,11 @@
       "back": "zur liste",
       "technique": "technik",
       "close": "schliessen",
-      "nothing": "diese übung gibt es nicht. noch nicht"
+      "nothing": "diese übung gibt es nicht. noch nicht",
+      "view": "ansicht",
+      "side": "seitlich",
+      "front": "von vorn",
+      "count": "{n, plural, one {# übung} other {# übungen}}"
     },
     "body": {
       "goal": "hauptziel",
@@ -1462,7 +1479,23 @@
       },
       "portion": "{n} × {unit}",
       "week": "woche",
-      "readOnly": "fremdes tagebuch: essen trägt nur der besitzer ein"
+      "readOnly": "fremdes tagebuch: essen trägt nur der besitzer ein",
+      "photo": "per foto",
+      "photoLooking": "der mops schaut hin…",
+      "photoHint": "foto vom teller — der mops schätzt, was drauf ist und wie viel",
+      "photoEstimate": "nach augenmaß, nicht gewogen: korrigier die gramm, wenn du es genauer weißt",
+      "photoAdd": "eintragen · {kcal} kcal",
+      "fiber": "ballaststoffe",
+      "sugar": "zucker",
+      "satFat": "gesättigte fette",
+      "sodium": "natrium",
+      "cholesterol": "cholesterin",
+      "potassium": "kalium",
+      "mg": "mg",
+      "details": "mehr: ballaststoffe, zucker, salz",
+      "detailsHint": "selbst eingetragenes essen hat diese werte meist nicht — dann zählen sie nicht",
+      "byPhoto": "per foto",
+      "estimated": "werte vom mops nach foto geschätzt, nicht gewogen"
     },
     "sleep": {
       "title": "schlaf",
@@ -1513,7 +1546,46 @@
       "cooldown": "der mops schnauft noch vom letzten verriss. in ein paar minuten",
       "dailyCap": "genug verrisse für heute",
       "noModel": "kein modell zur hand — der verriss nach regeln oben muss reichen",
-      "generic": "hat nicht geklappt. nochmal?"
+      "generic": "hat nicht geklappt. nochmal?",
+      "photoCooldown": "der mops kaut noch am letzten foto. ein paar sekunden",
+      "photoCap": "genug fotos für heute — ab jetzt von hand",
+      "photoNoModel": "der mops sieht gerade nichts — trag es von hand ein",
+      "notFood": "das ist kein essen. oder der mops versteht was nicht",
+      "photoUnreadable": "das foto ließ sich nicht öffnen. ein anderes?"
+    },
+    "kinds": {
+      "weight": "gewicht & wdh.",
+      "body": "körpergewicht",
+      "assisted": "unterstützt",
+      "time": "auf zeit",
+      "cardio": "distanz & zeit"
+    },
+    "slogan": "eisen lügt nicht",
+    "legends": {
+      "ronnie": {
+        "name": "ronnie",
+        "title": "ronnie coleman · platz 1"
+      },
+      "levrone": {
+        "name": "levrone",
+        "title": "kevin levrone · platz 2"
+      },
+      "arnold": {
+        "name": "arnie",
+        "title": "arnold schwarzenegger"
+      },
+      "dorian": {
+        "name": "dorian",
+        "title": "dorian yates"
+      },
+      "vlasov": {
+        "name": "wlassow",
+        "title": "juri wlassow"
+      },
+      "alekseyev": {
+        "name": "alexejew",
+        "title": "wassili alexejew"
+      }
     }
   }
 }

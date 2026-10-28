@@ -241,7 +241,7 @@ export function BodyPanel({
             </div>
             {kind === 'lift' ? (
               <select name="subject" className={`${INPUT} max-w-[14rem]`} aria-label={t('body.kinds.lift')} defaultValue="bench-press">
-                {EXERCISES.filter((e) => e.gear !== 'body').map((e) => (
+                {EXERCISES.filter((e) => e.kind === 'weight').map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name[locale]}
                   </option>

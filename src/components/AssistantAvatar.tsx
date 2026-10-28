@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { usePathname } from '@/i18n/routing';
 import { PodsharMark } from './PodsharMark';
-import { PugAvatar } from './gym/PugFace';
+import { PugAvatar } from './gym/PugAvatar';
 
 /**
  * Podshar's face: the pug in a hood.
