@@ -1364,9 +1364,6 @@
       "technique": "technik",
       "close": "schliessen",
       "nothing": "diese übung gibt es nicht. noch nicht",
-      "view": "ansicht",
-      "side": "seitlich",
-      "front": "von vorn",
       "count": "{n, plural, one {# übung} other {# übungen}}"
     },
     "body": {

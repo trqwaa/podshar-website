@@ -7,15 +7,15 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Modal } from '@/components/Modal';
 import type { Locale } from '@/i18n/routing';
 import { EXERCISES, MUSCLES, cuesOf, exerciseOf, type Exercise, type Muscle } from '@/lib/gym/exercises';
-import { PugRig, type View } from './PugRig';
+import { PugRig } from './PugRig';
 import { BUTTON, CHIP, GHOST, INPUT } from './styles';
 
 /**
  * Выбор упражнения: поиск, мышцы и мопс, который показывает технику.
  *
- * Список → нажал → мопс делает это упражнение с правильной техникой, сбоку и
- * спереди, под ним две строки «как делать», кнопка «добавить». Владелец просил
- * именно так: добавляешь упражнение — мопс его показывает.
+ * Список → нажал → мопс делает это упражнение с правильной техникой, под ним
+ * две строки «как делать», кнопка «добавить». Владелец просил именно так:
+ * добавляешь упражнение — мопс его показывает.
  *
  * Упражнений — весь каталог Strong, за две сотни, поэтому поиск ищет на всех
  * четырёх языках сразу: «жим» и «press» находят одно и то же.
@@ -33,36 +33,18 @@ export function searchExercises(query: string, muscle: Muscle | null): Exercise[
   });
 }
 
-/** Мопс показывает упражнение: на телефоне один вид с переключателем, шире — оба рядом. */
+/**
+ * Мопс показывает упражнение сбоку. Вид спереди здесь был и убран 28 октября
+ * 2026: багов в нём больше, чем пользы. Рисунок спереди (`pug-front.tsx`)
+ * остался — им сидит мопс в день отдыха; вернуть сюда — когда он будет чистым.
+ */
 export function ExerciseDemo({ exercise }: { exercise: Exercise }) {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
-  const [view, setView] = useState<View>('side');
-  const title = t('pug.demo', { name: exercise.name[locale] });
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-1.5 sm:hidden" role="group" aria-label={t('picker.view')}>
-        {(['side', 'front'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            aria-pressed={view === v}
-            onClick={() => setView(v)}
-            className={`${CHIP} ${view === v ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'}`}
-          >
-            {t(`picker.${v}`)}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {(['side', 'front'] as const).map((v) => (
-          <figure key={v} className={`rounded-[10px] border-2 border-rule-soft bg-sunk/60 ${view === v ? '' : 'hidden sm:block'}`}>
-            <PugRig motion={exercise.motion} gear={exercise.gear} grip={exercise.grip} view={v} title={title} className="mx-auto aspect-[32/30] w-full" />
-            <figcaption className="ps-label hidden px-2 pb-1.5 sm:block">{t(`picker.${v}`)}</figcaption>
-          </figure>
-        ))}
-      </div>
-    </div>
+    <figure className="mx-auto w-full max-w-md rounded-[10px] border-2 border-rule-soft bg-sunk/60">
+      <PugRig motion={exercise.motion} gear={exercise.gear} title={t('pug.demo', { name: exercise.name[locale] })} className="aspect-[32/30] w-full" />
+    </figure>
   );
 }
 
@@ -127,7 +109,9 @@ export function ExercisePicker({
   // карточке, а не окну, — окно выбора открылось бы внутри доски.
   return createPortal(
     <Modal title={t('picker.title')} close={t('picker.close')} onClose={onClose}>
-      <div ref={top} />
+      {/* Отступ больше липкой шапки окна: без него `scrollIntoView` ставил начало
+          карточки под шапку, и название упражнения уезжало под неё наполовину. */}
+      <div ref={top} className="scroll-mt-40" />
       {exercise ? (
         <div className="flex flex-col gap-4">
           {onPick ? (

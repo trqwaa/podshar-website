@@ -1364,9 +1364,6 @@
       "technique": "technique",
       "close": "close",
       "nothing": "no such exercise. yet",
-      "view": "view",
-      "side": "side",
-      "front": "front",
       "count": "{n, plural, one {# exercise} other {# exercises}}"
     },
     "body": {

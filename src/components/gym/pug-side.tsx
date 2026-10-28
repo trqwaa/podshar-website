@@ -3,7 +3,7 @@
 import { BODY, GROUND, type Load, type P } from './pug-motions';
 import { deg, n2, type Solved } from './pug-geometry';
 import { HeadSide } from './PugHead';
-import { C, LINE, Part, type Frame } from './pug-parts';
+import { C, LINE, Part, PartPath, type Frame } from './pug-parts';
 
 /**
  * Мопс в профиль: детали в своих координатах (сегмент лежит вдоль +x) и кадр,
@@ -66,6 +66,15 @@ export function sideFrame(r: Solved, load: Load, live: Live): Frame {
 
   put('thigh', 'transform', seg(pose.hip, r.leg.mid, BODY.thigh));
   put('shin', 'transform', seg(r.leg.mid, r.leg.end, BODY.shin));
+  // Лампас — по внешнему шву ближней ноги, от пояса до подола одной кривой:
+  // гнётся на суставе вместе с бедром, как шов, а не ломается галочкой.
+  // Дальний шов смотрит от зрителя, его не видно.
+  const up: P = [Math.sin(pose.torso), -Math.cos(pose.torso)];
+  const fwd: P = [-up[1], up[0]];
+  const waist: P = [pose.hip[0] + up[0] * 15.5 + fwd[0] * 2.2, pose.hip[1] + up[1] * 15.5 + fwd[1] * 2.2];
+  const along = angle(pose.hip, r.leg.mid);
+  const hem: P = [pose.hip[0] + Math.cos(along) * 28.5, pose.hip[1] + Math.sin(along) * 28.5];
+  put('stripe', 'd', `M${n2(waist[0])} ${n2(waist[1])}Q${n2(pose.hip[0])} ${n2(pose.hip[1])} ${n2(hem[0])} ${n2(hem[1])}`);
   put('foot', 'transform', at(r.leg.end, pose.toe ?? 0));
   put('delt', 'transform', at(r.shoulder, angle(r.shoulder, r.arm.mid)));
   put('upper', 'transform', seg(r.shoulder, r.arm.mid, BODY.upper));
@@ -140,17 +149,36 @@ const DELT = 'M-13 0C-13-9-6-15 2-15C10-15 16-9 16 0C16 8 10 14 2 14C-6 14-13 8-
 const UPPER = 'M0-13C9-17 20-17 29-12C35-9 39-7 41-6L41 6.5C35 9 27 12 17 13C9 14 3 13 0 12Z';
 const FORE = 'M-3-10C7-13 17-11 26-7.5C31-6 35-5.5 38-5.5L38 5.5C33 6.5 25 9 15 10.5C6 11.5 0 11-3 9Z';
 const HAND = 'M-3-7.5C4-10.5 12-9.5 15.5-5.5C17.6-2 17.6 2 15.5 5.5C12 9.5 4 10.5-3 7.5Z';
-const THIGH = 'M0-17C14-20 30-17 47-10L47 10C34 13 18 17 0 17Z';
-const SHORTS_LEG = 'M-2-18.5C8-20 18-20 25-18.8L25 18.8C16 19 7 18.6-2 18Z';
+/**
+ * Концы бедра — полукруги вокруг сустава: таз и колено поворачивают бедро на
+ * любой угол, и плоский срез торчал бы углом — в приседе бедро было коробкой.
+ */
+const THIGH = 'M0-17C14-20 30-17 46-10.5A10.5 10.5 0 0 1 46 10.5C34 13 18 17 0 17A17 17 0 0 1 0-17Z';
+/**
+ * Штанина — труба с круглым верхом вокруг тазобедренного сустава и подолом
+ * дугой. Круг поворачивается вместе с бедром и не меняется, поэтому штанина
+ * при любом наклоне сливается с сиденьем шорт, а не торчит из него
+ * прямоугольником. Радиус круга — не выше пояса (`SHORTS`), иначе шорты лезли
+ * бы на майку.
+ */
+const SHORTS_LEG = 'M0 20C8 20 17 19.6 24 18.6C27.5 18.1 29.5 15.5 30 12C30.8 6 30.8-6 30-13C29.5-16.5 27.5-19.4 24-19.9C16-20.8 8-20.6 0-20A20 20 0 0 0 0 20Z';
 const SHIN = 'M-2-10C12-11 28-8 44-6L44 6C35 8 25 13 12 14.5C5 15 0 13-2 11Z';
-const FOOT = 'M-8-6C-8-11 2-11 10-8.5C19-6 25-2 25 1.5V4H-8Z';
+const FOOT = 'M-8-6C-8-11 2-11 10-8.5C19-6 25-2.5 25.5 1C25.8 3 24.6 4 22.5 4H-4.5C-6.6 4-8 2.6-8 0.5Z';
 const TORSO =
   'M12-76C18-71 22-68 28-65C36-61 40-55 40-48C40-43 38-40 33-38C30-30 29-22 28-14C27-6 24 0 18 6C10 11-6 12-14 8C-20 4-22-4-20-12C-18-18-14-22-14-28C-15-36-19-46-20-56C-21-66-20-76-16-86C-8-88 6-84 12-76Z';
-/** Майка висит с груди прямо, а не обтягивает её снизу: иначе в профиль выходит бюст. */
+/**
+ * Майка висит с груди прямо, а не обтягивает её снизу: иначе в профиль выходит
+ * бюст. Заправлена в шорты — подол чуть ниже пояса.
+ */
 const TANK =
-  'M31-2C32-14 34-30 37-40C39-44 40-46 40-49C40-55 35-61 28-64C22-66 17-69 14-72L12-77.5C6-79.5-3-79-10-77C-16-71-20-64-20-56C-19-46-15-36-14-28C-14-22-18-18-20-12C-21-8-21-5-20-2Z' +
+  'M32.7-17.8C33.8-26 35.2-34 37-40C39-44 40-46 40-49C40-55 35-61 28-64C22-66 17-69 14-72L12-77.5C6-79.5-3-79-10-77C-16-71-20-64-20-56C-19-46-15-36-14-28C-14-24.1-15.7-21-17.4-17.7Z' +
   'M10-69C6-62 4-52 6-42C7-36 6-31 2-29C-2-33-4-42-4-52C-4-62-1-70 4-73C6-73 8-71 10-69Z';
-const SHORTS = 'M31-2C30 4 25 9 18 11C8 14-6 13-14 9C-19 6-21 2-20-2Z';
+/**
+ * Сиденье шорт — от пояса до складки под ягодицами, с запасом ткани по
+ * контуру. Пояс выше сустава на радиус круга штанины (`SHORTS_LEG`): там, где
+ * он сидел вровень с суставом, штанина в приседе вылезала на майку.
+ */
+const SHORTS = 'M33.6-21C33.6-13 30.5-3 26 3C22 8 16 11.5 9 13C1 14.5-8 14-15 10.5C-21 7.5-23.5 1-23.5-5C-23.5-11-20.5-16.5-17-21Z';
 const HOODIE =
   'M14-77C20-72 24-69 30-66C38-62 43-56 43-49C43-43 41-38 37-34C35-26 34-18 33-11C32-3 29 3 22 8C13 13-7 14-16 10C-22 6-24-3-22-12C-20-18-16-23-16-29C-17-37-21-47-22-57C-23-67-22-77-18-87C-10-90 7-86 14-77Z';
 
@@ -279,11 +307,12 @@ function Leg({ far = false, pants = false }: { far?: boolean; pants?: boolean })
         <path d={FOOT} {...LINE} />
       </Part>
       <Part name={`thigh${n}`}>
+        {/* Треники у таза — круг без обводки: сливается с худи, как штанина с шортами. */}
+        {pants ? <circle r={19} fill={skin} /> : null}
         <path d={THIGH} fill={skin} />
         <path d="M4 12C18 14 32 11 45 8L46 9.6C34 12.5 20 15.8 4 16Z" fill={C.shade} />
         <path d="M26-13C33-12 39-10 44-8" stroke={C.mask} strokeOpacity={0.2} strokeWidth={1.3} fill="none" strokeLinecap="round" />
         {pants ? null : <path d={SHORTS_LEG} fill={far ? C.shortsFar : C.shorts} />}
-        {pants ? null : <path d="M-1 0H24.5" stroke={C.stripe} strokeWidth={3} />}
       </Part>
       <Part name={`shin${n}`}>
         <path d={SHIN} fill={skin} />
@@ -331,12 +360,12 @@ function Torso({ hood, outline }: { hood: boolean; outline?: boolean }) {
       <path d={TANK} fill={C.tank} fillRule="evenodd" />
       <path d={TANK} fill="none" stroke={C.ink} strokeOpacity={0.35} strokeWidth={1.1} fillRule="evenodd" />
       {/* Складки ткани и тень под грудью. */}
-      <path d="M37-40C35-30 33-16 31-3H27C29-16 31-30 34-40Z" fill={C.tankShade} />
+      <path d="M37-40C35.8-33.8 34.5-26.1 33.3-18.2L29.5-18.8C30.8-26.6 32.2-34 34-40Z" fill={C.tankShade} />
       <path d="M18-30C20-22 21-14 20-6M-10-40C-12-30-11-20-12-10" stroke={C.tankShade} strokeWidth={1.2} fill="none" strokeLinecap="round" />
       <path d="M-19-56C-19-46-15-36-14-28C-14-22-18-18-20-12C-21-8-21-5-20-2H-15C-16-10-12-20-12-30C-13-40-16-50-15-60C-15-68-12-74-9-76C-15-71-19-64-19-56Z" fill={C.tankShade} />
       <path d={SHORTS} fill={C.shorts} />
-      <path d="M31-2C12 0-6 0-20-2" stroke={C.ink} strokeOpacity={0.4} strokeWidth={1.4} fill="none" />
-      <path d="M26 1C14 3 0 3-19 1" stroke={C.white} strokeOpacity={0.18} strokeWidth={1} fill="none" />
+      <path d="M33.4-17.5C14-16-4-16-19.6-17.5" stroke={C.ink} strokeOpacity={0.4} strokeWidth={1.4} fill="none" />
+      <path d="M29-14C14-12.5 0-12.5-21-14.5" stroke={C.white} strokeOpacity={0.18} strokeWidth={1} fill="none" />
     </Part>
   );
 }
@@ -377,6 +406,7 @@ export function SideBody({ load, hood, plate, plates }: { load: Load; hood: bool
       </Part>
 
       <Leg pants={hood} />
+      {hood ? null : <PartPath name="stripe" stroke={C.stripe} strokeWidth={3} strokeLinecap="round" fill="none" />}
       {load === 'roller' ? (
         <Part name="pad">
           <circle r={8.5} fill={C.pad} stroke={C.ink} strokeWidth={1.2} />
