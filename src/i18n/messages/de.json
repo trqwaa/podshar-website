@@ -1194,18 +1194,26 @@
     "title": "gym",
     "back": "in den keller",
     "sceneLabel": "kellerstudio: der mops, der plan an der tafel, ein rack, hanteln, ein kühlschrank, eine matratze und porträts der legenden",
-    "boardTitle": "plan",
+    "scene": {
+      "swipe": "← der keller lässt sich seitlich wischen →",
+      "poke": "Den Mops anstupsen",
+      "music": "Ghettoblaster: an oder aus"
+    },
     "goalOn": "ziel: {goal}",
     "restDay": "—",
     "menu": {
       "training": "training",
       "food": "ernährung",
-      "sleep": "schlaf"
+      "sleep": "schlaf",
+      "workout": "training",
+      "plan": "plan"
     },
     "menuHint": {
       "training": "plan an der tafel, training, ziele und masse",
       "food": "was du heute gegessen hast, makros",
-      "sleep": "wie lange du geschlafen hast und wann du ins bett bist"
+      "sleep": "wie lange du geschlafen hast und wann du ins bett bist",
+      "workout": "training starten oder weitermachen",
+      "plan": "was an welchem tag dran ist"
     },
     "lines": {
       "trainingActive": "training läuft · {n, plural, one {# satz} other {# sätze}}",
@@ -1216,7 +1224,8 @@
       "food": "{kcal} von {target} kcal · eiweiss {protein} g",
       "foodEmpty": "heute nichts eingetragen",
       "sleep": "letzte nacht: {hours} h",
-      "sleepEmpty": "letzte nacht nicht eingetragen"
+      "sleepEmpty": "letzte nacht nicht eingetragen",
+      "planWeek": "{n, plural, one {# trainingstag} other {# trainingstage}} pro woche"
     },
     "pug": {
       "bench": "der mops drückt {n} kg auf der bank",
@@ -1582,6 +1591,10 @@
       "alekseyev": {
         "name": "alexejew",
         "title": "wassili alexejew"
+      },
+      "kirpach": {
+        "name": "kirpach",
+        "title": "oleksii kirpach · ukrainischer meister im men’s physique"
       }
     }
   }

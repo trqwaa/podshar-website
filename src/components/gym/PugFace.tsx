@@ -69,13 +69,18 @@ export function PugFace({ face, className = '', title }: { face: Face; className
 
   return (
     <svg viewBox="0 0 120 120" role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} className={className}>
-      {/* Уши — тёмные «розочкой», за головой. */}
-      <path d="M22 22C8 24 4 42 12 52C20 44 27 35 32 27Z" className={MASK} />
-      <path d="M98 22C112 24 116 42 108 52C100 44 93 35 88 27Z" className={MASK} />
       {face === 'overslept' ? <path d="M56 14C52 4 60 2 60 10C62 2 70 4 64 14" className="stroke-pug-mask" strokeWidth={2.2} fill="none" /> : null}
 
       <ellipse cx={60} cy={62} rx={48} ry={46} className={`${SKIN} stroke-ink`} strokeWidth={2.5} />
       {tint ? <ellipse cx={60} cy={62} rx={46.6} ry={44.6} style={{ fill: tint }} /> : null}
+      {/* Уши-«пуговки» сложены вперёд, кончиком к глазу. Лопухами за головой
+          мопс выходил медведем. */}
+      <path
+        d="M38 21C29 18 17 23 13 33C12 37 13 40 16 41C20 43 24 46 27 50C29 45 31 38 33 32C34 28 36 24 38 21ZM82 21C91 18 103 23 107 33C108 37 107 40 104 41C100 43 96 46 93 50C91 45 89 38 87 32C86 28 84 24 82 21Z"
+        className={`${MASK} stroke-ink`}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
       {/* Щёки надуты: сейчас вырвет. */}
       {face === 'sick' ? (
         <g style={{ fill: 'rgb(var(--queasy) / 0.5)' }}>

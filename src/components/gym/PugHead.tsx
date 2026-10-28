@@ -107,16 +107,20 @@ export function HeadSide({ hood = false, outline = false }: { hood?: boolean; ou
 }
 
 const SKULL_FRONT = 'M0-38C25-38 41-24 42-4C43 14 35 28 21 33C12 36-12 36-21 33C-35 28-43 14-42-4C-41-24-25-38 0-38Z';
-/** Уши-«пуговки»: тонкий тёмный клапан падает вперёд, к глазу. */
-const EAR_R = 'M15-35C25-42 38-39 42-30C45-24 45-15 42-10C37-13 33-19 29-24C25-29 20-32 15-35Z';
-const EAR_L = 'M-15-35C-25-42-38-39-42-30C-45-24-45-15-42-10C-37-13-33-19-29-24C-25-29-20-32-15-35Z';
+/**
+ * Уши-«пуговки»: тонкий тёмный клапан, сложенный вперёд. Сгиб — по верхнему
+ * углу черепа, чуть выше контура, кончик лежит на голове и смотрит на
+ * внешний угол глаза. Круглые лопухи по бокам макушки делали из мопса медведя.
+ */
+const EAR_R = 'M12-36C19-40.5 31-39.5 38-32C40-29.5 40-26.5 37.5-24C34.5-21 31-17.5 27.5-13.5C25.5-17 22-22 18.5-26.5C16-30 14-33 12-36Z';
+const EAR_L = 'M-12-36C-19-40.5-31-39.5-38-32C-40-29.5-40-26.5-37.5-24C-34.5-21-31-17.5-27.5-13.5C-25.5-17-22-22-18.5-26.5C-16-30-14-33-12-36Z';
 /** Капюшон анфас: тело с шовчиком на макушке, обод вокруг морды, подкладка в проёме. */
 const HOOD_OUT =
   'M0-58C7-56 13-54 20-52C40-45 53-26 53-2C53 22 46 40 34 52L26 56C14 54-14 54-26 56L-34 52C-46 40-53 22-53-2C-53-26-40-45-20-52C-13-54-7-56 0-58Z';
 const RIM_OUTER = 'M0-44C25-44 45-28 46-4C47 16 40 32 27 42C17 47-17 47-27 42C-40 32-47 16-46-4C-45-28-25-44 0-44Z';
 const RIM_INNER = 'M0-34C21-34 36-22 37-4C38 12 32 26 20 35C12 39-12 39-20 35C-32 26-38 12-37-4C-36-22-21-34 0-34Z';
 
-function EyeFront({ x }: { x: number }) {
+function EyeFront({ x, stern = false }: { x: number; stern?: boolean }) {
   // Глаз мопса — большой и тёмный, белок видно только во внешнем углу.
   const s = Math.sign(x);
   return (
@@ -125,8 +129,38 @@ function EyeFront({ x }: { x: number }) {
       <circle cx={x + s * 1.6} cy={-3.6} r={8.4} fill={C.white} />
       <circle cx={x - s * 0.4} cy={-4} r={8.2} fill={C.ink} />
       <circle cx={x - s * 0.4} cy={-4} r={4.6} fill={C.mask} fillOpacity={0.5} />
-      <circle cx={x + 2.4} cy={-7} r={2.3} fill={C.white} />
-      <circle cx={x - 3} cy={-1} r={0.9} fill={C.white} fillOpacity={0.7} />
+      {/* Хмурому — блик под веком: большой блестящий глаз и есть «добрый мопс». */}
+      {stern ? (
+        <circle cx={x + 3} cy={-0.6} r={1.2} fill={C.white} fillOpacity={0.85} />
+      ) : (
+        <>
+          <circle cx={x + 2.4} cy={-7} r={2.3} fill={C.white} />
+          <circle cx={x - 3} cy={-1} r={0.9} fill={C.white} fillOpacity={0.7} />
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * Хмурый тренер поверх обычной морды: веко срезано наискось к переносице,
+ * брови сведены и опущены, рот уголками вниз, шрам через левую бровь.
+ */
+function SternBrow() {
+  return (
+    <>
+      <path d="M-25.3-6.4A9.6 9.6 0 0 1-6.6-1.9ZM25.3-6.4A9.6 9.6 0 0 0 6.6-1.9Z" fill={C.mask} />
+      <path d="M-25.3-6.4L-6.6-1.9M25.3-6.4L6.6-1.9" stroke={C.ink} strokeOpacity={0.7} strokeWidth={1.3} strokeLinecap="round" />
+      <path d="M-28-17C-21-17.5-13-14.5-5.5-8.5M28-17C21-17.5 13-14.5 5.5-8.5" stroke={C.mask} strokeWidth={4} fill="none" strokeLinecap="round" />
+    </>
+  );
+}
+
+function Scar() {
+  return (
+    <>
+      <path d="M-29-29L-17-10" stroke={C.white} strokeOpacity={0.6} strokeWidth={2.2} strokeLinecap="round" />
+      <path d="M-28.2-24.6L-24.6-26.8M-25.6-20.6L-22-22.8M-23-16.6L-19.4-18.8" stroke={C.white} strokeOpacity={0.5} strokeWidth={1.1} strokeLinecap="round" />
     </>
   );
 }
@@ -147,7 +181,20 @@ function Fold({ d, width = 2.2, light = true }: { d: string; width?: number; lig
  * при наклоне головы кадр сдвигает их вниз-вверх, а череп остаётся круглым,
  * как у настоящей головы, а не сплющивается.
  */
-export function HeadFront({ hood = false, outline = false, back = false, blinkClass }: { hood?: boolean; outline?: boolean; back?: boolean; blinkClass?: string }) {
+export function HeadFront({
+  hood = false,
+  outline = false,
+  back = false,
+  stern = false,
+  blinkClass
+}: {
+  hood?: boolean;
+  outline?: boolean;
+  back?: boolean;
+  /** Морда тренера на аватаре: прищур, сведённые брови, рот вниз, шрам. */
+  stern?: boolean;
+  blinkClass?: string;
+}) {
   if (outline) {
     return (
       <>
@@ -199,13 +246,24 @@ export function HeadFront({ hood = false, outline = false, back = false, blinkCl
             продольные складки над переносицей. */}
         <ellipse cx={0} cy={-27} rx={7} ry={4.8} fill={C.mask} fillOpacity={0.5} />
         <ellipse cx={0} cy={-26.4} rx={3.2} ry={2.2} fill={C.mask} fillOpacity={0.45} />
-        <Fold d="M-23-19C-15-26-6-27 0-23C6-27 15-26 23-19" />
-        <Fold d="M-18-12C-11-18-5-19 0-15C5-19 11-18 18-12" width={2} />
-        <Fold d="M-4.5-14C-3.6-9-3.6-6-4.5-2M4.5-14C3.6-9 3.6-6 4.5-2" width={1.6} light={false} />
+        {stern ? (
+          // Нахмуренный лоб: складки стянуты к переносице, «11» между бровей глубже.
+          <>
+            <Fold d="M-24-25C-15-28-7-25-1-19M24-25C15-28 7-25 1-19" />
+            <Fold d="M-19-31C-11-34-5-32 0-28C5-32 11-34 19-31" width={2} />
+            <Fold d="M-4-17C-3-11-3-7-4-3M4-17C3-11 3-7 4-3" width={2} light={false} />
+          </>
+        ) : (
+          <>
+            <Fold d="M-23-19C-15-26-6-27 0-23C6-27 15-26 23-19" />
+            <Fold d="M-18-12C-11-18-5-19 0-15C5-19 11-18 18-12" width={2} />
+            <Fold d="M-4.5-14C-3.6-9-3.6-6-4.5-2M4.5-14C3.6-9 3.6-6 4.5-2" width={1.6} light={false} />
+          </>
+        )}
         {/* Маска и глаза. */}
         <path d="M0 2C15 2 26 8 27 19C28 30 16 36 0 36C-16 36-28 30-27 19C-26 8-15 2 0 2Z" fill={C.mask} />
-        <EyeFront x={-16} />
-        <EyeFront x={16} />
+        <EyeFront x={-16} stern={stern} />
+        <EyeFront x={16} stern={stern} />
         {/* Складки под глазами. */}
         <path d="M-25 7Q-16 11-7 6M7 6Q16 11 25 7" stroke={C.skin} strokeOpacity={0.28} strokeWidth={1.4} fill="none" strokeLinecap="round" />
         <Part name="lidF">
@@ -214,9 +272,13 @@ export function HeadFront({ hood = false, outline = false, back = false, blinkCl
         <Part name="blinkF" opacity={0} className={blinkClass} style={blinkClass ? { transformBox: 'fill-box', transformOrigin: 'center top' } : undefined}>
           <path d="M-25.5-4C-25.5-15.5-6.5-15.5-6.5-4C-6.5 6-25.5 6-25.5-4ZM6.5-4C6.5-15.5 25.5-15.5 25.5-4C25.5 6 6.5 6 6.5-4Z" fill={C.mask} />
         </Part>
-        <Part name="browF">
-          <path d="M-25-15Q-16-20-8-16M8-16Q16-20 25-15" stroke={C.mask} strokeWidth={2.6} fill="none" strokeLinecap="round" />
-        </Part>
+        {stern ? (
+          <SternBrow />
+        ) : (
+          <Part name="browF">
+            <path d="M-25-15Q-16-20-8-16M8-16Q16-20 25-15" stroke={C.mask} strokeWidth={2.6} fill="none" strokeLinecap="round" />
+          </Part>
+        )}
         {/* Складка над носом — от щеки до щеки, светлый валик на тёмной маске. */}
         <path d="M-21 7C-14-1 14-1 21 7C14 3.6-14 3.6-21 7Z" fill={C.skin} fillOpacity={0.72} />
         <path d="M-20.5 7.4C-13 4-6 3.6 0 3.6C6 3.6 13 4 20.5 7.4" stroke={C.ink} strokeOpacity={0.55} strokeWidth={1.4} fill="none" strokeLinecap="round" />
@@ -226,12 +288,20 @@ export function HeadFront({ hood = false, outline = false, back = false, blinkCl
         <path d="M-9.5 12C-9.5 7.5 9.5 7.5 9.5 12C9.5 16.6 4.6 18.6 0 18.6C-4.6 18.6-9.5 16.6-9.5 12Z" fill={C.ink} />
         <path d="M-5.4 11.2Q-3.2 13-5.2 15.2M5.4 11.2Q3.2 13 5.2 15.2" stroke={C.mask} strokeWidth={1.4} fill="none" strokeLinecap="round" />
         <path d="M-2.6 9.6Q0 8.8 2.6 9.6" stroke={C.white} strokeOpacity={0.25} strokeWidth={1} fill="none" strokeLinecap="round" />
-        <path d="M0 18.6V22.4M-14 23.4Q-7 28.6 0 22.4Q7 28.6 14 23.4" stroke={C.skin} strokeOpacity={0.5} strokeWidth={2} fill="none" strokeLinecap="round" />
+        <path
+          d={stern ? 'M0 18.6V22.4M-14.5 28.4Q-8 22.4 0 22.8Q8 22.4 14.5 28.4' : 'M0 18.6V22.4M-14 23.4Q-7 28.6 0 22.4Q7 28.6 14 23.4'}
+          stroke={C.skin}
+          strokeOpacity={0.5}
+          strokeWidth={2}
+          fill="none"
+          strokeLinecap="round"
+        />
         <path d="M-22 16Q-24.5 24-18.5 30.5M22 16Q24.5 24 18.5 30.5" stroke={C.ink} strokeOpacity={0.35} strokeWidth={1.4} fill="none" strokeLinecap="round" />
         <path d="M-8 30.6Q0 33.8 8 30.6" stroke={C.ink} strokeOpacity={0.45} strokeWidth={1.4} fill="none" strokeLinecap="round" />
         <Part name="tongueF" opacity={0}>
           <path d="M-5.5 27C-5.5 36 5.5 36 5.5 27Q0 29-5.5 27Z" fill={C.tongue} />
         </Part>
+        {stern ? <Scar /> : null}
       </Part>
       {hood ? (
         <>
@@ -246,13 +316,14 @@ export function HeadFront({ hood = false, outline = false, back = false, blinkCl
         </>
       ) : (
         <>
+          {/* Сгиб уха — светлый валик вдоль верхнего края. */}
           <Part name="earR">
             <path d={EAR_R} fill={C.mask} />
-            <path d="M17-34C26-38 36-36 41-29" stroke={C.skin} strokeOpacity={0.35} strokeWidth={1.4} fill="none" strokeLinecap="round" />
+            <path d="M14.5-35.5C20.5-38.8 30-38.2 36-32" stroke={C.skin} strokeOpacity={0.35} strokeWidth={1.4} fill="none" strokeLinecap="round" />
           </Part>
           <Part name="earL">
             <path d={EAR_L} fill={C.mask} />
-            <path d="M-17-34C-26-38-36-36-41-29" stroke={C.skin} strokeOpacity={0.35} strokeWidth={1.4} fill="none" strokeLinecap="round" />
+            <path d="M-14.5-35.5C-20.5-38.8-30-38.2-36-32" stroke={C.skin} strokeOpacity={0.35} strokeWidth={1.4} fill="none" strokeLinecap="round" />
           </Part>
         </>
       )}

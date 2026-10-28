@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
 import { CriticCard } from '@/components/gym/CriticCard';
 import { GymHeader } from '@/components/gym/GymHeader';
-import { GymScene, type BoardRow, type SceneLink } from '@/components/gym/GymScene';
+import { GymScene, type BoardRow, type Legend, type SceneLink } from '@/components/gym/GymScene';
 import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
 import { gymContext, weekdayNames } from '@/lib/gym/context';
@@ -21,6 +21,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const t = await getTranslations({ locale, namespace: 'gym' });
   return { title: t('title') };
 }
+
+/** Зал славы слева направо: Ронни — первое место, Левроун — второе. */
+const LEGENDS: Legend[] = ['ronnie', 'levrone', 'arnold', 'dorian', 'vlasov', 'alekseyev', 'kirpach'];
 
 /** Пустое досье: гостевой режим разработки или человек без единой записи. */
 function emptyDigest(today: string): WeekDigest {
@@ -124,12 +127,16 @@ export default async function GymPage({
     : t('lines.foodEmpty');
   const night = digest.sleep.find((n) => n.night === today);
   const sleepLine = night ? t('lines.sleep', { hours: hoursOf(night.minutes, locale) }) : t('lines.sleepEmpty');
+  const planDays = digest.plan.filter((d) => d.items.length > 0).length;
+  const planLine = planDays ? t('lines.planWeek', { n: planDays }) : t('lines.trainingNoPlan');
 
+  // Стойка ведёт сразу в тренировку — начать или продолжить, — а доска в план.
   const query = member && !mine ? { who: member.handle } : {};
   const links: SceneLink[] = [
-    { kind: 'training', href: '/gym/training', label: t('menu.training'), line: trainingLine },
-    { kind: 'food', href: '/gym/food', label: t('menu.food'), line: foodLine },
-    { kind: 'sleep', href: '/gym/sleep', label: t('menu.sleep'), line: sleepLine }
+    { kind: 'workout', href: { pathname: '/gym/training', query: { ...query, tab: 'workout' } }, label: t('menu.workout'), line: trainingLine },
+    { kind: 'plan', href: { pathname: '/gym/training', query: { ...query, tab: 'board' } }, label: t('menu.plan'), line: planLine },
+    { kind: 'food', href: { pathname: '/gym/food', query }, label: t('menu.food'), line: foodLine },
+    { kind: 'sleep', href: { pathname: '/gym/sleep', query }, label: t('menu.sleep'), line: sleepLine }
   ];
 
   const plate = showcase === 'bench' ? 200 : showcase === 'row' ? 100 : 180;
@@ -156,28 +163,31 @@ export default async function GymPage({
           showcase={showcase}
           board={board}
           goal={t('goalOn', { goal: t(`goals.${dossier.goal}`) })}
-          boardTitle={t('boardTitle')}
           links={links}
           speech={pickLine(speechKey, locale, seed)}
+          pokes={Array.from({ length: 4 }, (_, i) => pickLine('scenePoke', locale, seed + i))}
           pugTitle={showcase === 'rest' ? t('pug.rest') : t(`pug.${showcase}`, { n: plate })}
           sceneLabel={t('sceneLabel')}
           food={fridge}
+          legends={LEGENDS.map((id) => ({ id, name: t(`legends.${id}.name`), title: t(`legends.${id}.title`) }))}
         />
-        <nav aria-label={t('title')} className="mt-2 grid grid-cols-3 gap-1.5 sm:mt-3 sm:gap-2">
+        {/* Те же четыре раздела списком: на телефоне сцена листается, а сюда
+            попадаешь пальцем сразу. Два в ряд — строки не режутся до «ккал · бел…». */}
+        <nav aria-label={t('title')} className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-3 sm:grid-cols-4 sm:gap-2">
           {links.map((link) => (
             <Link
               key={link.kind}
-              href={{ pathname: link.href, query }}
-              className="ps-press group flex min-w-0 flex-col gap-0.5 rounded-[10px] border-2 border-rule px-2 py-2 hover:border-ink sm:gap-1 sm:px-4 sm:py-3"
+              href={link.href}
+              className="ps-press group flex min-w-0 flex-col gap-0.5 rounded-[10px] border-2 border-rule px-3 py-2.5 hover:border-ink sm:gap-1 sm:px-4 sm:py-3"
             >
               <span className="flex items-center justify-between gap-1">
-                <span className="truncate text-sm font-semibold lowercase text-ink sm:text-lg">{link.label}</span>
-                <span aria-hidden="true" className="hidden text-ink-faint transition-transform group-hover:translate-x-0.5 sm:inline">
+                <span className="truncate text-base font-semibold lowercase text-ink sm:text-lg">{link.label}</span>
+                <span aria-hidden="true" className="text-ink-faint transition-transform group-hover:translate-x-0.5">
                   →
                 </span>
               </span>
               <span className="hidden text-xs text-ink-muted sm:block">{t(`menuHint.${link.kind}`)}</span>
-              {link.line ? <span className="line-clamp-2 text-[0.7rem] font-medium leading-snug text-ink sm:text-sm">{link.line}</span> : null}
+              {link.line ? <span className="line-clamp-2 text-xs font-medium leading-snug text-ink sm:text-sm">{link.line}</span> : null}
             </Link>
           ))}
         </nav>

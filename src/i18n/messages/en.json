@@ -1194,18 +1194,26 @@
     "title": "gym",
     "back": "to the basement",
     "sceneLabel": "basement gym: the pug, the plan on a chalkboard, a rack, dumbbells, a fridge, a mattress and portraits of legends",
-    "boardTitle": "plan",
+    "scene": {
+      "swipe": "← the basement scrolls sideways →",
+      "poke": "Poke the pug",
+      "music": "Boombox: play or stop"
+    },
     "goalOn": "goal: {goal}",
     "restDay": "—",
     "menu": {
       "training": "lifting",
       "food": "food",
-      "sleep": "sleep"
+      "sleep": "sleep",
+      "workout": "workout",
+      "plan": "plan"
     },
     "menuHint": {
       "training": "the board, the workout, goals and measurements",
       "food": "what you ate today, macros",
-      "sleep": "how long you slept and when you went to bed"
+      "sleep": "how long you slept and when you went to bed",
+      "workout": "start a workout or carry on",
+      "plan": "what we train on which day"
     },
     "lines": {
       "trainingActive": "workout in progress · {n, plural, one {# set} other {# sets}}",
@@ -1216,7 +1224,8 @@
       "food": "{kcal} of {target} kcal · protein {protein} g",
       "foodEmpty": "nothing logged today",
       "sleep": "last night: {hours} h",
-      "sleepEmpty": "last night not logged"
+      "sleepEmpty": "last night not logged",
+      "planWeek": "{n, plural, one {# training day} other {# training days}} a week"
     },
     "pug": {
       "bench": "the pug bench-presses {n} kg",
@@ -1582,6 +1591,10 @@
       "alekseyev": {
         "name": "alekseyev",
         "title": "vasily alekseyev"
+      },
+      "kirpach": {
+        "name": "kirpach",
+        "title": "oleksii kirpach · ukrainian men’s physique champion"
       }
     }
   }

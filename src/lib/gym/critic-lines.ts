@@ -304,6 +304,49 @@ export const LINES = {
     en: ['today’s workout is done. be proud, quietly'],
     uk: ['сьогоднішнє тренування зроблене. можеш пишатися, але мовчки'],
     de: ['das heutige training ist erledigt. sei stolz, aber leise']
+  },
+  /** Ткнули в мопса на сцене: одна реплика на тычок, по кругу. */
+  scenePoke: {
+    ru: [
+      'не тыкай в меня. тыкай в штангу',
+      'ещё раз ткнёшь — добавлю подход',
+      'я тут работаю, а ты пальцем водишь',
+      'хочешь поговорить — сначала разомнись',
+      'трогать тренера можно после трёх подходов',
+      'кликать ты умеешь. а приседать?',
+      'блин, я на подходе. отойди',
+      'это не кнопка лайка. это тренер'
+    ],
+    en: [
+      'don’t poke me. poke the bar',
+      'poke me again and you get another set',
+      'i’m working here and you’re clicking around',
+      'want to chat? warm up first',
+      'touching the coach is allowed after three sets',
+      'you can click. can you squat?',
+      'damn, mid-set here. step back',
+      'this is not a like button. this is your coach'
+    ],
+    uk: [
+      'не тицяй у мене. тицяй у штангу',
+      'ще раз тицьнеш — додам підхід',
+      'я тут працюю, а ти пальцем водиш',
+      'хочеш поговорити — спершу розімнися',
+      'чіпати тренера можна після трьох підходів',
+      'клікати ти вмієш. а присідати?',
+      'блін, я на підході. відійди',
+      'це не кнопка лайка. це тренер'
+    ],
+    de: [
+      'stups mich nicht. stups die stange',
+      'noch einmal stupsen, und es gibt einen satz extra',
+      'ich arbeite hier, und du klickst herum',
+      'reden? erst aufwärmen',
+      'den trainer anfassen darfst du nach drei sätzen',
+      'klicken kannst du. kannst du auch kniebeugen?',
+      'mist, ich bin mitten im satz. geh zur seite',
+      'das ist kein like-button. das ist dein trainer'
+    ]
   }
 } satisfies Record<string, Pool>;
 

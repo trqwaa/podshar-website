@@ -71,7 +71,7 @@ export default async function TrainingPage({
 
   const whoQuery = member && !mine ? { who: member.handle } : {};
   const tabs = (
-    <nav aria-label={t('menu.training')} className="flex gap-1 overflow-x-auto pb-1">
+    <nav aria-label={t('menu.training')} className="flex flex-wrap gap-1">
       {TABS.map((name) => (
         <Link
           key={name}
@@ -139,7 +139,7 @@ export default async function TrainingPage({
   return (
     <div className="grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4">
       {header}
-      <section className="block-card animate-rise-in flex flex-col gap-4 p-4 [animation-delay:60ms] sm:p-6">
+      <section className="block-card animate-rise-in flex flex-col gap-4 p-3 [animation-delay:60ms] sm:p-6">
         {tabs}
         {body}
       </section>

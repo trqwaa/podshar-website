@@ -148,7 +148,7 @@ export function Workout({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <input
           key={workout.id}
           defaultValue={workout.title}
@@ -156,7 +156,7 @@ export function Workout({
           placeholder={t('workout.titlePlaceholder')}
           aria-label={t('workout.titlePlaceholder')}
           maxLength={60}
-          className="min-w-0 flex-1 border-b-2 border-rule bg-transparent py-1 text-xl font-semibold text-ink outline-none placeholder:text-ink-faint focus:border-ink"
+          className="min-w-0 basis-full border-b-2 border-rule bg-transparent py-1 text-xl font-semibold text-ink outline-none placeholder:text-ink-faint focus:border-ink sm:flex-1 sm:basis-auto"
           onBlur={(e) => {
             if (e.target.value.trim() !== workout.title) void run(renameWorkout, { sessionId: workout.id, title: e.target.value });
           }}
@@ -189,7 +189,7 @@ export function Workout({
               ? [p.distance != null ? `${num.format(p.distance)} ${t('workout.km')}` : null, p.seconds != null ? clock(p.seconds) : null].filter(Boolean).join(' · ') || '—'
               : `${p.weight ? (kind === 'body' ? '+' : kind === 'assisted' ? '−' : '') + num.format(p.weight) + ' ' : ''}× ${p.reps ?? '—'}`;
         return (
-          <section key={block} className="rounded-[10px] border-2 border-rule-soft p-3 sm:p-4">
+          <section key={block} className="-mx-1 rounded-[10px] border-2 border-rule-soft p-2 sm:mx-0 sm:p-4">
             <header className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg font-semibold text-accent">{name}</h3>
               <div className="flex gap-2">
@@ -210,13 +210,15 @@ export function Workout({
                 ) : null}
               </div>
             </header>
+            {/* На телефоне столбца «прошлый раз» нет: прошлые цифры и так стоят
+                в полях подсказкой, а с ним поля сжимались до «102,…». */}
             <table className="w-full table-fixed border-separate border-spacing-y-1 text-sm">
               <thead>
                 <tr className="text-left">
-                  <th className="ps-label w-12 font-semibold sm:w-14">{t('workout.set')}</th>
-                  <th className="ps-label font-semibold">{t('workout.previous')}</th>
+                  <th className="ps-label w-11 font-semibold sm:w-14">{t('workout.set')}</th>
+                  <th className="ps-label hidden font-semibold sm:table-cell">{t('workout.previous')}</th>
                   {fields.map((f) => (
-                    <th key={f} className={`ps-label text-center font-semibold ${f === 'seconds' ? 'w-[4.75rem]' : 'w-[4rem] sm:w-[4.5rem]'}`}>
+                    <th key={f} className={`ps-label text-center font-semibold ${f === 'seconds' ? 'w-auto sm:w-[4.75rem]' : 'w-auto sm:w-[4.5rem]'}`}>
                       {label(f)}
                     </th>
                   ))}
@@ -231,7 +233,7 @@ export function Workout({
                     kind === 'weight' && s.done && !s.warmup && (s.weight ?? 0) > 0 && (s.reps ?? 0) > 0 && record > 0 && oneRepMax(s.weight ?? 0, s.reps ?? 0) > record + 0.01;
                   const workingIndex = list.slice(0, i + 1).filter((x) => !x.warmup).length;
                   return (
-                    <tr key={s.id} className={s.done ? 'bg-win/10' : ''}>
+                    <tr key={s.id} className={s.done ? (pr ? 'bg-amber/15' : 'bg-win/10') : ''}>
                       <td className="rounded-l-[6px] py-1 pl-1">
                         <button
                           type="button"
@@ -246,7 +248,7 @@ export function Workout({
                           {s.warmup ? t('workout.warmup') : workingIndex}
                         </button>
                       </td>
-                      <td className="truncate text-ink-muted tabular-nums">
+                      <td className="hidden truncate text-ink-muted tabular-nums sm:table-cell">
                         {prev ? pastLine(prev) : '—'}
                         {pr ? <span className="ml-1.5 rounded bg-amber/15 px-1.5 py-0.5 text-[0.7rem] font-bold text-amber">{t('workout.best')}</span> : null}
                       </td>

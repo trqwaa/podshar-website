@@ -126,7 +126,8 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
   return (
     <div className="relative rounded-[12px] border-[10px] p-4 pb-12 sm:p-6 sm:pb-14" style={{ borderColor: 'color-mix(in oklab, rgb(var(--amber)) 55%, rgb(var(--ink)))', background: 'rgb(var(--chalkboard))' }}>
       <ChalkDust />
-      <p className="relative text-sm text-surface/60">{editable ? t('board.hint') : t('board.readOnly')}</p>
+      {/* Справа — место под каракули мелом: на телефоне текст шёл прямо по ним. */}
+      <p className="relative pr-24 text-sm text-surface/60 sm:pr-32">{editable ? t('board.hint') : t('board.readOnly')}</p>
       <ol className="relative mt-3 flex flex-col divide-y divide-surface/10">
         {names.map((label, weekday) => {
           const d = day(weekday);
