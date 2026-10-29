@@ -1195,7 +1195,6 @@
     "back": "in den keller",
     "sceneLabel": "kellerstudio: der mops, der plan an der tafel, ein rack, hanteln, ein kühlschrank, eine matratze und porträts der legenden",
     "scene": {
-      "swipe": "← der keller lässt sich seitlich wischen →",
       "poke": "Den Mops anstupsen",
       "music": "Ghettoblaster: an oder aus"
     },
@@ -1317,7 +1316,16 @@
       "clearDay": "tag wegwischen",
       "today": "heute",
       "readOnly": "nicht deine tafel — nur anschauen",
-      "time": "zeit"
+      "time": "zeit",
+      "programs": "fertige programme",
+      "programsTitle": "programme",
+      "programsHint": "wähl eins, und der mops malt die tafel neu. gewichte trägst du selbst ein",
+      "programDays": "{n, plural, one {# tag} other {# tage}} pro woche",
+      "programApply": "auf die tafel",
+      "programSure": "die tafel wird gewischt. sicher?",
+      "programShow": "was drin ist",
+      "programHide": "zuklappen",
+      "programDone": "fertig: die tafel ist neu gemalt"
     },
     "workout": {
       "startPlan": "starten: {title}",
@@ -1341,8 +1349,7 @@
       "removeSet": "satz entfernen",
       "removeExercise": "übung entfernen",
       "demo": "so gehts",
-      "rest": "pause {time}",
-      "restSkip": "weiter",
+      "restSkip": "überspringen",
       "restMore": "+15 s",
       "unchecked": "nicht abgehakte sätze werden nicht gespeichert",
       "finished": "gespeichert. der mops ist zufrieden und sagt es nie",
@@ -1352,7 +1359,16 @@
       "plusKg": "+kg",
       "minusKg": "−kg",
       "time": "zeit",
-      "km": "km"
+      "km": "km",
+      "restTitle": "pause",
+      "restPaused": "pause · angehalten",
+      "restPause": "anhalten",
+      "restResume": "weiter",
+      "restReset": "neu",
+      "restLess": "−15 s",
+      "discardTitle": "aufhören?",
+      "discardYes": "trotzdem abbrechen",
+      "discardNo": "na gut, ich mach fertig"
     },
     "history": {
       "empty": "hier erscheinen die beendeten trainings",
@@ -1596,6 +1612,11 @@
         "name": "kirpach",
         "title": "oleksii kirpach · ukrainischer meister im men’s physique"
       }
+    },
+    "crew": {
+      "title": "wer wann trainiert",
+      "now": "gerade im gym: {names}",
+      "done": "heute schon trainiert: {names}"
     }
   }
 }

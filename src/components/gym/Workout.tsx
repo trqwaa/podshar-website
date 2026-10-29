@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { Modal } from '@/components/Modal';
 import type { Locale } from '@/i18n/routing';
 import {
   addExercise,
@@ -19,6 +20,7 @@ import {
 import type { SetView, WorkoutView } from '@/lib/gym/data';
 import { countsVolume, exerciseOf, oneRepMax, type Kind } from '@/lib/gym/exercises';
 import { ExercisePicker } from './ExercisePicker';
+import { PugAvatar } from './PugAvatar';
 import { BUTTON, ErrorLine, GHOST, SMALL_INPUT, parseNumber, useGymAction } from './ui';
 
 /**
@@ -49,6 +51,80 @@ export function parseClock(text: string): number | null {
   return Number.isFinite(total) ? Math.round(total) : null;
 }
 
+/**
+ * Отдых, как в Strong: идёт или стоит на паузе. Идёт — помним, когда кончится;
+ * на паузе — сколько осталось. `total` — во сколько он сейчас, для полосы:
+ * ±15 с двигают и его.
+ */
+type Rest = { total: number; end: number | null; left: number };
+
+/**
+ * Таймер отдыха — крупно, внизу экрана, поверх всего: пауза, заново, ±15 с,
+ * пропустить. Пока он стоит, у `<html>` есть `data-docked`, и кнопка мопса в
+ * углу прячется: и на таймере, и над ним она закрывала кнопки.
+ */
+function RestBar({
+  left,
+  total,
+  paused,
+  onPause,
+  onReset,
+  onShift,
+  onSkip
+}: {
+  left: number;
+  total: number;
+  paused: boolean;
+  onPause: () => void;
+  onReset: () => void;
+  onShift: (seconds: number) => void;
+  onSkip: () => void;
+}) {
+  const t = useTranslations('gym');
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.docked = '';
+    return () => {
+      delete root.dataset.docked;
+    };
+  }, []);
+  const small = 'ps-press rounded-[10px] border-2 border-rule py-2 text-sm font-semibold lowercase text-ink hover:border-ink';
+  return (
+    <div
+      role="timer"
+      aria-label={t('workout.restTitle')}
+      className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-surface px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:inset-x-auto sm:bottom-4 sm:left-1/2 sm:w-[30rem] sm:-translate-x-1/2 sm:rounded-[14px] sm:border-2 sm:pb-3"
+    >
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="ps-label">{paused ? t('workout.restPaused') : t('workout.restTitle')}</p>
+          <p className={`text-4xl font-bold leading-none tabular-nums ${paused ? 'text-ink-muted' : 'text-ink'}`}>{clock(left)}</p>
+        </div>
+        <button type="button" onClick={onPause} className={`${BUTTON} px-5 py-2.5 text-sm sm:text-sm`}>
+          {paused ? t('workout.restResume') : t('workout.restPause')}
+        </button>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-sunk">
+        <div className="h-full rounded-full bg-accent transition-[width] duration-1000 ease-linear" style={{ width: `${Math.max(0, Math.min(100, (left / Math.max(1, total)) * 100))}%` }} />
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        <button type="button" className={small} onClick={() => onShift(-15)}>
+          {t('workout.restLess')}
+        </button>
+        <button type="button" className={small} onClick={onReset}>
+          {t('workout.restReset')}
+        </button>
+        <button type="button" className={small} onClick={() => onShift(15)}>
+          {t('workout.restMore')}
+        </button>
+        <button type="button" className={`${small} border-ink`} onClick={onSkip}>
+          {t('workout.restSkip')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type Past = { weight: number | null; reps: number | null; seconds: number | null; distance: number | null };
 type Previous = Record<string, Past[]>;
 type Field = 'weight' | 'reps' | 'seconds' | 'distance';
@@ -68,7 +144,8 @@ export function Workout({
   best,
   restSeconds,
   todayPlan,
-  editable
+  editable,
+  discardLines
 }: {
   workout: WorkoutView | null;
   previous: Previous;
@@ -76,6 +153,8 @@ export function Workout({
   restSeconds: number;
   todayPlan: { title: string; count: number } | null;
   editable: boolean;
+  /** Что мопс говорит тому, кто бросает тренировку: строки выбрал сервер. */
+  discardLines: string[];
 }) {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
@@ -83,14 +162,15 @@ export function Workout({
   const [sets, setSets] = useState<SetView[]>(workout?.sets ?? []);
   const [picking, setPicking] = useState(false);
   const [demo, setDemo] = useState<string | null>(null);
-  const [restUntil, setRestUntil] = useState<number | null>(null);
+  const [rest, setRest] = useState<Rest | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [note, setNote] = useState<string | null>(null);
+  const [discarding, setDiscarding] = useState<string | null>(null);
 
   useEffect(() => setSets(workout?.sets ?? []), [workout]);
 
   // Секундомер тренировки и таймер отдыха: раз в секунду, не покадрово.
-  const ticking = Boolean(workout) || restUntil !== null;
+  const ticking = Boolean(workout) || rest !== null;
   useEffect(() => {
     if (!ticking) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -98,11 +178,13 @@ export function Workout({
   }, [ticking]);
 
   useEffect(() => {
-    if (restUntil !== null && now >= restUntil) {
-      setRestUntil(null);
+    if (rest?.end != null && now >= rest.end) {
+      setRest(null);
       if ('vibrate' in navigator) navigator.vibrate?.([120, 80, 120]);
     }
-  }, [now, restUntil]);
+  }, [now, rest]);
+
+  const startRest = () => setRest({ total: restSeconds, end: Date.now() + restSeconds * 1000, left: 0 });
 
   const blocks = useMemo(() => {
     const map = new Map<number, SetView[]>();
@@ -144,7 +226,7 @@ export function Workout({
   }
 
   const unchecked = sets.some((s) => !s.done);
-  const resting = restUntil !== null ? (restUntil - now) / 1000 : null;
+  const resting = rest ? (rest.end !== null ? (rest.end - now) / 1000 : rest.left / 1000) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -292,7 +374,7 @@ export function Workout({
                             }
                             patch(s.id, { done, ...filled });
                             void run(updateSet, { id: s.id, done, ...filled });
-                            if (done && !s.warmup) setRestUntil(Date.now() + restSeconds * 1000);
+                            if (done && !s.warmup) startRest();
                           }}
                           className={`grid h-8 w-9 place-items-center rounded border-2 font-bold ${
                             s.done ? 'border-win bg-win text-surface' : 'border-rule text-ink-faint hover:border-ink'
@@ -344,7 +426,7 @@ export function Workout({
               onClick={async () => {
                 const result = await run(finishWorkout, { sessionId: workout.id });
                 if (result.ok) setNote(result.empty ? t('workout.empty') : t('workout.finished'));
-                setRestUntil(null);
+                setRest(null);
               }}
             >
               {t('workout.finish')}
@@ -353,12 +435,7 @@ export function Workout({
               type="button"
               disabled={pending}
               className={GHOST}
-              onClick={() => {
-                if (window.confirm(t('workout.discardConfirm'))) {
-                  setRestUntil(null);
-                  void run(removeWorkout, { id: workout.id });
-                }
-              }}
+              onClick={() => setDiscarding(discardLines[Math.floor(Math.random() * discardLines.length)] ?? t('workout.discardConfirm'))}
             >
               {t('workout.discard')}
             </button>
@@ -367,22 +444,60 @@ export function Workout({
       ) : null}
       <ErrorLine message={error} />
 
-      {/* Таймер отдыха — в `document.body`: внутри карточки с анимацией въезда
-          `fixed` прилип бы к карточке, а не к низу экрана. */}
-      {resting !== null
+      {/* Место под таймером: иначе «закончить» и «бросить» уезжали бы под него. */}
+      {rest ? <div aria-hidden="true" className="h-36 sm:h-28" /> : null}
+
+      {/* Таймер отдыха и окно «бросить» — в `document.body`: внутри карточки с
+          анимацией въезда `fixed` прилип бы к карточке, а не к экрану. */}
+      {rest && resting !== null
         ? createPortal(
-            <div className="fixed inset-x-3 bottom-20 z-30 mx-auto flex max-w-md items-center gap-3 rounded-[12px] border-2 border-ink bg-surface px-4 py-3 sm:bottom-5">
-              <span className="text-lg font-bold tabular-nums text-ink">{t('workout.rest', { time: clock(resting) })}</span>
-              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-sunk">
-                <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(0, Math.min(100, (resting / restSeconds) * 100))}%` }} />
-              </span>
-              <button type="button" className="ps-label hover:text-ink" onClick={() => setRestUntil((u) => (u ?? Date.now()) + 15_000)}>
-                {t('workout.restMore')}
-              </button>
-              <button type="button" className="ps-label hover:text-ink" onClick={() => setRestUntil(null)}>
-                {t('workout.restSkip')}
-              </button>
-            </div>,
+            <RestBar
+              left={Math.max(0, resting)}
+              total={rest.total}
+              paused={rest.end === null}
+              onPause={() =>
+                setRest((r) => (r ? (r.end !== null ? { ...r, end: null, left: Math.max(0, r.end - Date.now()) } : { ...r, end: Date.now() + r.left }) : r))
+              }
+              onReset={() => setRest((r) => (r ? { ...r, end: Date.now() + r.total * 1000, left: 0 } : r))}
+              onShift={(seconds) =>
+                setRest((r) => {
+                  if (!r) return r;
+                  const total = Math.max(15, r.total + seconds);
+                  return r.end !== null ? { ...r, total, end: Math.max(Date.now(), r.end + seconds * 1000) } : { ...r, total, left: Math.max(0, r.left + seconds * 1000) };
+                })
+              }
+              onSkip={() => setRest(null)}
+            />,
+            document.body
+          )
+        : null}
+      {discarding !== null
+        ? createPortal(
+            <Modal title={t('workout.discardTitle')} close={t('workout.discardNo')} onClose={() => setDiscarding(null)}>
+              {/* Не системное «точно?», а тренер: бросать на середине — повод получить. */}
+              <div className="flex flex-col items-center gap-3 text-center">
+                <PugAvatar className="h-28 w-28" />
+                <p className="rounded-[12px] border-2 border-ink px-4 py-2 text-base font-semibold text-ink">{discarding}</p>
+                <p className="text-xs text-ink-muted">{t('workout.discardConfirm')}</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button type="button" className={BUTTON} onClick={() => setDiscarding(null)}>
+                    {t('workout.discardNo')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    className={`${GHOST} hover:border-loss hover:text-loss`}
+                    onClick={() => {
+                      setDiscarding(null);
+                      setRest(null);
+                      void run(removeWorkout, { id: workout.id });
+                    }}
+                  >
+                    {t('workout.discardYes')}
+                  </button>
+                </div>
+              </div>
+            </Modal>,
             document.body
           )
         : null}

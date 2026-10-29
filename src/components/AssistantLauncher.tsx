@@ -139,7 +139,11 @@ export function AssistantLauncher({
       inert={hidden}
       // The bottom margin grows into the home-indicator strip on an iPhone
       // running the site from its home screen, and is the plain 1rem elsewhere.
-      className="pointer-events-none fixed inset-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50"
+      // `data-docked` on <html> means a bar is docked at the bottom of the
+      // screen — the gym's rest timer. The dog steps away while it is up:
+      // standing on the bar or right above it, he covered its buttons and the
+      // ticks of the sets. Invisible, so the keyboard skips him too.
+      className="pointer-events-none fixed inset-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 [html[data-docked]_&]:invisible"
     >
       <motion.div
         drag

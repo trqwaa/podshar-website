@@ -1195,7 +1195,6 @@
     "back": "to the basement",
     "sceneLabel": "basement gym: the pug, the plan on a chalkboard, a rack, dumbbells, a fridge, a mattress and portraits of legends",
     "scene": {
-      "swipe": "← the basement scrolls sideways →",
       "poke": "Poke the pug",
       "music": "Boombox: play or stop"
     },
@@ -1317,7 +1316,16 @@
       "clearDay": "erase the day",
       "today": "today",
       "readOnly": "not your board — look only",
-      "time": "time"
+      "time": "time",
+      "programs": "ready-made programs",
+      "programsTitle": "programs",
+      "programsHint": "pick one and the pug redraws the board. you fill in the weights",
+      "programDays": "{n, plural, one {# day} other {# days}} a week",
+      "programApply": "put it on the board",
+      "programSure": "the board gets wiped. sure?",
+      "programShow": "what’s inside",
+      "programHide": "hide",
+      "programDone": "done: the board is redrawn"
     },
     "workout": {
       "startPlan": "start: {title}",
@@ -1341,7 +1349,6 @@
       "removeSet": "remove set",
       "removeExercise": "remove exercise",
       "demo": "how to",
-      "rest": "rest {time}",
       "restSkip": "skip",
       "restMore": "+15 s",
       "unchecked": "unticked sets will not be saved",
@@ -1352,7 +1359,16 @@
       "plusKg": "+kg",
       "minusKg": "−kg",
       "time": "time",
-      "km": "km"
+      "km": "km",
+      "restTitle": "rest",
+      "restPaused": "rest · paused",
+      "restPause": "pause",
+      "restResume": "resume",
+      "restReset": "restart",
+      "restLess": "−15 s",
+      "discardTitle": "quitting?",
+      "discardYes": "quit anyway",
+      "discardNo": "fine, i’ll finish"
     },
     "history": {
       "empty": "finished workouts will show up here",
@@ -1596,6 +1612,11 @@
         "name": "kirpach",
         "title": "oleksii kirpach · ukrainian men’s physique champion"
       }
+    },
+    "crew": {
+      "title": "who trains when",
+      "now": "in the gym right now: {names}",
+      "done": "already trained today: {names}"
     }
   }
 }

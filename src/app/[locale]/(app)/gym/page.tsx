@@ -8,7 +8,7 @@ import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
 import { gymContext, weekdayNames } from '@/lib/gym/context';
 import { pickLine, verdictOf, hoursOf, type Dossier } from '@/lib/gym/critic';
-import { foodDay, latestVerdict, type PlanDayView, type WeekDigest } from '@/lib/gym/data';
+import { foodDay, gymWeek, initialOf, latestVerdict, type PlanDayView, type WeekDigest } from '@/lib/gym/data';
 import { dossierFor } from '@/lib/gym/dossier';
 import { SHOWCASES, musclesOf, showcaseFor, type Showcase } from '@/lib/gym/exercises';
 import { fridgeGroupOf, type FridgeGroup } from '@/lib/gym/foods';
@@ -56,6 +56,11 @@ export default async function GymPage({
   const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
   const score = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
 
+  // Кто из троих в какой день качается — для кружков на доске; параллельно с досье.
+  const weekLoad = gymWeek(
+    members.map((m) => m.id),
+    today
+  );
   const loaded = member ? await dossierFor(member.id, today) : null;
   const digest = loaded?.digest ?? emptyDigest(today);
   const dossier: Dossier = loaded?.dossier ?? {
@@ -104,10 +109,12 @@ export default async function GymPage({
   };
   const names = weekdayNames(locale);
   const todayIndex = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7;
+  const week = await weekLoad;
   const board: BoardRow[] = names.map((day, i) => ({
     day,
     title: titleOf(digest.plan.find((d) => d.weekday === i)),
-    today: i === todayIndex
+    today: i === todayIndex,
+    crew: week.days[i].map((id) => initialOf(members.find((m) => m.id === id)?.displayName ?? '?'))
   }));
 
   // ── Живые строки у пунктов меню ──

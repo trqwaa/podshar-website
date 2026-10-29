@@ -8,6 +8,7 @@ import { addPlanItem, removePlanDay, removePlanItem, savePlanDay, updatePlanItem
 import type { PlanDayView, PlanItemView } from '@/lib/gym/data';
 import { exerciseOf, musclesOf } from '@/lib/gym/exercises';
 import { ExercisePicker } from './ExercisePicker';
+import { ProgramPicker } from './ProgramPicker';
 import { ErrorLine, parseNumber, useGymAction } from './ui';
 
 /**
@@ -117,7 +118,14 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
   const { run, pending, error } = useGymAction();
   const [picking, setPicking] = useState<number | null>(null);
   const [local, setLocal] = useState(days);
+  const [programs, setPrograms] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   useEffect(() => setLocal(days), [days]);
+  useEffect(() => {
+    if (!note) return;
+    const timer = window.setTimeout(() => setNote(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [note]);
 
   const day = (weekday: number) => local.find((d) => d.weekday === weekday);
   // Название, которое не вписали, — из мышц дня, на языке страницы.
@@ -128,6 +136,22 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
       <ChalkDust />
       {/* Справа — место под каракули мелом: на телефоне текст шёл прямо по ним. */}
       <p className="relative pr-24 text-sm text-surface/60 sm:pr-32">{editable ? t('board.hint') : t('board.readOnly')}</p>
+      {editable ? (
+        <div className="relative mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setPrograms(true)}
+            className="ps-press rounded-[8px] border-2 border-surface/40 px-3 py-1.5 text-sm font-semibold lowercase text-surface hover:border-surface"
+          >
+            {t('board.programs')}
+          </button>
+          {note ? (
+            <span role="status" className="text-sm font-medium text-surface/80">
+              {note}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <ol className="relative mt-3 flex flex-col divide-y divide-surface/10">
         {names.map((label, weekday) => {
           const d = day(weekday);
@@ -193,6 +217,17 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
       </ol>
       <ErrorLine message={error} />
       <ChalkTray />
+      {programs ? (
+        <ProgramPicker
+          names={names}
+          filled={local.some((d) => d.items.length > 0)}
+          onClose={() => setPrograms(false)}
+          onDone={() => {
+            setPrograms(false);
+            setNote(t('board.programDone'));
+          }}
+        />
+      ) : null}
       {picking !== null ? (
         <ExercisePicker
           onClose={() => setPicking(null)}

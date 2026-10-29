@@ -11,6 +11,7 @@ import { routing } from '@/i18n/routing';
 import { isExercise } from './exercises';
 import { foodOf, junkByName, macrosFor } from './foods';
 import { ACTIVITIES, GOALS, GOAL_KINDS, PARTS, SEXES, isPart } from './norms';
+import { programOf } from './programs';
 import { parseSleepCsv } from './sleep-import';
 import { previousSets, weekdayOf } from './data';
 
@@ -201,6 +202,34 @@ export async function removePlanItem(input: unknown): Promise<GymResult> {
   if (!id.success) return { error: 'invalid' };
   if (!(await ownsPlanItem(id.data, userId))) return { error: 'notYours' };
   await prisma.gymPlanItem.delete({ where: { id: id.data } });
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Нарисовать на доске готовую программу. Прежний план стирается целиком, и
+ * программа пишется той же транзакцией — доска не останется наполовину
+ * стёртой, если что-то упадёт посередине. Веса пустые: их впишет человек.
+ */
+export async function applyProgram(input: unknown): Promise<GymResult> {
+  const userId = await me();
+  if (!userId) return { error: 'signedOut' };
+  const id = z.string().max(40).safeParse((input as { program?: unknown })?.program);
+  const program = id.success ? programOf(id.data) : null;
+  if (!program) return { error: 'invalid' };
+  await prisma.$transaction([
+    prisma.gymPlanDay.deleteMany({ where: { userId } }),
+    ...program.days.map((day) =>
+      prisma.gymPlanDay.create({
+        data: {
+          userId,
+          weekday: day.weekday,
+          title: '',
+          items: { create: day.items.map((item, i) => ({ exercise: item.exercise, sets: item.sets, reps: item.reps, position: i + 1 })) }
+        }
+      })
+    )
+  ]);
   refresh();
   return { ok: true };
 }

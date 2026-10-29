@@ -305,6 +305,41 @@ export const LINES = {
     uk: ['сьогоднішнє тренування зроблене. можеш пишатися, але мовчки'],
     de: ['das heutige training ist erledigt. sei stolz, aber leise']
   },
+  /** Человек бросает тренировку на середине: мопс в окне «бросить?» вместо системного «точно?». */
+  discardPug: {
+    ru: [
+      'ты чё, серьёзно? штанга ещё тёплая',
+      'бросить? а мышцы сами себя накачают, да?',
+      'хули ты сливаешься на середине. доделывай',
+      'отменяешь? я это запомню',
+      'бросить на середине — это не отдых, это слив',
+      'ещё один подход — и иди куда хочешь'
+    ],
+    en: [
+      'you serious? the bar is still warm',
+      'quit now? your muscles won’t grow themselves',
+      'why the hell are you bailing halfway. finish it',
+      'cancelling? i’ll remember this',
+      'quitting halfway isn’t rest, it’s giving up',
+      'one more set, then go wherever you want'
+    ],
+    uk: [
+      'ти шо, серйозно? штанга ще тепла',
+      'кинути? а м’язи самі себе накачають, так?',
+      'якого біса ти зливаєшся на середині. доробляй',
+      'скасовуєш? я це запам’ятаю',
+      'кинути на середині — це не відпочинок, це злив',
+      'ще один підхід — і йди куди хочеш'
+    ],
+    de: [
+      'ernsthaft? die stange ist noch warm',
+      'jetzt aufhören? die muskeln wachsen nicht von allein',
+      'warum zum teufel steigst du mittendrin aus. mach fertig',
+      'abbrechen? das merk ich mir',
+      'mittendrin aufhören ist keine pause, das ist aufgeben',
+      'noch ein satz, dann geh, wohin du willst'
+    ]
+  },
   /** Ткнули в мопса на сцене: одна реплика на тычок, по кругу. */
   scenePoke: {
     ru: [

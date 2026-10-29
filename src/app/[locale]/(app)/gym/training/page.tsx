@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
 import { BodyPanel } from '@/components/gym/BodyPanel';
 import { ExerciseLibrary } from '@/components/gym/ExerciseLibrary';
+import { GymCrew } from '@/components/gym/GymCrew';
 import { GymHeader } from '@/components/gym/GymHeader';
 import { History } from '@/components/gym/History';
 import { PlanBoard } from '@/components/gym/PlanBoard';
@@ -10,7 +11,8 @@ import { Workout } from '@/components/gym/Workout';
 import { TAB } from '@/components/gym/styles';
 import { dayKey } from '@/lib/calendar/scales';
 import { gymContext, weekdayNames } from '@/lib/gym/context';
-import { activeWorkout, bestLifts, goalsOf, gymProfile, measuresOf, planOf, previousSets, recentWorkouts, weekdayOf } from '@/lib/gym/data';
+import { activeWorkout, bestLifts, goalsOf, gymProfile, gymWeek, measuresOf, planOf, previousSets, recentWorkouts, weekdayOf } from '@/lib/gym/data';
+import { pickLine } from '@/lib/gym/critic';
 import { exerciseOf } from '@/lib/gym/exercises';
 import { REST_SECONDS } from '@/lib/gym/norms';
 import { birthdayOf } from '@/lib/birthdays';
@@ -90,8 +92,30 @@ export default async function TrainingPage({
 
   let body: React.ReactNode = null;
   if (tab === 'board') {
-    const plan = id ? await planOf(id) : [];
-    body = <PlanBoard days={plan} names={weekdayNames(locale)} today={weekdayOf(today)} editable={mine} />;
+    const [plan, week] = await Promise.all([
+      id ? planOf(id) : [],
+      gymWeek(
+        members.map((m) => m.id),
+        today
+      )
+    ]);
+    const nameList = (ids: string[]) => ids.map((x) => members.find((m) => m.id === x)?.displayName ?? '?').join(', ');
+    body = (
+      <>
+        <GymCrew
+          week={week}
+          members={members}
+          names={weekdayNames(locale)}
+          today={weekdayOf(today)}
+          words={{
+            title: t('crew.title'),
+            now: week.now.length ? t('crew.now', { names: nameList(week.now) }) : null,
+            done: week.done.length ? t('crew.done', { names: nameList(week.done) }) : null
+          }}
+        />
+        <PlanBoard days={plan} names={weekdayNames(locale)} today={weekdayOf(today)} editable={mine} />
+      </>
+    );
   }
   if (tab === 'workout') {
     const [plan, profile, best] = id ? await Promise.all([planOf(id), gymProfile(id, today), bestLifts(id)]) : [[], null, {}];
@@ -110,6 +134,7 @@ export default async function TrainingPage({
             : null
         }
         editable={mine}
+        discardLines={Array.from({ length: 6 }, (_, i) => pickLine('discardPug', locale, i))}
       />
     );
   }

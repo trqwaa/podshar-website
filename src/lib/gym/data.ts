@@ -3,6 +3,7 @@ import 'server-only';
 import { prisma } from '@/lib/db';
 import { authConfigured } from '@/lib/auth/config';
 import { birthdayOf } from '@/lib/birthdays';
+import { zurichMidnight } from '@/lib/calendar/events';
 import { shiftDay } from '@/lib/calendar/scales';
 import { kindOf, oneRepMax } from './exercises';
 import {
@@ -129,6 +130,44 @@ export async function planOf(userId: string): Promise<PlanDayView[]> {
     title: d.title,
     items: d.items.map((i) => ({ id: i.id, exercise: i.exercise, sets: i.sets, reps: i.reps, weight: i.weight, seconds: i.seconds }))
   }));
+}
+
+/**
+ * Кто когда в зале — по доскам всех троих: на какой день недели у кого есть
+ * упражнения, и кто сегодня уже был или прямо сейчас качается. Чтобы глянуть
+ * и не спрашивать в группе.
+ *
+ * «Сейчас» — тренировка начата не раньше шести часов назад и не закончена:
+ * забытая вчерашняя не должна держать человека в зале сутками.
+ */
+export type GymWeek = { days: string[][]; now: string[]; done: string[] };
+
+/** Буква человека на доске — первая в последнем слове имени: «тест · соня» — «с», а не «т» у всех троих. */
+export function initialOf(displayName: string): string {
+  const words = displayName.split(/[\s·]+/).filter(Boolean);
+  return (words[words.length - 1]?.[0] ?? '?').toLowerCase();
+}
+
+export async function gymWeek(memberIds: string[], today: string): Promise<GymWeek> {
+  const empty: GymWeek = { days: Array.from({ length: 7 }, () => []), now: [], done: [] };
+  if (!authConfigured() || memberIds.length === 0) return empty;
+  const since = zurichMidnight(today);
+  const [plans, sessions] = await Promise.all([
+    prisma.gymPlanDay.findMany({ where: { userId: { in: memberIds }, items: { some: {} } }, select: { userId: true, weekday: true } }),
+    prisma.gymSession.findMany({
+      where: {
+        userId: { in: memberIds },
+        OR: [{ completedAt: { gte: since } }, { completedAt: null, scheduledFor: { gte: new Date(Date.now() - 6 * 3600_000) } }]
+      },
+      select: { userId: true, completedAt: true }
+    })
+  ]);
+  for (const p of plans) if (p.weekday >= 0 && p.weekday < 7) empty.days[p.weekday].push(p.userId);
+  // Порядок — как у троих в списке, а не как вернула база.
+  for (const day of empty.days) day.sort((a, b) => memberIds.indexOf(a) - memberIds.indexOf(b));
+  const now = new Set(sessions.filter((s) => s.completedAt === null).map((s) => s.userId));
+  const done = new Set(sessions.filter((s) => s.completedAt !== null && !now.has(s.userId)).map((s) => s.userId));
+  return { days: empty.days, now: memberIds.filter((id) => now.has(id)), done: memberIds.filter((id) => done.has(id)) };
 }
 
 /** День недели по ключу дня: понедельник — 0, как на доске. */
