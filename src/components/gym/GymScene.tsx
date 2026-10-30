@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 
@@ -9,6 +9,7 @@ import type { Showcase } from '@/lib/gym/exercises';
 import type { FridgeGroup } from '@/lib/gym/foods';
 import type { Mood } from '@/lib/sun';
 import type { Condition } from '@/lib/weather';
+import { CHROME, INK, IRON, IRON_EDGE, RUST, SOVIET, STEEL, WALL, WOOD } from './basement-colors';
 import { PugRig } from './PugRig';
 
 /**
@@ -56,7 +57,6 @@ export type LegendWords = { id: Legend; name: string; title: string };
 type Sky = { condition: Condition; wind: number | null };
 type Look = ReturnType<typeof skyLook>;
 
-const WALL: Record<Mood, number> = { day: 22, dusk: 40, night: 62, blood: 64 };
 /** Лампочка: ночью светит сильнее всего, а под кровавой луной тусклее — иначе красный свет из окна тонет в её пятне. */
 const LIGHT: Record<Mood, number> = { day: 0.14, dusk: 0.24, night: 0.42, blood: 0.2 };
 /** Луч из окна: днём заметный, на закате тусклый, ночью его нет, а с двух до четырёх он красный — от кровавой луны. */
@@ -208,14 +208,6 @@ function blocksOf(w: number, floor: number) {
 
 const pct = (v: number, of: number) => `${((v / of) * 100).toFixed(2)}%`;
 
-const INK = 'rgb(var(--ink))';
-const IRON = 'color-mix(in oklab, rgb(var(--deep)) 90%, rgb(var(--surface)))';
-const IRON_EDGE = 'color-mix(in oklab, rgb(var(--deep)) 70%, rgb(var(--surface)))';
-const RUST = 'color-mix(in oklab, rgb(var(--ink)) 72%, rgb(var(--amber)))';
-const STEEL = 'color-mix(in oklab, rgb(var(--ink)) 70%, rgb(var(--sunk)))';
-const WOOD = 'color-mix(in oklab, rgb(var(--amber)) 55%, rgb(var(--ink)))';
-const CHROME = 'color-mix(in oklab, rgb(var(--ink)) 30%, rgb(var(--surface)))';
-const SOVIET = 'color-mix(in oklab, rgb(var(--loss)) 85%, rgb(var(--ink)))';
 
 /** Капли дождя в окне: одна раскладка на все грозы, дважды по высоте окна — для бесшовного цикла. */
 const DROPS = Array.from({ length: 34 }, (_, i) => ({ x: 70 + ((i * 53) % 182), y: 30 + ((i * 29) % 66) }));
@@ -588,6 +580,35 @@ function Typed({ text, delay, still }: { text: string; delay: number; still: boo
         </span>
       </span>
     </>
+  );
+}
+
+/**
+ * Подпись портрета: под ним по центру, но не за краем сцены. На телефоне
+ * крайние портреты стоят у самого края, и подпись в одну строку по центру
+ * вылезала наружу. Ширина — по тексту, не больше почти всей сцены, длинное
+ * переносится; центр сдвигается внутрь ровно настолько, чтобы влезло.
+ */
+function Caption({ text, at, top, size }: { text: string; at: number; top: string; size: string }) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const scene = el?.parentElement;
+    if (!el || !scene) return;
+    const width = scene.clientWidth;
+    const half = el.offsetWidth / 2;
+    const edge = width * 0.02;
+    el.style.left = `${Math.min(Math.max(at * width, half + edge), width - half - edge)}px`;
+  }, [text, at]);
+  return (
+    <span
+      ref={ref}
+      role="status"
+      className="pointer-events-none absolute w-max max-w-[94%] -translate-x-1/2 text-balance rounded-[6px] bg-ink/85 px-2 py-0.5 text-center font-semibold text-surface"
+      style={{ left: `${at * 100}%`, top, fontSize: size }}
+    >
+      {text}
+    </span>
   );
 }
 
@@ -1421,13 +1442,12 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
 
       {/* Подпись портрета по нажатию. */}
       {shown ? (
-        <span
-          role="status"
-          className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap rounded-[6px] bg-ink/85 px-2 py-0.5 font-semibold text-surface"
-          style={{ left: pct((L.hall[shownAt]?.x ?? 0) + 20 * L.hallScale, w), top: pct((L.hall[shownAt]?.y ?? 30) + 70 * L.hallScale, h), fontSize: `${L.size.tip}cqw` }}
-        >
-          {shown.title}
-        </span>
+        <Caption
+          text={shown.title}
+          at={((L.hall[shownAt]?.x ?? 0) + 20 * L.hallScale) / w}
+          top={pct((L.hall[shownAt]?.y ?? 30) + (shown.name.length > 10 && shown.name.includes(' ') ? 80 : 70) * L.hallScale, h)}
+          size={`${L.size.tip}cqw`}
+        />
       ) : null}
 
       {/* Предметы-ссылки: весь предмет нажимается, надпись — вдоль него. */}
@@ -1505,7 +1525,16 @@ export function GymScene({
   const [legend, setLegend] = useState<Legend | null>(null);
 
   // Погода — после отрисовки, своим запросом: рендер в чужой API не ходит.
+  // В разработке её можно задать адресом (`?sky=thunder`): ждать грозы над
+  // Цюрихом, чтобы проверить окно, — долго. На проде — только настоящая.
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forced = new URLSearchParams(window.location.search).get('sky');
+      if (forced) {
+        setSky({ condition: forced as Condition, wind: 25 });
+        return;
+      }
+    }
     let gone = false;
     fetch('/api/gym/sky', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))

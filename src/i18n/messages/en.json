@@ -1656,6 +1656,9 @@
       "hint": "in fatsecret: food diary → export → csv. an earlier upload for the same days is replaced, what you logged by hand stays",
       "button": "upload csv",
       "done": "loaded: {n, plural, one {# entry} other {# entries}} over {days, plural, one {# day} other {# days}}"
+    },
+    "doors": {
+      "title": "further into the basement"
     }
   }
 }

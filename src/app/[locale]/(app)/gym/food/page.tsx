@@ -6,11 +6,13 @@ import { GymHeader } from '@/components/gym/GymHeader';
 import { PugFace } from '@/components/gym/PugFace';
 import { dayKey, shiftDay } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
+import { GymDoors } from '@/components/gym/GymDoors';
 import { gymContext } from '@/lib/gym/context';
 import { foodDayFace } from '@/lib/gym/critic';
 import { foodDay, foodTotals, gymProfile, recentFoods } from '@/lib/gym/data';
 import { DEFAULTS, targetsFor } from '@/lib/gym/norms';
 import { resolveLocale } from '@/lib/locale';
+import { moodAt } from '@/lib/sun';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = resolveLocale((await params).locale);
@@ -137,6 +139,19 @@ export default async function FoodPage({
           </div>
         </aside>
       </section>
+      <GymDoors
+        current="food"
+        query={whoQuery}
+        mood={moodAt(Date.now())}
+        words={{
+          title: t('doors.title'),
+          rooms: {
+            training: { label: t('menu.training'), hint: t('menuHint.training') },
+            food: { label: t('menu.food'), hint: t('menuHint.food') },
+            sleep: { label: t('menu.sleep'), hint: t('menuHint.sleep') }
+          }
+        }}
+      />
     </div>
   );
 }

@@ -5,11 +5,13 @@ import { PugFace } from '@/components/gym/PugFace';
 import { SleepChart, SleepLog } from '@/components/gym/SleepLog';
 import { dayKey, shiftDay } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
+import { GymDoors } from '@/components/gym/GymDoors';
 import { gymContext } from '@/lib/gym/context';
 import { hoursOf, nightFace } from '@/lib/gym/critic';
 import { gymProfile, sleepRange } from '@/lib/gym/data';
 import { DEFAULTS, sleepNormFor } from '@/lib/gym/norms';
 import { resolveLocale } from '@/lib/locale';
+import { moodAt } from '@/lib/sun';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = resolveLocale((await params).locale);
@@ -36,6 +38,7 @@ export default async function SleepPage({
   const now = new Date();
   const today = dayKey(now);
   const id = member?.id ?? null;
+  const whoQuery = member && !mine ? { who: member.handle } : {};
   const from = shiftDay(today, -13);
   const [profile, nights] = id ? await Promise.all([gymProfile(id, today), sleepRange(id, from, today)]) : [null, []];
   const age = profile?.age ?? DEFAULTS.age;
@@ -98,6 +101,19 @@ export default async function SleepPage({
           </li>
         </ul>
       </section>
+      <GymDoors
+        current="sleep"
+        query={whoQuery}
+        mood={moodAt(Date.now())}
+        words={{
+          title: t('doors.title'),
+          rooms: {
+            training: { label: t('menu.training'), hint: t('menuHint.training') },
+            food: { label: t('menu.food'), hint: t('menuHint.food') },
+            sleep: { label: t('menu.sleep'), hint: t('menuHint.sleep') }
+          }
+        }}
+      />
     </div>
   );
 }
