@@ -185,10 +185,12 @@ export default async function GymPage({
             <Link
               key={link.kind}
               href={link.href}
-              className="ps-press group flex min-w-0 flex-col gap-0.5 rounded-[10px] border-2 border-rule px-3 py-2.5 hover:border-ink sm:gap-1 sm:px-4 sm:py-3"
+              className="ps-press group flex min-w-0 flex-col gap-0.5 rounded-[10px] border-2 border-rule px-2.5 py-2.5 hover:border-ink sm:gap-1 sm:px-4 sm:py-3"
             >
               <span className="flex items-center justify-between gap-1">
-                <span className="truncate text-base font-semibold lowercase text-ink sm:text-lg">{link.label}</span>
+                {/* Шрифт по ширине экрана: на телефоне в 320 px «тренування» и
+                    «харчування» в 16px обрезались до многоточия. */}
+                <span className="truncate text-[clamp(0.875rem,4.4vw,1rem)] font-semibold lowercase text-ink sm:text-lg">{link.label}</span>
                 <span aria-hidden="true" className="text-ink-faint transition-transform group-hover:translate-x-0.5">
                   →
                 </span>

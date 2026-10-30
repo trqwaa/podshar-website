@@ -1368,7 +1368,8 @@
       "restLess": "−15 s",
       "discardTitle": "quitting?",
       "discardYes": "quit anyway",
-      "discardNo": "fine, i’ll finish"
+      "discardNo": "fine, i’ll finish",
+      "readOnly": "workouts start from your own diary"
     },
     "history": {
       "empty": "finished workouts will show up here",
@@ -1376,9 +1377,10 @@
       "sets": "{n, plural, one {# set} other {# sets}}",
       "minutes": "{n, plural, one {# minute} other {# minutes}}",
       "remove": "erase",
-      "removeConfirm": "erase this workout from history?",
+      "removeConfirm": "yes, erase it",
       "untitled": "workout",
-      "best": "best sets"
+      "best": "best sets",
+      "keep": "keep"
     },
     "picker": {
       "title": "exercises",

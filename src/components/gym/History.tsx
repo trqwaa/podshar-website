@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
@@ -20,6 +21,8 @@ export function History({ workouts, editable }: { workouts: WorkoutView[]; edita
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
   const { run, pending, error } = useGymAction();
+  // Стереть — в два нажатия на месте, а не системным «точно?» браузера.
+  const [sure, setSure] = useState<string | null>(null);
   const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   const date = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'Europe/Zurich' });
 
@@ -81,16 +84,25 @@ export function History({ workouts, editable }: { workouts: WorkoutView[]; edita
                 ))}
               </ul>
               {editable ? (
-                <button
-                  type="button"
-                  disabled={pending}
-                  className="ps-label mt-2 hover:text-loss"
-                  onClick={() => {
-                    if (window.confirm(t('history.removeConfirm'))) void run(removeWorkout, { id: w.id });
-                  }}
-                >
-                  {t('history.remove')}
-                </button>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    className={`ps-label hover:text-loss ${sure === w.id ? '!text-loss' : ''}`}
+                    onClick={() => {
+                      if (sure !== w.id) return setSure(w.id);
+                      setSure(null);
+                      void run(removeWorkout, { id: w.id });
+                    }}
+                  >
+                    {sure === w.id ? t('history.removeConfirm') : t('history.remove')}
+                  </button>
+                  {sure === w.id ? (
+                    <button type="button" className="ps-label hover:text-ink" onClick={() => setSure(null)}>
+                      {t('history.keep')}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </li>
           );

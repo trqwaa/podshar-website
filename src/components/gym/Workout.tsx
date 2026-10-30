@@ -218,7 +218,7 @@ export function Workout({
             </div>
           </>
         ) : (
-          <p className="text-sm text-ink-muted">{t('board.readOnly')}</p>
+          <p className="text-sm text-ink-muted">{t('workout.readOnly')}</p>
         )}
         <ErrorLine message={error} />
       </div>

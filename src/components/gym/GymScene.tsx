@@ -94,8 +94,10 @@ type Layout = {
   /** Лампочка: x провода и высота колбы. */
   lamp: [number, number];
   place: Record<Item, Place>;
-  /** Рамки легенд: x каждой по порядку, все на одной высоте. */
-  hall: number[];
+  /** Рамки легенд по порядку. */
+  hall: { x: number; y: number }[];
+  /** Масштаб рамок: на телефоне крупнее — иначе имён на табличках не прочесть. */
+  hallScale: number;
   /** Мопс, фраза (x, y, ширина), тычок — в единицах своей сцены. */
   pug: Box;
   phrase: [number, number, number];
@@ -106,7 +108,7 @@ type Layout = {
   light: { cx: number; cy: number; r: number; sy: number };
   vents: number[];
   valve: number;
-  drip: number;
+  drip: number | null;
   cracks: string[];
   clock: [number, number] | null;
 };
@@ -117,7 +119,8 @@ const WIDE: Layout = {
   floor: 448,
   lamp: [470, 78],
   place: { window: KEEP, slogan: KEEP, board: KEEP, rack: KEEP, tree: KEEP, cross: KEEP, dbs: KEEP, boombox: KEEP, fridge: KEEP, stool: KEEP, mattress: KEEP },
-  hall: [266, 316, 366, 416, 506, 556, 606],
+  hall: [266, 316, 366, 416, 506, 556, 606].map((x) => ({ x, y: 30 })),
+  hallScale: 1,
   pug: [256, 73, 405, 380],
   phrase: [259, 103, 394],
   poke: [365, 184, 211, 259],
@@ -142,32 +145,41 @@ const TALL: Layout = {
   w: 540,
   h: 840,
   floor: 680,
-  lamp: [250, 160],
+  lamp: [270, 222],
   place: {
-    window: put(1, [66, 26], [24, 106]),
-    slogan: put(0.85, [130, 134], [84, 448]),
-    board: put(0.8156, [652, 50], [296, 108]),
-    rack: put(0.72, [30, 452], [4, 684]),
+    window: put(1, [66, 26], [176, 36]),
+    slogan: put(0.85, [130, 134], [462, 446]),
+    board: put(0.77, [652, 50], [14, 352]),
+    rack: put(0.72, [236, 452], [536, 684]),
     tree: null,
     cross: put(0.62, [296, 446], [156, 680]),
     dbs: put(0.8, [596, 450], [300, 778]),
     boombox: put(1, [330, 456], [306, 812]),
-    fridge: put(0.82, [792, 452], [420, 684]),
-    stool: put(1, [744, 448], [478, 748]),
+    fridge: put(0.82, [792, 452], [6, 684]),
+    stool: put(1, [744, 448], [64, 750]),
     mattress: put(0.95, [34, 516], [14, 823])
   },
-  hall: [34, 86, 138, 318, 370, 422, 474],
+  hall: [
+    { x: 16, y: 40 },
+    { x: 100, y: 40 },
+    { x: 371, y: 40 },
+    { x: 455, y: 40 },
+    { x: 16, y: 168 },
+    { x: 100, y: 168 },
+    { x: 184, y: 168 }
+  ],
+  hallScale: 1.5,
   pug: [86, 339.6, 368, 345],
-  phrase: [30, 316, 480],
+  phrase: [30, 288, 480],
   poke: [170, 400, 200, 250],
-  size: { label: { workout: 4.4, plan: 3.6, food: 3.1, sleep: 4.4 }, phrase: 4.3, tip: 3 },
-  beam: 'M38 188L198 188L420 690L210 690Z',
-  light: { cx: 250, cy: 200, r: 600, sy: 1.15 },
+  size: { label: { workout: 3.4, plan: 3.4, food: 2.8, sleep: 4.2 }, phrase: 4.3, tip: 3 },
+  beam: 'M190 118L350 118L470 690L260 690Z',
+  light: { cx: 270, cy: 260, r: 600, sy: 1.15 },
   vents: [60, 300, 470],
   valve: 400,
-  drip: 452,
-  cracks: ['M150 300L160 318L155 332L166 354M160 318L172 324', 'M528 360L518 380L523 398L514 416'],
-  clock: [84, 246]
+  drip: null,
+  cracks: ['M510 352L500 372L506 388L497 408M500 372L490 376'],
+  clock: [440, 214]
 };
 
 /** Бетонные блоки: каждый чуть светлее или темнее соседа — стена, а не обои. Детерминированно: одна стена на сервере и в браузере. */
@@ -240,13 +252,13 @@ const BLACK_MASK = 'color-mix(in oklab, rgb(var(--ink)) 88%, rgb(var(--pug-mask)
  * широкий, Кирпач — загорелый, с укладкой, бородой и медалью на сине-жёлтой
  * ленте.
  */
-function Portrait({ who, x, title, name, onPick }: { who: Legend; x: number; title: string; name: string; onPick: () => void }) {
+function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: number; y: number; s: number; title: string; name: string; onPick: () => void }) {
   const skin = FUR[who] ?? 'rgb(var(--pug))';
   const black = who === 'ronnie' || who === 'levrone';
   const mask = black ? BLACK_MASK : 'rgb(var(--pug-mask))';
   const wide = who === 'alekseyev' ? 1.12 : 1;
   return (
-    <g transform={`translate(${x} 30)`} className="gs-frame cursor-pointer" onClick={onPick}>
+    <g transform={`translate(${x} ${y})${s === 1 ? '' : ` scale(${s})`}`} className="gs-frame cursor-pointer" onClick={onPick}>
       <title>{title}</title>
       <g className="gs-tilt">
         {/* Гвоздь и бечёвка. */}
@@ -351,8 +363,10 @@ function Portrait({ who, x, title, name, onPick }: { who: Legend; x: number; tit
         {who === 'alekseyev' ? <path d="M15 30.6Q20 32.6 25 30.6" fill="none" className="stroke-surface/40" strokeWidth={0.7} /> : null}
         {/* Стекло: блик по диагонали. */}
         <path d="M0 0H14L0 18Z" className="fill-surface/10" />
-        <rect x={4} y={55} width={32} height={9} rx={1.5} style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 40%, rgb(var(--surface)))' }} />
-        <text x={20} y={61.6} textAnchor="middle" className="fill-ink" style={{ font: '700 6.2px var(--font-sans), sans-serif' }}>
+        {/* Табличка шире рамки: имя должно читаться, а не угадываться. На
+            телефоне рамки крупнее, и буквы на табличке — тоже. */}
+        <rect x={s > 1 ? -7 : -2} y={55} width={s > 1 ? 54 : 44} height={s > 1 ? 13 : 10.5} rx={1.5} style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 40%, rgb(var(--surface)))' }} />
+        <text x={20} y={s > 1 ? 64.6 : 62.8} textAnchor="middle" className="fill-ink" style={{ font: `700 ${s > 1 ? 9.6 : 7.6}px var(--font-sans), sans-serif` }}>
           {name}
         </text>
       </g>
@@ -640,7 +654,7 @@ type Shared = {
 function Basement({ L, ...s }: Shared & { L: Layout }) {
   const t = useTranslations('gym');
   const id = `gs${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  const kick = useRef<SVGGElement | null>(null);
+  const kick = useRef<HTMLDivElement | null>(null);
   const { mood, still, look } = s;
   const { w, h, floor } = L;
   const [lx, ly] = L.lamp;
@@ -706,7 +720,8 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
 @media (hover:none){.${id} .gs-label{opacity:.78}}
 .${id} .gs-tilt{transition:transform .5s cubic-bezier(.2,.8,.2,1.4);transform-box:fill-box;transform-origin:50% 0}
 .${id} .gs-frame:hover .gs-tilt{transform:rotate(-5deg)}
-.${id} .gs-kicked{animation:gs-swing-hard 1.6s ease-in-out 2}
+.${id} .gs-sway{animation:gs-sway 5.5s cubic-bezier(.37,0,.63,1) infinite alternate;will-change:transform}
+.${id} .gs-kicked{animation:gs-kick 2.8s cubic-bezier(.37,0,.63,1);will-change:transform}
 .${id} .gs-dbs:hover .gs-db{animation:gs-clink .38s ease-in-out}
 .${id} .gs-tree:hover .gs-hang{animation:gs-hang 1.1s ease-in-out}
 .${id} .gs-hang{transform-box:fill-box;transform-origin:50% 50%}
@@ -722,7 +737,8 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
 .${id} .gs-caret{animation:gs-caret 1s steps(1,end) infinite}
 @keyframes gs-caret{50%{opacity:0}}
 @keyframes gs-puff{0%{opacity:.85;transform:translateY(0) scale(.5)}100%{opacity:0;transform:translateY(-30px) scale(1.7)}}
-@keyframes gs-swing-hard{0%,100%{transform:rotate(0)}25%{transform:rotate(9deg)}75%{transform:rotate(-9deg)}}
+@keyframes gs-sway{from{transform:rotate(-2.4deg)}to{transform:rotate(2.4deg)}}
+@keyframes gs-kick{0%{transform:rotate(0)}14%{transform:rotate(8deg)}38%{transform:rotate(-6deg)}62%{transform:rotate(3.6deg)}84%{transform:rotate(-1.4deg)}100%{transform:rotate(0)}}
 @keyframes gs-clink{25%{transform:translateY(-2px) rotate(-3deg)}75%{transform:translateY(-1px) rotate(2deg)}}
 @keyframes gs-hang{30%{transform:rotate(4deg)}70%{transform:rotate(-3deg)}}
 @keyframes gs-cat{to{transform:translateX(260px)}}
@@ -822,8 +838,12 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
             <path key={d} d={d} />
           ))}
         </g>
-        <ellipse cx={L.drip + 8} cy={22} rx={58} ry={30} className="fill-ink/5" />
-        <path d={`M${L.drip} 30C${L.drip - 2} 60 ${L.drip + 4} 90 ${L.drip} 120`} className="stroke-ink/10" strokeWidth={6} strokeLinecap="round" fill="none" />
+        {L.drip !== null ? (
+          <>
+            <ellipse cx={L.drip + 8} cy={22} rx={58} ry={30} className="fill-ink/5" />
+            <path d={`M${L.drip} 30C${L.drip - 2} 60 ${L.drip + 4} 90 ${L.drip} 120`} className="stroke-ink/10" strokeWidth={6} strokeLinecap="round" fill="none" />
+          </>
+        ) : null}
 
         {/* Трубы под потолком: блик сверху, хомуты, вентиль. */}
         <g>
@@ -947,7 +967,7 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
 
         {/* Зал славы: мопсы-легенды. Ронни — первый, Левроун — второй. */}
         {s.legends.map((l, i) => (
-          <Portrait key={l.id} who={l.id} x={L.hall[i] ?? L.hall[L.hall.length - 1]} title={l.title} name={l.name} onPick={() => s.onLegend(l.id)} />
+          <Portrait key={l.id} who={l.id} {...(L.hall[i] ?? L.hall[L.hall.length - 1])} s={L.hallScale} title={l.title} name={l.name} onPick={() => s.onLegend(l.id)} />
         ))}
 
         {/* Лозунг краской по бетону, над стойкой. */}
@@ -1209,28 +1229,11 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
           : [0, 1, 2, 3, 4, 5].map((i) => (
               <circle key={i} cx={lx - 90 + i * 34} cy={ly + 82 + (i % 3) * 60} r={1.6} className="animate-gym-mote fill-halo" style={{ animationDelay: `${-i * 2.3}s`, opacity: 0 }} pointerEvents="none" />
             ))}
-        {/* Лампочка на проводе с конусом света: качается сама, а толкнёшь — раскачается. */}
-        <g className="gs-lamp">
-          <g className={still ? undefined : 'animate-gym-swing'} style={{ transformOrigin: `${lx}px 0px` }} pointerEvents="none">
-            <g
-              ref={kick}
-              style={{ transformOrigin: `${lx}px 0px` }}
-              onAnimationEnd={(e) => {
-                if (e.target === e.currentTarget) e.currentTarget.classList.remove('gs-kicked');
-              }}
-            >
-              <path d={`M${lx - 14} ${ly + 10}L${lx + 14} ${ly + 10}L${lx + 180} ${floor}L${lx - 180} ${floor}Z`} fill={`url(#${id}-cone)`} style={{ mixBlendMode: 'screen' }} />
-              <line x1={lx} y1={0} x2={lx} y2={ly - 14} className="stroke-ink/80" strokeWidth={2.5} />
-              <rect x={lx - 7} y={ly - 20} width={14} height={10} rx={2} className="fill-ink/80" />
-              <circle cx={lx} cy={ly} r={12} className="fill-halo stroke-ink/30" strokeWidth={2} />
-              <circle cx={lx - 4} cy={ly - 4} r={3.4} className="fill-surface/70" />
-            </g>
-          </g>
-          {/* Зона толчка не качается: качайся она вместе с лампой, она уезжала
-              бы из-под курсора и возвращалась под него, и лампу дёргало бы без
-              конца — так и было у правого нижнего края. */}
-          <rect x={lx - 28} y={0} width={56} height={ly + 28} fill="transparent" className="cursor-pointer" onPointerEnter={swing} onClick={swing} />
-        </g>
+        {/* Зона толчка лампы — в сцене и неподвижная: качайся она вместе с
+            лампой, уезжала бы из-под курсора и возвращалась под него, и лампу
+            дёргало бы без конца — так и было у правого нижнего края. Сама
+            лампа — своим слоем ниже. */}
+        <rect x={lx - 28} y={0} width={56} height={ly + 28} fill="transparent" className="cursor-pointer" onPointerEnter={swing} onClick={swing} />
       </svg>
 
       {/* Зерно старой фотографии: картинкой, а не фильтром в сцене — сцена
@@ -1243,6 +1246,31 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
             "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")"
         }}
       />
+
+      {/* Лампочка на проводе с конусом света — своим слоем поверх сцены, а не
+          частью её SVG: качание SVG-группы заставляло перерисовывать весь
+          подвал каждый кадр, и лампа шла рывками. Слой поворачивает видеокарта.
+          Качается сама, по синусу; толкнёшь — раскачается и затухнет. */}
+      <div aria-hidden="true" className="pointer-events-none absolute" style={{ left: pct(lx - 190, w), top: 0, width: pct(380, w), height: pct(floor, h) }}>
+        <div className={still ? 'h-full w-full' : 'gs-sway h-full w-full'} style={{ transformOrigin: '50% 0' }}>
+          <div
+            ref={kick}
+            className="h-full w-full"
+            style={{ transformOrigin: '50% 0' }}
+            onAnimationEnd={(e) => {
+              if (e.target === e.currentTarget) e.currentTarget.classList.remove('gs-kicked');
+            }}
+          >
+            <svg viewBox={`${lx - 190} 0 380 ${floor}`} className="h-full w-full overflow-visible">
+              <path d={`M${lx - 14} ${ly + 10}L${lx + 14} ${ly + 10}L${lx + 180} ${floor}L${lx - 180} ${floor}Z`} fill={`url(#${id}-cone)`} />
+              <line x1={lx} y1={0} x2={lx} y2={ly - 14} className="stroke-ink/80" strokeWidth={2.5} />
+              <rect x={lx - 7} y={ly - 20} width={14} height={10} rx={2} className="fill-ink/80" />
+              <circle cx={lx} cy={ly} r={12} className="fill-halo stroke-ink/30" strokeWidth={2} />
+              <circle cx={lx - 4} cy={ly - 4} r={3.4} className="fill-surface/70" />
+            </svg>
+          </div>
+        </div>
+      </div>
 
       {/* Мопс: рисунок 320 × 300 ложится полом на пол подвала, серединой — под лампочку. */}
       <div className="pointer-events-none absolute" style={box(L.pug)}>
@@ -1290,7 +1318,7 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
         <span
           role="status"
           className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap rounded-[6px] bg-ink/85 px-2 py-0.5 font-semibold text-surface"
-          style={{ left: pct((L.hall[shownAt] ?? 0) + 20, w), top: pct(100, h), fontSize: `${L.size.tip}cqw` }}
+          style={{ left: pct((L.hall[shownAt]?.x ?? 0) + 20 * L.hallScale, w), top: pct((L.hall[shownAt]?.y ?? 30) + 70 * L.hallScale, h), fontSize: `${L.size.tip}cqw` }}
         >
           {shown.title}
         </span>

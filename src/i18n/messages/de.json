@@ -1368,7 +1368,8 @@
       "restLess": "−15 s",
       "discardTitle": "aufhören?",
       "discardYes": "trotzdem abbrechen",
-      "discardNo": "na gut, ich mach fertig"
+      "discardNo": "na gut, ich mach fertig",
+      "readOnly": "ein training startest du aus dem eigenen tagebuch"
     },
     "history": {
       "empty": "hier erscheinen die beendeten trainings",
@@ -1376,9 +1377,10 @@
       "sets": "{n, plural, one {# satz} other {# sätze}}",
       "minutes": "{n, plural, one {# minute} other {# minuten}}",
       "remove": "löschen",
-      "removeConfirm": "dieses training aus dem verlauf löschen?",
+      "removeConfirm": "ja, löschen",
       "untitled": "training",
-      "best": "beste sätze"
+      "best": "beste sätze",
+      "keep": "behalten"
     },
     "picker": {
       "title": "übungen",
