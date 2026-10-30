@@ -1575,7 +1575,12 @@
       "photoCap": "genug fotos für heute — ab jetzt von hand",
       "photoNoModel": "der mops sieht gerade nichts — trag es von hand ein",
       "notFood": "das ist kein essen. oder der mops versteht was nicht",
-      "photoUnreadable": "das foto ließ sich nicht öffnen. ein anderes?"
+      "photoUnreadable": "das foto ließ sich nicht öffnen. ein anderes?",
+      "fileTooBig": "die datei ist zu groß. ist das wirklich ein export?",
+      "strongFormat": "format unbekannt: nötig ist ein strong-export mit den spalten Date und Exercise Name",
+      "noWorkouts": "keine trainings in der datei gefunden",
+      "foodFormat": "format unbekannt: nötig sind spalten mit datum und kalorien",
+      "noFood": "kein essen in der datei gefunden"
     },
     "kinds": {
       "weight": "gewicht & wdh.",
@@ -1623,6 +1628,34 @@
     "opening": {
       "title": "feierliche eröffnung",
       "skip": "überspringen"
+    },
+    "records": {
+      "title": "rekorde",
+      "hint": "dein bestes in jeder übung, wie in strong. oben das schwerste",
+      "empty": "noch keine rekorde: beende ein training oder lade deinen verlauf aus strong im tab „verlauf“",
+      "e1rm": "≈ {kg} kg für eine",
+      "best": "bester satz",
+      "heaviest": "am schwersten",
+      "volume": "volumen pro satz",
+      "reps": "{n, plural, one {# wiederholung} other {# wiederholungen}}",
+      "fresh": "frisch",
+      "sets": "{n, plural, one {# satz} other {# sätze}}",
+      "all": "alle rekorde · {n}",
+      "less": "weniger"
+    },
+    "strong": {
+      "title": "verlauf aus strong",
+      "hint": "in strong: einstellungen → daten exportieren → csv. die trainings landen im verlauf, rekorde werden gezählt, und der mops weiß, womit du kommst",
+      "button": "csv hochladen",
+      "done": "geladen: {n, plural, one {# training} other {# trainings}}, {sets, plural, one {# satz} other {# sätze}}",
+      "skipped": "schon da: {n}",
+      "unknown": "{n, plural, one {# übung ist} other {# übungen sind}} nicht im katalog — unter eigenem namen gespeichert"
+    },
+    "fatsecret": {
+      "title": "tagebuch aus fatsecret",
+      "hint": "in fatsecret: ernährungstagebuch → exportieren → csv. ein früherer upload für dieselben tage wird ersetzt, von hand eingetragenes bleibt",
+      "button": "csv hochladen",
+      "done": "geladen: {n, plural, one {# eintrag} other {# einträge}} an {days, plural, one {# tag} other {# tagen}}"
     }
   }
 }

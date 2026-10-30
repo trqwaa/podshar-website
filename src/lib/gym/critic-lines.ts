@@ -287,11 +287,12 @@ export const LINES = {
     uk: ['день ніг. так, сьогодні. так, тобі теж'],
     de: ['beintag. ja, heute. ja, du auch']
   },
+  /** День отдыха: мопс в капюшоне, кулаки у рта, и его бесит, что сегодня не жмут. */
   sceneRest: {
-    ru: ['сегодня отдых. я в капюшоне, меня нет', 'день без тренировки. мышцы растут, я сижу'],
-    en: ['rest day. hood up, i am not here'],
-    uk: ['сьогодні відпочинок. я в капюшоні, мене нема'],
-    de: ['ruhetag. kapuze auf, ich bin nicht da']
+    ru: ['отдых по плану. не трогай меня, я злой', 'день без штанги. руки чешутся, сижу и бешусь', 'вчера тренер наорал. сегодня я в капюшоне и думаю'],
+    en: ['rest day by the plan. don’t talk to me', 'no bar today. my hands itch and i’m fuming'],
+    uk: ['відпочинок за планом. не чіпай мене, я злий', 'день без штанги. руки сверблять, сиджу і шаленію'],
+    de: ['ruhetag nach plan. sprich mich nicht an', 'heute keine stange. die hände jucken, ich koche']
   },
   sceneNoPlan: {
     ru: ['доска пустая. нарисуй план — и я покажу, как это делается'],
@@ -319,29 +320,36 @@ export const LINES = {
     uk: ['кривавий місяць. усі сплять, а ти витріщаєшся на штангу', 'ніч, місяць червоний, а ти в підвалі. сон — теж підхід, іди роби'],
     de: ['blutmond. alle schlafen, und du starrst die stange an', 'nacht, roter mond, und du im keller. schlaf ist auch ein satz']
   },
-  /** Первый заход в зал: мопс режет ленточку и объявляет зал открытым. */
+  /**
+   * Первый заход в зал: тренер сжёг резинку вместо ленточки, всё прогорело до
+   * черноты, и в черноте — это. Жёстко: зал открывается один раз.
+   */
   opening: {
     ru: [
-      'объявляю зал открытым. ныть — снаружи, жать — внутри',
-      'ленточку перерезал. самая лёгкая тяга за сегодня. зал открыт',
-      'зал открыт. отмазки больше не принимаются',
-      'всё, открыто. хули стоишь в дверях — штанга вон там',
-      'торжественно открываю подвал. аплодисменты — подходами'
+      'отмазки сгорели первыми. дальше — ты',
+      'всё лишнее сгорело. остались ты и железо',
+      'это горела твоя зона комфорта. хорошо горела',
+      'пепел — это твоё «начну с понедельника»',
+      'назад дороги нет. я её сжёг',
+      'добро пожаловать в подвал. слабость сюда не проходит — сгорает на входе'
     ],
     en: [
-      'i declare this gym open. whining outside, lifting inside',
-      'ribbon cut. easiest pull of the day. the gym is open',
-      'it’s open. why the hell are you standing in the doorway — the bar is over there'
+      'excuses burned first. you are next',
+      'everything soft burned. what is left is you and the iron',
+      'that was your comfort zone. it burned well',
+      'no way back. i burned it'
     ],
     uk: [
-      'оголошую зал відкритим. скиглити — надворі, жати — всередині',
-      'стрічку перерізав. найлегша тяга за сьогодні. зал відкрито',
-      'відкрито. якого біса стоїш у дверях — штанга он там'
+      'відмовки згоріли першими. далі — ти',
+      'усе зайве згоріло. лишилися ти і залізо',
+      'це горіла твоя зона комфорту. добре горіла',
+      'дороги назад нема. я її спалив'
     ],
     de: [
-      'hiermit ist das gym eröffnet. jammern draußen, drücken drinnen',
-      'band durchgeschnitten. leichtester zug des tages. das gym ist offen',
-      'offen. was zur hölle stehst du in der tür rum — die stange ist da drüben'
+      'die ausreden sind zuerst verbrannt. du bist der nächste',
+      'alles weiche ist verbrannt. übrig bleiben du und das eisen',
+      'das war deine komfortzone. sie hat gut gebrannt',
+      'es gibt keinen weg zurück. ich habe ihn verbrannt'
     ]
   },
   /** Человек бросает тренировку на середине: мопс в окне «бросить?» вместо системного «точно?». */

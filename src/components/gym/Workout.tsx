@@ -481,8 +481,12 @@ export function Workout({
             <Modal title={t('workout.discardTitle')} close={t('workout.discardNo')} onClose={() => setDiscarding(null)}>
               {/* Не системное «точно?», а тренер: бросать на середине — повод получить. */}
               <div className="flex flex-col items-center gap-3 text-center">
-                <PugAvatar className="h-28 w-28" />
-                <p className="rounded-[12px] border-2 border-ink px-4 py-2 text-base font-semibold text-ink">{discarding}</p>
+                {/* Тренер целиком, без квадратной рамки: плечи не срезаны краем
+                    рисунка, а низ уходит за его же реплику. */}
+                <div className="flex flex-col items-center pt-2">
+                  <PugAvatar className="h-32 w-32 overflow-visible" />
+                  <p className="relative -mt-5 rounded-[12px] border-2 border-ink bg-surface px-4 py-2 text-base font-semibold text-ink">{discarding}</p>
+                </div>
                 <p className="text-xs text-ink-muted">{t('workout.discardConfirm')}</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   <button type="button" className={BUTTON} onClick={() => setDiscarding(null)}>

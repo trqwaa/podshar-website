@@ -1575,7 +1575,12 @@
       "photoCap": "enough photos for today — type it in by hand",
       "photoNoModel": "the pug can’t see right now — type it in",
       "notFood": "that’s not food. or the pug is missing something",
-      "photoUnreadable": "couldn’t open that photo. another one?"
+      "photoUnreadable": "couldn’t open that photo. another one?",
+      "fileTooBig": "the file is too big. is it really an export?",
+      "strongFormat": "unknown format: need a strong export with Date and Exercise Name columns",
+      "noWorkouts": "no workouts found in the file",
+      "foodFormat": "unknown format: need date and calorie columns",
+      "noFood": "no food found in the file"
     },
     "kinds": {
       "weight": "weight & reps",
@@ -1623,6 +1628,34 @@
     "opening": {
       "title": "grand opening",
       "skip": "skip"
+    },
+    "records": {
+      "title": "records",
+      "hint": "your best in every exercise, like in strong. heaviest on top",
+      "empty": "no records yet: finish a workout or load your history from strong on the “history” tab",
+      "e1rm": "≈ {kg} kg for one",
+      "best": "best set",
+      "heaviest": "heaviest",
+      "volume": "set volume",
+      "reps": "{n, plural, one {# rep} other {# reps}}",
+      "fresh": "fresh",
+      "sets": "{n, plural, one {# set} other {# sets}}",
+      "all": "all records · {n}",
+      "less": "show less"
+    },
+    "strong": {
+      "title": "history from strong",
+      "hint": "in strong: settings → export data → csv. workouts go into your history, records get counted, and the pug learns what you came in with",
+      "button": "upload csv",
+      "done": "loaded: {n, plural, one {# workout} other {# workouts}}, {sets, plural, one {# set} other {# sets}}",
+      "skipped": "already here: {n}",
+      "unknown": "{n, plural, one {# exercise is} other {# exercises are}} not in the catalogue — saved under their own names"
+    },
+    "fatsecret": {
+      "title": "diary from fatsecret",
+      "hint": "in fatsecret: food diary → export → csv. an earlier upload for the same days is replaced, what you logged by hand stays",
+      "button": "upload csv",
+      "done": "loaded: {n, plural, one {# entry} other {# entries}} over {days, plural, one {# day} other {# days}}"
     }
   }
 }

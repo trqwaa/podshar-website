@@ -10,7 +10,9 @@ import { sharedDayIndex } from '@/lib/day';
 import { routing } from '@/i18n/routing';
 import { verdictOf } from './critic';
 import { modelVerdict } from './critic-model';
+import { historyOf, recordsOf, type RecordSet } from './data';
 import { dossierFor } from './dossier';
+import { exerciseOf } from './exercises';
 import type { GymResult } from './actions';
 
 /** Не чаще одного разноса моделью в две минуты: кнопку жмут очередью, а платим за каждый. */
@@ -39,9 +41,20 @@ export async function askCritic(input: unknown): Promise<GymResult> {
   if (recent.length >= DAILY_CAP) return { error: 'dailyCap' };
 
   const today = dayKey(new Date(now));
-  const { dossier } = await dossierFor(userId, today);
+  const [{ dossier }, records, logged] = await Promise.all([dossierFor(userId, today), recordsOf(userId), historyOf(userId)]);
   const verdict = verdictOf(dossier, parsed.data.locale, sharedDayIndex());
-  const text = await modelVerdict({ name: session.user.displayName, locale: parsed.data.locale, verdict });
+  // Лучшие подходы за всё время — коротко, по-английски: это данные для модели, а не текст для человека.
+  const best = (s: RecordSet) => (s.weight ? `${s.weight} kg x ${s.reps ?? 0}` : s.reps ? `${s.reps} reps` : s.seconds ? `${s.seconds} s` : `${s.distance ?? 0} km`);
+  const history = {
+    ...logged,
+    records: records.slice(0, 8).map((r) => ({
+      exercise: exerciseOf(r.exercise)?.name.en ?? r.exercise,
+      e1rm_kg: r.e1rm === null ? null : Math.round(r.e1rm),
+      best: best(r.best),
+      on: dayKey(new Date(r.best.at))
+    }))
+  };
+  const text = await modelVerdict({ name: session.user.displayName, locale: parsed.data.locale, verdict, history });
   if (!text) return { error: 'noModel' };
 
   await prisma.gymVerdict.create({ data: { userId, locale: parsed.data.locale, text } });

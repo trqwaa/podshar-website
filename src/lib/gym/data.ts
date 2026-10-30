@@ -4,8 +4,8 @@ import { prisma } from '@/lib/db';
 import { authConfigured } from '@/lib/auth/config';
 import { birthdayOf } from '@/lib/birthdays';
 import { zurichMidnight } from '@/lib/calendar/events';
-import { shiftDay } from '@/lib/calendar/scales';
-import { kindOf, oneRepMax } from './exercises';
+import { dayKey, shiftDay } from '@/lib/calendar/scales';
+import { kindOf, oneRepMax, type Kind } from './exercises';
 import {
   DEFAULTS,
   PARTS,
@@ -313,6 +313,75 @@ export async function bestLifts(userId: string): Promise<Record<string, BestLift
     }
   }
   return out;
+}
+
+/**
+ * Рекорды как в Strong: по каждому упражнению — лучший подход по оценке
+ * максимума, самый тяжёлый вес и самый объёмный подход; без веса — больше
+ * всего повторов, дольше всего, дальше всего. Разминка не в счёт.
+ */
+export type RecordSet = { weight: number | null; reps: number | null; seconds: number | null; distance: number | null; at: number };
+export type RecordView = {
+  exercise: string;
+  kind: Kind;
+  sets: number;
+  /** Главный рекорд: по оценке максимума, по повторам, по времени или по расстоянию — смотря что за упражнение. */
+  best: RecordSet;
+  e1rm: number | null;
+  heaviest: RecordSet | null;
+  volume: RecordSet | null;
+};
+
+export async function recordsOf(userId: string): Promise<RecordView[]> {
+  if (!authConfigured()) return [];
+  const rows = await prisma.gymSet.findMany({
+    where: { done: true, warmup: false, session: { userId } },
+    select: { exercise: true, weight: true, reps: true, seconds: true, distance: true, doneAt: true, session: { select: { scheduledFor: true } } }
+  });
+  const out = new Map<string, RecordView>();
+  for (const row of rows) {
+    const kind = kindOf(row.exercise);
+    const set: RecordSet = { weight: row.weight, reps: row.reps, seconds: row.seconds, distance: row.distance, at: (row.doneAt ?? row.session.scheduledFor).getTime() };
+    const weight = row.weight ?? 0;
+    const reps = row.reps ?? 0;
+    // Чем мерить главный рекорд: у веса — оценкой максимума, у гравитрона — повторами (вес там помощь).
+    const score = kind === 'weight' ? (weight > 0 && reps > 0 ? oneRepMax(weight, reps) : 0) : kind === 'time' ? row.seconds ?? 0 : kind === 'cardio' ? row.distance ?? row.seconds ?? 0 : reps;
+    if (score <= 0) continue;
+    const rec = out.get(row.exercise);
+    if (!rec) {
+      out.set(row.exercise, {
+        exercise: row.exercise,
+        kind,
+        sets: 1,
+        best: set,
+        e1rm: kind === 'weight' ? score : null,
+        heaviest: kind === 'weight' || (kind === 'body' && weight > 0) ? set : null,
+        volume: kind === 'weight' ? set : null
+      });
+      continue;
+    }
+    rec.sets += 1;
+    const bestScore = kind === 'weight' ? rec.e1rm ?? 0 : kind === 'time' ? rec.best.seconds ?? 0 : kind === 'cardio' ? rec.best.distance ?? rec.best.seconds ?? 0 : rec.best.reps ?? 0;
+    if (score > bestScore) {
+      rec.best = set;
+      if (kind === 'weight') rec.e1rm = score;
+    }
+    if (weight > 0 && (kind === 'weight' || kind === 'body') && (!rec.heaviest || weight > (rec.heaviest.weight ?? 0))) rec.heaviest = set;
+    if (kind === 'weight' && weight * reps > (rec.volume?.weight ?? 0) * (rec.volume?.reps ?? 0)) rec.volume = set;
+  }
+  // Сверху — самое тяжёлое по оценке максимума, ниже — без веса, по количеству подходов.
+  const rank = (r: RecordView) => (r.e1rm !== null ? 1e6 + r.e1rm : r.sets);
+  return [...out.values()].sort((a, b) => rank(b) - rank(a));
+}
+
+/** Сколько тренировок записано и с какого дня: мопсу-критику — чтобы знал, с чем человек пришёл. */
+export async function historyOf(userId: string): Promise<{ workouts: number; since: string | null }> {
+  if (!authConfigured()) return { workouts: 0, since: null };
+  const [workouts, first] = await Promise.all([
+    prisma.gymSession.count({ where: { userId, completedAt: { not: null } } }),
+    prisma.gymSession.findFirst({ where: { userId, completedAt: { not: null } }, orderBy: { scheduledFor: 'asc' }, select: { scheduledFor: true } })
+  ]);
+  return { workouts, since: first ? dayKey(first.scheduledFor) : null };
 }
 
 // ─── Замеры и цели ──────────────────────────────────────────────────────────

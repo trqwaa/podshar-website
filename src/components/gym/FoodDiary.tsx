@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
-import { addFood, removeFood } from '@/lib/gym/actions';
+import { addFood, importFatsecret, removeFood } from '@/lib/gym/actions';
 import type { FoodView } from '@/lib/gym/data';
 import { foodOf, macrosFor, searchFoods, type Food } from '@/lib/gym/foods';
 import type { Targets } from '@/lib/gym/norms';
+import { CsvImport } from './CsvImport';
 import { FoodPhoto } from './FoodPhoto';
 import { BUTTON, CHIP, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
 
@@ -345,6 +346,15 @@ export function FoodDiary({
         );
       })}
       <ErrorLine message={error} />
+      {editable ? (
+        <CsvImport
+          action={importFatsecret}
+          title={t('fatsecret.title')}
+          hint={t('fatsecret.hint')}
+          button={t('fatsecret.button')}
+          done={(r) => t('fatsecret.done', { n: r.count ?? 0, days: r.days ?? 0 })}
+        />
+      ) : null}
     </div>
   );
 }

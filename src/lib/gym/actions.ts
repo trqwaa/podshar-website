@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -12,7 +13,9 @@ import { isExercise } from './exercises';
 import { foodOf, junkByName, macrosFor } from './foods';
 import { ACTIVITIES, GOALS, GOAL_KINDS, PARTS, SEXES, isPart } from './norms';
 import { programOf } from './programs';
+import { parseFatsecretCsv } from './fatsecret-import';
 import { parseSleepCsv } from './sleep-import';
+import { parseStrongCsv } from './strong-import';
 import { openedKey, previousSets, weekdayOf } from './data';
 
 /**
@@ -26,7 +29,18 @@ import { openedKey, previousSets, weekdayOf } from './data';
  * действие — это открытый POST. Чужой дневник открывается на чтение, и только.
  */
 
-export type GymResult = { ok?: boolean; error?: string; id?: string; count?: number; skipped?: number; empty?: boolean };
+export type GymResult = {
+  ok?: boolean;
+  error?: string;
+  id?: string;
+  count?: number;
+  skipped?: number;
+  empty?: boolean;
+  /** Импорт: подходов, дней и упражнений, которых нет в справочнике. */
+  sets?: number;
+  days?: number;
+  unknown?: number;
+};
 
 const Id = z.string().trim().min(1).max(40);
 const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -724,4 +738,113 @@ export async function importSleep(formData: FormData): Promise<GymResult> {
   ]);
   refresh();
   return { ok: true, count: fresh.length + redo.length, skipped: manual.size };
+}
+
+// ─── Импорт из Strong и FatSecret ───────────────────────────────────────────
+
+/** Выгрузка Strong за годы — мегабайты; больше этого — уже не она. */
+const MAX_EXPORT_BYTES = 12 * 1024 * 1024;
+/** Сколько строк в одном `createMany`: тысячи подходов за раз база примет, десятки тысяч — нет. */
+const CHUNK = 1000;
+const chunks = <T>(list: T[]) => Array.from({ length: Math.ceil(list.length / CHUNK) }, (_, i) => list.slice(i * CHUNK, (i + 1) * CHUNK));
+
+/**
+ * Тренировки из Strong — вся история разом, чтобы мопс знал тебя не с
+ * сегодняшнего дня. Повторная выгрузка не задваивает: тренировка с той же
+ * секундой начала у того же человека уже есть — пропускается.
+ */
+export async function importStrong(formData: FormData): Promise<GymResult> {
+  const userId = await me();
+  if (!userId) return { error: 'signedOut' };
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) return { error: 'noFile' };
+  if (file.size > MAX_EXPORT_BYTES) return { error: 'fileTooBig' };
+
+  const { workouts, unknown, format } = parseStrongCsv(await file.text());
+  if (!format) return { error: 'strongFormat' };
+  if (workouts.length === 0) return { error: 'noWorkouts' };
+
+  const existing = await prisma.gymSession.findMany({
+    where: { userId, scheduledFor: { in: workouts.map((w) => w.startedAt) } },
+    select: { scheduledFor: true }
+  });
+  const known = new Set(existing.map((e) => e.scheduledFor.getTime()));
+  const fresh = workouts.filter((w) => !known.has(w.startedAt.getTime()));
+
+  const sessions = fresh.map((w) => ({ id: randomUUID(), userId, scheduledFor: w.startedAt, completedAt: w.finishedAt, focus: w.title || null, notes: 'strong' }));
+  const sets = fresh.flatMap((w, i) => {
+    // Упражнение — блок по порядку появления, подходы в нём — по порядку строк.
+    const blockOf = new Map<string, number>();
+    const next = new Map<number, number>();
+    return w.sets.map((set) => {
+      if (!blockOf.has(set.exercise)) blockOf.set(set.exercise, blockOf.size);
+      const block = blockOf.get(set.exercise)!;
+      const index = next.get(block) ?? 0;
+      next.set(block, index + 1);
+      return { sessionId: sessions[i].id, ...set, block, index, done: true, doneAt: w.finishedAt };
+    });
+  });
+
+  await prisma.$transaction([...chunks(sessions).map((data) => prisma.gymSession.createMany({ data })), ...chunks(sets).map((data) => prisma.gymSet.createMany({ data }))]);
+  refresh();
+  return { ok: true, count: fresh.length, sets: sets.length, skipped: workouts.length - fresh.length, unknown: unknown.length };
+}
+
+/**
+ * Пометка записей из FatSecret в поле `food`: такой еды в справочнике нет, а
+ * повторная выгрузка заменяет именно эти строки за свои дни. Записанное руками
+ * импорт не трогает.
+ */
+const FATSECRET = 'fatsecret';
+const within = (v: number | null, max: number) => (v !== null && v >= 0 && v <= max ? v : null);
+
+export async function importFatsecret(formData: FormData): Promise<GymResult> {
+  const userId = await me();
+  if (!userId) return { error: 'signedOut' };
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) return { error: 'noFile' };
+  if (file.size > MAX_EXPORT_BYTES) return { error: 'fileTooBig' };
+
+  const { foods, format } = parseFatsecretCsv(await file.text());
+  if (!format) return { error: 'foodFormat' };
+  const today = dayKey(new Date());
+  const perDay = new Map<string, number>();
+  const rows = foods.filter((f) => {
+    if (f.day > today || f.kcal < 0 || f.kcal > 20000) return false;
+    const n = (perDay.get(f.day) ?? 0) + 1;
+    perDay.set(f.day, n);
+    return n <= MAX_FOOD_PER_DAY;
+  });
+  if (rows.length === 0) return { error: 'noFood' };
+  const days = [...perDay.keys()];
+
+  await prisma.$transaction([
+    prisma.foodEntry.deleteMany({ where: { userId, food: FATSECRET, eatenOn: { in: days } } }),
+    ...chunks(rows).map((list) =>
+      prisma.foodEntry.createMany({
+        data: list.map((f) => ({
+          userId,
+          eatenOn: f.day,
+          meal: f.meal,
+          food: FATSECRET,
+          name: f.name,
+          grams: within(f.grams, 5000),
+          kcal: f.kcal,
+          protein: within(f.protein, 2000) ?? 0,
+          fat: within(f.fat, 2000) ?? 0,
+          carbs: within(f.carbs, 2000) ?? 0,
+          fiber: within(f.fiber, 200),
+          sugar: within(f.sugar, 500),
+          satFat: within(f.satFat, 300),
+          sodium: within(f.sodium, 20000),
+          cholesterol: within(f.cholesterol, 5000),
+          potassium: within(f.potassium, 20000),
+          junk: junkByName(f.name),
+          estimated: false
+        }))
+      })
+    )
+  ]);
+  refresh();
+  return { ok: true, count: rows.length, days: days.length };
 }

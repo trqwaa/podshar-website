@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { Link } from '@/i18n/routing';
 import { BodyPanel } from '@/components/gym/BodyPanel';
-import { ExerciseLibrary } from '@/components/gym/ExerciseLibrary';
+import { ExerciseLibrary, type RecordCard } from '@/components/gym/ExerciseLibrary';
 import { GymCrew } from '@/components/gym/GymCrew';
 import { GymHeader } from '@/components/gym/GymHeader';
 import { History } from '@/components/gym/History';
@@ -11,7 +11,7 @@ import { Workout } from '@/components/gym/Workout';
 import { TAB } from '@/components/gym/styles';
 import { dayKey } from '@/lib/calendar/scales';
 import { gymContext, weekdayNames } from '@/lib/gym/context';
-import { activeWorkout, bestLifts, goalsOf, gymProfile, gymWeek, measuresOf, planOf, previousSets, recentWorkouts, weekdayOf } from '@/lib/gym/data';
+import { activeWorkout, bestLifts, goalsOf, gymProfile, gymWeek, measuresOf, planOf, previousSets, recentWorkouts, recordsOf, weekdayOf, type RecordSet } from '@/lib/gym/data';
 import { pickLine } from '@/lib/gym/critic';
 import { exerciseOf } from '@/lib/gym/exercises';
 import { REST_SECONDS } from '@/lib/gym/norms';
@@ -159,7 +159,49 @@ export default async function TrainingPage({
       );
     }
   }
-  if (tab === 'library') body = <ExerciseLibrary />;
+  if (tab === 'library') {
+    const records = id ? await recordsOf(id) : [];
+    const kg = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+    const when = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Zurich' });
+    const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+    const unit = t('workout.kg');
+    const lift = (s: RecordSet) => (s.weight ? `${kg.format(s.weight)} × ${s.reps ?? 0}` : `× ${s.reps ?? 0}`);
+    const freshSince = Date.now() - 14 * 86_400_000;
+    const cards: RecordCard[] = records.map((r) => {
+      const lines: RecordCard['lines'] = [];
+      let main: string;
+      let badge: string;
+      if (r.kind === 'weight' && r.e1rm !== null) {
+        main = t('records.e1rm', { kg: kg.format(Math.round(r.e1rm * 2) / 2) });
+        badge = lift(r.best);
+        lines.push({ label: t('records.best'), value: lift(r.best) });
+        if (r.heaviest && r.heaviest !== r.best) lines.push({ label: t('records.heaviest'), value: lift(r.heaviest) });
+        if (r.volume) lines.push({ label: t('records.volume'), value: `${kg.format((r.volume.weight ?? 0) * (r.volume.reps ?? 0))} ${unit}` });
+      } else if (r.kind === 'time') {
+        main = clock(r.best.seconds ?? 0);
+        badge = main;
+      } else if (r.kind === 'cardio') {
+        main = r.best.distance ? `${kg.format(r.best.distance)} ${t('workout.km')}` : clock(r.best.seconds ?? 0);
+        badge = main;
+        if (r.best.distance && r.best.seconds) lines.push({ label: t('workout.time'), value: clock(r.best.seconds) });
+      } else {
+        main = t('records.reps', { n: r.best.reps ?? 0 });
+        badge = `× ${r.best.reps ?? 0}`;
+        if (r.heaviest?.weight) lines.push({ label: t('records.heaviest'), value: `+${kg.format(r.heaviest.weight)} × ${r.heaviest.reps ?? 0}` });
+      }
+      return {
+        exercise: r.exercise,
+        name: exerciseOf(r.exercise)?.name[locale] ?? r.exercise,
+        main,
+        lines,
+        when: when.format(r.best.at).toLowerCase(),
+        fresh: r.best.at >= freshSince,
+        sets: t('records.sets', { n: r.sets }),
+        badge
+      };
+    });
+    body = <ExerciseLibrary records={cards} />;
+  }
 
   return (
     <div className="grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4">

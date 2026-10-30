@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
-import { removeWorkout } from '@/lib/gym/actions';
+import { importStrong, removeWorkout } from '@/lib/gym/actions';
 import type { WorkoutView } from '@/lib/gym/data';
 import { countsVolume, exerciseOf, musclesOf, oneRepMax } from '@/lib/gym/exercises';
+import { CsvImport } from './CsvImport';
 import { ErrorLine, useGymAction } from './ui';
 
 const clock = (seconds: number) => {
@@ -26,7 +27,32 @@ export function History({ workouts, editable }: { workouts: WorkoutView[]; edita
   const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   const date = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'Europe/Zurich' });
 
-  if (workouts.length === 0) return <p className="text-sm text-ink-muted">{t('history.empty')}</p>;
+  // История из Strong — внизу своей истории: залил один раз, дальше записываешь здесь.
+  const strong = editable ? (
+    <CsvImport
+      action={importStrong}
+      title={t('strong.title')}
+      hint={t('strong.hint')}
+      button={t('strong.button')}
+      done={(r) =>
+        [
+          t('strong.done', { n: r.count ?? 0, sets: r.sets ?? 0 }),
+          r.skipped ? t('strong.skipped', { n: r.skipped }) : null,
+          r.unknown ? t('strong.unknown', { n: r.unknown }) : null
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      }
+    />
+  ) : null;
+
+  if (workouts.length === 0)
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-ink-muted">{t('history.empty')}</p>
+        {strong}
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-3">
@@ -108,6 +134,7 @@ export function History({ workouts, editable }: { workouts: WorkoutView[]; edita
           );
         })}
       </ul>
+      {strong}
     </div>
   );
 }

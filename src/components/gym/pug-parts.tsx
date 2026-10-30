@@ -53,9 +53,12 @@ export const C = {
   shorts: mix('ink', 82, 'surface'),
   shortsFar: mix('ink', 90, 'surface'),
   stripe: mix('ink', 40, 'surface'),
-  hoodie: mix('ink', 34, 'surface'),
-  hoodieFar: mix('ink', 46, 'surface'),
-  hoodieInner: mix('ink', 62, 'surface'),
+  /** Худи дня отдыха — тёмный, выношенный, как у Левроуна на фото: светло-серый капюшон вокруг морды читался платком. */
+  hoodie: mix('ink', 72, 'surface'),
+  hoodieFar: mix('ink', 82, 'surface'),
+  hoodieInner: mix('ink', 92, 'surface'),
+  /** Вытертое и складки на свету: потёртый трикотаж светлеет, а не темнеет. */
+  hoodieWorn: mix('ink', 56, 'surface'),
   iron: mix('deep', 90, 'surface'),
   ironEdge: mix('deep', 70, 'surface'),
   chrome: mix('ink', 30, 'surface'),

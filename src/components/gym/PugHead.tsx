@@ -114,11 +114,17 @@ const SKULL_FRONT = 'M0-38C25-38 41-24 42-4C43 14 35 28 21 33C12 36-12 36-21 33C
  */
 const EAR_R = 'M12-36C19-40.5 31-39.5 38-32C40-29.5 40-26.5 37.5-24C34.5-21 31-17.5 27.5-13.5C25.5-17 22-22 18.5-26.5C16-30 14-33 12-36Z';
 const EAR_L = 'M-12-36C-19-40.5-31-39.5-38-32C-40-29.5-40-26.5-37.5-24C-34.5-21-31-17.5-27.5-13.5C-25.5-17-22-22-18.5-26.5C-16-30-14-33-12-36Z';
-/** Капюшон анфас: тело с шовчиком на макушке, обод вокруг морды, подкладка в проёме. */
+/**
+ * Капюшон анфас: тонкий трикотаж, а не обод. Макушка чуть острится по шву,
+ * бока ложатся на плечи, кромка проёма узкая, а внутри — тень, из которой
+ * смотрит морда. Толстый светлый обод вплотную к морде читался платком.
+ */
 const HOOD_OUT =
-  'M0-58C7-56 13-54 20-52C40-45 53-26 53-2C53 22 46 40 34 52L26 56C14 54-14 54-26 56L-34 52C-46 40-53 22-53-2C-53-26-40-45-20-52C-13-54-7-56 0-58Z';
-const RIM_OUTER = 'M0-44C25-44 45-28 46-4C47 16 40 32 27 42C17 47-17 47-27 42C-40 32-47 16-46-4C-45-28-25-44 0-44Z';
-const RIM_INNER = 'M0-34C21-34 36-22 37-4C38 12 32 26 20 35C12 39-12 39-20 35C-32 26-38 12-37-4C-36-22-21-34 0-34Z';
+  'M0-58C6-57.5 12-56 18-53C38-46 49-28 49-3C49 19 44 36 36 48L30 54C16 51-16 51-30 54L-36 48C-44 36-49 19-49-3C-49-28-38-46-18-53C-12-56-6-57.5 0-58Z';
+const RIM_OUTER = 'M0-43C24-43 42-28 43-5C44 15 38 31 26 41C17 46-17 46-26 41C-38 31-44 15-43-5C-42-28-24-43 0-43Z';
+const RIM_INNER = 'M0-37C21.5-37 38.5-24 39.5-5C40.5 12 35 27 23 36C15 41-15 41-23 36C-35 27-40.5 12-39.5-5C-38.5-24-21.5-37 0-37Z';
+/** Глубина капюшона: тёмная полоса подкладки по краю проёма. */
+const RIM_DEPTH = 'M0-33C19-33 34-21.5 35-5C36 10 31 24 21 32C14 36-14 36-21 32C-31 24-36 10-35-5C-34-21.5-19-33 0-33Z';
 
 function EyeFront({ x, stern = false }: { x: number; stern?: boolean }) {
   // Глаз мопса — большой и тёмный, белок видно только во внешнем углу.
@@ -186,6 +192,7 @@ export function HeadFront({
   outline = false,
   back = false,
   stern = false,
+  brood = false,
   blinkClass
 }: {
   hood?: boolean;
@@ -193,8 +200,11 @@ export function HeadFront({
   back?: boolean;
   /** Морда тренера на аватаре: прищур, сведённые брови, рот вниз, шрам. */
   stern?: boolean;
+  /** Хмурая морда без шрама: день отдыха, не качается — и бесится. */
+  brood?: boolean;
   blinkClass?: string;
 }) {
+  const hard = stern || brood;
   if (outline) {
     return (
       <>
@@ -232,7 +242,24 @@ export function HeadFront({
       {hood ? (
         <>
           <path d={HOOD_OUT} fill={C.hoodie} />
-          <path d="M44-22Q49 0 44 26M-44-22Q-49 0-44 26" stroke={C.ink} strokeOpacity={0.14} strokeWidth={1.3} fill="none" />
+          {/* Бок от света — темнее, по верху — блик лампы. */}
+          <path d="M-49-3C-49-28-38-46-18-53C-30-43-38-28-40-7C-42 14-38 31-30 45L-36 48C-44 36-49 19-49-3Z" fill={C.hoodieFar} />
+          <path d="M18-53C30-48 40-40 45-28C38-36 30-42 18-47Z" fill={C.hoodieWorn} fillOpacity={0.55} />
+          <path d="M-20-52C-10-56.5 10-56.5 20-52" stroke={C.hoodieWorn} strokeWidth={2.2} fill="none" strokeLinecap="round" />
+          {/* Складки: ткань по бокам сползает к плечам и собирается у шеи. */}
+          <path d="M40-31Q47-12 44 13M-41-26Q-46-6-43 18M43 24Q39 36 31 45M-43 28Q-39 38-32 46" stroke={C.ink} strokeOpacity={0.4} strokeWidth={1.5} fill="none" strokeLinecap="round" />
+          <path d="M41.5-32Q48.5-13 45.5 12M44.5 23Q40.5 35 32.5 44" stroke={C.hoodieWorn} strokeOpacity={0.7} strokeWidth={1} fill="none" strokeLinecap="round" />
+          <path d="M-30 50Q-22 45-14 49M30 50Q22 45 14 49" stroke={C.ink} strokeOpacity={0.35} strokeWidth={1.3} fill="none" strokeLinecap="round" />
+          {/* Катышки и вытертое пятно — худи не новый. */}
+          <g fill={C.hoodieWorn} fillOpacity={0.8}>
+            <circle cx={33} cy={-30} r={0.9} />
+            <circle cx={36} cy={-23} r={0.7} />
+            <circle cx={-31} cy={-36} r={0.8} />
+            <circle cx={45} cy={5} r={0.8} />
+            <circle cx={-45} cy={2} r={0.7} />
+            <circle cx={-38} cy={33} r={0.8} />
+          </g>
+          <ellipse cx={42} cy={-12} rx={2.6} ry={6} fill={C.hoodieWorn} fillOpacity={0.35} transform="rotate(-12 42 -12)" />
           <path d={RIM_OUTER} fill={C.hoodieInner} />
         </>
       ) : null}
@@ -246,7 +273,7 @@ export function HeadFront({
             продольные складки над переносицей. */}
         <ellipse cx={0} cy={-27} rx={7} ry={4.8} fill={C.mask} fillOpacity={0.5} />
         <ellipse cx={0} cy={-26.4} rx={3.2} ry={2.2} fill={C.mask} fillOpacity={0.45} />
-        {stern ? (
+        {hard ? (
           // Нахмуренный лоб: складки стянуты к переносице, «11» между бровей глубже.
           <>
             <Fold d="M-24-25C-15-28-7-25-1-19M24-25C15-28 7-25 1-19" />
@@ -262,8 +289,8 @@ export function HeadFront({
         )}
         {/* Маска и глаза. */}
         <path d="M0 2C15 2 26 8 27 19C28 30 16 36 0 36C-16 36-28 30-27 19C-26 8-15 2 0 2Z" fill={C.mask} />
-        <EyeFront x={-16} stern={stern} />
-        <EyeFront x={16} stern={stern} />
+        <EyeFront x={-16} stern={hard} />
+        <EyeFront x={16} stern={hard} />
         {/* Складки под глазами. */}
         <path d="M-25 7Q-16 11-7 6M7 6Q16 11 25 7" stroke={C.skin} strokeOpacity={0.28} strokeWidth={1.4} fill="none" strokeLinecap="round" />
         <Part name="lidF">
@@ -272,7 +299,7 @@ export function HeadFront({
         <Part name="blinkF" opacity={0} className={blinkClass} style={blinkClass ? { transformBox: 'fill-box', transformOrigin: 'center top' } : undefined}>
           <path d="M-25.5-4C-25.5-15.5-6.5-15.5-6.5-4C-6.5 6-25.5 6-25.5-4ZM6.5-4C6.5-15.5 25.5-15.5 25.5-4C25.5 6 6.5 6 6.5-4Z" fill={C.mask} />
         </Part>
-        {stern ? (
+        {hard ? (
           <SternBrow />
         ) : (
           <Part name="browF">
@@ -289,7 +316,7 @@ export function HeadFront({
         <path d="M-5.4 11.2Q-3.2 13-5.2 15.2M5.4 11.2Q3.2 13 5.2 15.2" stroke={C.mask} strokeWidth={1.4} fill="none" strokeLinecap="round" />
         <path d="M-2.6 9.6Q0 8.8 2.6 9.6" stroke={C.white} strokeOpacity={0.25} strokeWidth={1} fill="none" strokeLinecap="round" />
         <path
-          d={stern ? 'M0 18.6V22.4M-14.5 28.4Q-8 22.4 0 22.8Q8 22.4 14.5 28.4' : 'M0 18.6V22.4M-14 23.4Q-7 28.6 0 22.4Q7 28.6 14 23.4'}
+          d={hard ? 'M0 18.6V22.4M-14.5 28.4Q-8 22.4 0 22.8Q8 22.4 14.5 28.4' : 'M0 18.6V22.4M-14 23.4Q-7 28.6 0 22.4Q7 28.6 14 23.4'}
           stroke={C.skin}
           strokeOpacity={0.5}
           strokeWidth={2}
@@ -305,14 +332,19 @@ export function HeadFront({
       </Part>
       {hood ? (
         <>
-          {/* Тень от козырька на лоб и глаза — взгляд из-под капюшона. */}
-          <ellipse cx={0} cy={-24} rx={38} ry={17} fill={C.ink} fillOpacity={0.24} />
+          {/* Тень от козырька: лоб и верх глаз — в темноте, взгляд из-под неё. */}
+          <ellipse cx={0} cy={-17} rx={37} ry={15} fill={C.ink} fillOpacity={0.2} />
+          <path d="M-39.5-5C-38.5-24-21.5-37 0-37C21.5-37 38.5-24 39.5-5C30-15 16-20 0-20C-16-20-30-15-39.5-5Z" fill={C.ink} fillOpacity={0.42} />
+          {/* Подкладка по краю проёма — глубина капюшона, а не обод. */}
+          <path d={`${RIM_INNER}${RIM_DEPTH}`} fill={C.hoodieInner} fillOpacity={0.85} fillRule="evenodd" />
           <path d={`${RIM_OUTER}${RIM_INNER}`} fill={C.hoodie} fillRule="evenodd" />
-          <path d={RIM_INNER} fill="none" stroke={C.ink} strokeOpacity={0.35} strokeWidth={1.2} />
-          <path d="M-38-14C-34-30-20-40 0-41C20-40 34-30 38-14" stroke={C.white} strokeOpacity={0.18} strokeWidth={1.6} fill="none" />
-          <path d="M0-58V-44" stroke={C.ink} strokeOpacity={0.25} strokeWidth={1.2} />
-          <circle cx={-10} cy={40} r={1.6} fill={C.ink} fillOpacity={0.5} />
-          <circle cx={10} cy={40} r={1.6} fill={C.ink} fillOpacity={0.5} />
+          <path d={RIM_INNER} fill="none" stroke={C.ink} strokeOpacity={0.55} strokeWidth={1.2} />
+          {/* Кромка на свету и вытертая до нитки на козырьке. */}
+          <path d="M-36-17C-31-31-18-40 0-40.5C18-40 31-31 36-17" stroke={C.hoodieWorn} strokeWidth={1.6} fill="none" strokeLinecap="round" />
+          <path d="M-6-40.6L-4-38.8M3-40.6L5-38.6M11-39.8L12.6-38" stroke={C.hoodieWorn} strokeWidth={0.8} strokeLinecap="round" />
+          <path d="M0-58V-43" stroke={C.ink} strokeOpacity={0.45} strokeWidth={1.2} />
+          <circle cx={-10} cy={40} r={1.6} fill={C.ink} fillOpacity={0.6} />
+          <circle cx={10} cy={40} r={1.6} fill={C.ink} fillOpacity={0.6} />
         </>
       ) : (
         <>
