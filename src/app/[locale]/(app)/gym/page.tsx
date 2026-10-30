@@ -15,13 +15,15 @@ import { SHOWCASES, musclesOf, showcaseFor, type Showcase } from '@/lib/gym/exer
 import { fridgeGroupOf, type FridgeGroup } from '@/lib/gym/foods';
 import { DEFAULTS, targetsFor } from '@/lib/gym/norms';
 import { resolveLocale } from '@/lib/locale';
-import { moodAt } from '@/lib/sun';
+import { moodAt, type Mood } from '@/lib/sun';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = resolveLocale((await params).locale);
   const t = await getTranslations({ locale, namespace: 'gym' });
   return { title: t('title') };
 }
+
+const MOODS: readonly Mood[] = ['day', 'dusk', 'night', 'blood'];
 
 /** Зал славы слева направо: Ронни — первое место, Левроун — второе. */
 const LEGENDS: Legend[] = ['ronnie', 'levrone', 'arnold', 'dorian', 'vlasov', 'alekseyev', 'kirpach'];
@@ -44,15 +46,18 @@ export default async function GymPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ who?: string; ribbon?: string }>;
+  searchParams: Promise<{ who?: string; ribbon?: string; mood?: string }>;
 }) {
   const locale = resolveLocale((await params).locale);
-  const { who, ribbon } = await searchParams;
+  const { who, ribbon, mood: asked } = await searchParams;
   const t = await getTranslations({ locale, namespace: 'gym' });
   const { session, members, member, mine } = await gymContext(who);
 
   const now = new Date();
   const today = dayKey(now);
+  // В разработке небо задаётся адресом (`?mood=blood`): кровавую луну иначе
+  // ждать до двух ночи. На проде — только настоящее небо.
+  const mood: Mood = process.env.NODE_ENV === 'development' && MOODS.includes(asked as Mood) ? (asked as Mood) : moodAt(now.getTime());
   const seed = sharedDayIndex(now);
   const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
   const score = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
@@ -93,17 +98,21 @@ export default async function GymPage({
       ? 'rest'
       : SHOWCASES[((seed % 3) + 3) % 3];
   const doneToday = digest.workouts.some((w) => w.finishedAt !== null && dayKey(new Date(w.finishedAt)) === today);
-  const speechKey = doneToday
-    ? 'sceneDone'
-    : showcase === 'rest'
-      ? 'sceneRest'
-      : !hasPlan
-        ? 'sceneNoPlan'
-        : showcase === 'bench'
-          ? 'sceneBench'
-          : showcase === 'row'
-            ? 'sceneRow'
-            : 'sceneSquat';
+  // Под кровавой луной мопсу не до плана: в этот час в зал заходят те, кому не спится.
+  const speechKey =
+    mood === 'blood'
+      ? 'sceneBlood'
+      : doneToday
+        ? 'sceneDone'
+        : showcase === 'rest'
+          ? 'sceneRest'
+          : !hasPlan
+            ? 'sceneNoPlan'
+            : showcase === 'bench'
+              ? 'sceneBench'
+              : showcase === 'row'
+                ? 'sceneRow'
+                : 'sceneSquat';
 
   // ── Доска: семь дней с понедельника ──
   const titleOf = (day: PlanDayView | undefined) => {
@@ -171,7 +180,7 @@ export default async function GymPage({
 
       <section className="block-card animate-rise-in overflow-hidden p-2 [animation-delay:60ms] sm:p-3">
         <GymScene
-          mood={moodAt(now.getTime())}
+          mood={mood}
           showcase={showcase}
           board={board}
           goal={t('goalOn', { goal: t(`goals.${dossier.goal}`) })}

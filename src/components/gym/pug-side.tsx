@@ -20,9 +20,9 @@ export type Live = {
   t: number;
   breath: number;
   blink: boolean;
-  /** 0–1: где капля пота на пути со лба. */
+  /** 0–1: где капля пота на пути с виска. */
   sweat: number;
-  /** Видна ли капля: проявляется на лбу и тает внизу, а не возникает. */
+  /** Видна ли капля: проявляется на виске и тает внизу, а не возникает. */
   sweatOpacity: number;
   /** 0–1: выдох после повтора, нарастает и тает. */
   puff: number;
@@ -88,7 +88,9 @@ export function sideFrame(r: Solved, load: Load, live: Live): Frame {
   put('tongue', 'opacity', n2(live.tongue));
   put('ear', 'transform', `rotate(${n2(-6 * effort + 4 * Math.sin(live.t * 2.1))} 6 -48)`);
   put('sweat', 'opacity', n2(live.sweatOpacity));
-  put('sweat', 'transform', `translate(${n2(14 + live.sweat * 6)} ${n2(-50 + live.sweat * 32)})`);
+  // Капля — с виска по щеке, позади глаза: путь мимо самого глаза читался
+  // слезой, а мопс на подходе не плачет.
+  put('sweat', 'transform', `translate(${n2(9 + live.sweat * 1.5)} ${n2(-36 + live.sweat * 27)})`);
   put('puff', 'opacity', n2(Math.max(0, live.puff)));
   put('puff', 'transform', `translate(${n2(40 + (1 - live.puff) * 12)} ${n2(-16 - (1 - live.puff) * 6)}) scale(${n2(0.6 + (1 - live.puff) * 0.8)})`);
 

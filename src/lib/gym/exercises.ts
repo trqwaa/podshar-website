@@ -473,8 +473,12 @@ export function musclesOf(ids: string[], limit = 2): Muscle[] {
     const m = BY_ID.get(id)?.muscle;
     if (m) count.set(m, (count.get(m) ?? 0) + 1);
   }
+  // При равенстве — в порядке дня (сортировка устойчивая, а `Map` помнит
+  // порядок): первым идёт то, с чего день начинается, как и у упражнения дня
+  // в подвале. По общему списку мышц день «присед, жим, тяга» назывался
+  // «грудь · спина», а мопс в подвале в этот день приседал.
   return [...count.entries()]
-    .sort((a, b) => b[1] - a[1] || MUSCLES.indexOf(a[0]) - MUSCLES.indexOf(b[0]))
+    .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([m]) => m);
 }

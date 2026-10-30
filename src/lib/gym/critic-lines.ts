@@ -305,6 +305,20 @@ export const LINES = {
     uk: ['сьогоднішнє тренування зроблене. можеш пишатися, але мовчки'],
     de: ['das heutige training ist erledigt. sei stolz, aber leise']
   },
+  /**
+   * С двух до четырёх ночи, под кровавой луной: кто в это время в зале, тому не
+   * спится. Не длиннее двух строк на телефоне — третья ложится на доску.
+   */
+  sceneBlood: {
+    ru: [
+      'кровавая луна. все спят, а ты пялишься на штангу',
+      'ночь, луна красная, а ты в подвале. сон — тоже подход, иди делай',
+      'луна красная, час поздний. план никуда не денется, а сон денется'
+    ],
+    en: ['blood moon. everyone’s asleep and you’re staring at a barbell', 'night, a red moon, and you’re in the basement. sleep is a set too'],
+    uk: ['кривавий місяць. усі сплять, а ти витріщаєшся на штангу', 'ніч, місяць червоний, а ти в підвалі. сон — теж підхід, іди роби'],
+    de: ['blutmond. alle schlafen, und du starrst die stange an', 'nacht, roter mond, und du im keller. schlaf ist auch ein satz']
+  },
   /** Первый заход в зал: мопс режет ленточку и объявляет зал открытым. */
   opening: {
     ru: [

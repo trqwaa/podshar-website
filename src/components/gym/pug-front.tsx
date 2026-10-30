@@ -319,7 +319,8 @@ export function frontFrame(r: Solved, load: Load, live: Live, z: Widths, plan: F
   put('earL', 'transform', `rotate(${n2(-4 * effort + 3 * Math.sin(live.t * 2.1))} 20 -34)`);
   put('earR', 'transform', `rotate(${n2(4 * effort - 3 * Math.sin(live.t * 2.1 + 0.6))} -20 -34)`);
   put('sweatF', 'opacity', n2(live.sweatOpacity));
-  put('sweatF', 'transform', `translate(${n2(28 - live.sweat * 4)} ${n2(-20 + live.sweat * 30)})`);
+  // Спереди — по краю щеки под ухом, а не у внешнего угла глаза: там она слеза.
+  put('sweatF', 'transform', `translate(${n2(37 - live.sweat * 2)} ${n2(-12 + live.sweat * 28)})`);
   put('strings', 'transform', `translate(${n2(hc[0])} ${n2(hc[1] + 2)}) scale(${HEAD})`);
 
   // ── Снаряды ──

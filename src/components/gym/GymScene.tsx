@@ -22,6 +22,8 @@ import { PugRig } from './PugRig';
  * настоящему закату над Цюрихом (`lib/sun.ts`, настроение считает сервер, так
  * что первый HTML уже нужного цвета), а погода в окне — настоящая цюрихская и
  * приходит после отрисовки (`/api/gym/sky`): тучи, дождь, снег, туман, гроза.
+ * С двух до четырёх ночи в окне кровавая луна, как над айсбергом: небо
+ * красное, у луны зарево, на стене у окна и на полу — красный свет от неё.
  * Объём — заливками: блоки бетона разной светлоты, пол в перспективе, конус
  * света от лампочки, зерно поверх, — теней нет, как везде на сайте.
  *
@@ -55,9 +57,12 @@ type Sky = { condition: Condition; wind: number | null };
 type Look = ReturnType<typeof skyLook>;
 
 const WALL: Record<Mood, number> = { day: 22, dusk: 40, night: 62, blood: 64 };
-const LIGHT: Record<Mood, number> = { day: 0.14, dusk: 0.24, night: 0.42, blood: 0.34 };
-/** Луч из окна: днём заметный, на закате тусклый, ночью его нет. */
-const BEAM: Record<Mood, number> = { day: 0.14, dusk: 0.08, night: 0, blood: 0 };
+/** Лампочка: ночью светит сильнее всего, а под кровавой луной тусклее — иначе красный свет из окна тонет в её пятне. */
+const LIGHT: Record<Mood, number> = { day: 0.14, dusk: 0.24, night: 0.42, blood: 0.2 };
+/** Луч из окна: днём заметный, на закате тусклый, ночью его нет, а с двух до четырёх он красный — от кровавой луны. */
+const BEAM: Record<Mood, number> = { day: 0.14, dusk: 0.08, night: 0, blood: 0.3 };
+/** Кровавая луна в окне: между переплётами, чтобы рама её не резала. */
+const MOON: [number, number] = [213, 57];
 const PLATES: Record<Showcase, number> = { bench: 200, row: 100, squat: 180 };
 
 
@@ -154,7 +159,9 @@ const TALL: Layout = {
     board: put(0.77, [652, 50], [14, 352]),
     rack: put(0.72, [236, 452], [536, 684]),
     tree: null,
-    cross: put(0.62, [296, 446], [156, 680]),
+    // Перекладина — вровень с низом последней строки доски: рама заходит на
+    // полочку с мелом и угол доски, а план над ней читается целиком.
+    cross: put(0.515, [296, 446], [175.2, 680]),
     dbs: put(0.8, [596, 450], [300, 778]),
     boombox: put(1, [330, 456], [306, 812]),
     fridge: put(0.82, [792, 452], [6, 684]),
@@ -201,6 +208,7 @@ function blocksOf(w: number, floor: number) {
 
 const pct = (v: number, of: number) => `${((v / of) * 100).toFixed(2)}%`;
 
+const INK = 'rgb(var(--ink))';
 const IRON = 'color-mix(in oklab, rgb(var(--deep)) 90%, rgb(var(--surface)))';
 const IRON_EDGE = 'color-mix(in oklab, rgb(var(--deep)) 70%, rgb(var(--surface)))';
 const RUST = 'color-mix(in oklab, rgb(var(--ink)) 72%, rgb(var(--amber)))';
@@ -666,6 +674,8 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
   const blocks = useMemo(() => blocksOf(w, floor), [w, floor]);
 
   const wall = `color-mix(in oklab, rgb(var(--ink)) ${WALL[mood]}%, rgb(var(--sunk)))`;
+  /** Цвет вполовину утонувший в стене — то же, что полупрозрачность, но непрозрачный: в sRGB смешение и есть наложение. */
+  const shade = (c: string) => `color-mix(in srgb, ${c} 50%, ${wall})`;
   const wallLine = dark ? 'rgb(var(--surface) / 0.07)' : 'rgb(var(--ink) / 0.09)';
   const floorFill = `color-mix(in oklab, rgb(var(--ink)) ${Math.min(90, WALL[mood] + 46)}%, rgb(var(--sunk)))`;
   const sky0 =
@@ -674,11 +684,17 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
       : mood === 'dusk'
         ? ['color-mix(in oklab, rgb(var(--deep)) 70%, rgb(var(--water)))', 'color-mix(in oklab, rgb(var(--halo)) 60%, rgb(var(--water)))']
         : mood === 'blood'
-          ? ['rgb(var(--deep))', 'color-mix(in oklab, rgb(var(--blood)) 45%, rgb(var(--deep)))']
+          ? ['color-mix(in oklab, rgb(var(--blood)) 22%, rgb(var(--deep)))', 'color-mix(in oklab, rgb(var(--blood)) 45%, rgb(var(--deep)))']
           : ['rgb(var(--deep))', 'color-mix(in oklab, rgb(var(--deep)) 80%, rgb(var(--water)))'];
+  const blood = mood === 'blood';
   const cloud = dark
-    ? 'color-mix(in oklab, rgb(var(--deep)) 62%, rgb(var(--water)))'
+    ? `color-mix(in oklab, rgb(var(--blood)) ${blood ? 22 : 0}%, color-mix(in oklab, rgb(var(--deep)) 62%, rgb(var(--water))))`
     : `color-mix(in oklab, rgb(var(--surface)) ${Math.round(100 - look.overcast * 40)}%, rgb(var(--ink)))`;
+  // Кровавая луна светит и сквозь тучи, только тусклее, — как над айсбергом:
+  // в пасмурную ночь её иначе не было бы вовсе. Солнце за тучами луча не даёт.
+  const moonlit = blood ? 1 - 0.6 * look.overcast : 0;
+  const beam = blood ? BEAM.blood * moonlit : look.overcast < 0.7 ? BEAM[mood] : 0;
+  const [mx, my] = move(L.place.window, 160, 66);
   const fall = dark ? 'rgb(var(--surface) / 0.55)' : 'rgb(var(--ink) / 0.35)';
   const tilt = (-look.wind * 22).toFixed(1);
   const onStool = s.food.slice(0, 2);
@@ -797,9 +813,29 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
             <stop offset="1" style={{ stopColor: 'rgb(var(--halo))', stopOpacity: 0 }} />
           </linearGradient>
           <linearGradient id={`${id}-beam`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style={{ stopColor: 'rgb(var(--halo))', stopOpacity: BEAM[mood] }} />
-            <stop offset="1" style={{ stopColor: 'rgb(var(--halo))', stopOpacity: 0 }} />
+            <stop offset="0" style={{ stopColor: blood ? 'rgb(var(--blood))' : 'rgb(var(--halo))', stopOpacity: beam }} />
+            <stop offset="1" style={{ stopColor: blood ? 'rgb(var(--blood))' : 'rgb(var(--halo))', stopOpacity: 0 }} />
           </linearGradient>
+          {blood ? (
+            <>
+              {/* Луна — как над айсбергом: светлее сверху-слева, тёмный край снизу, зарево вокруг. */}
+              <radialGradient id={`${id}-moon`} cx="0.38" cy="0.34" r="0.9">
+                <stop offset="0" style={{ stopColor: 'color-mix(in oklab, rgb(var(--blood)) 70%, rgb(var(--halo)))' }} />
+                <stop offset="0.55" style={{ stopColor: 'rgb(var(--blood))' }} />
+                <stop offset="1" style={{ stopColor: 'color-mix(in oklab, rgb(var(--blood)) 55%, rgb(var(--deep)))' }} />
+              </radialGradient>
+              <radialGradient id={`${id}-glow`}>
+                <stop offset="0" style={{ stopColor: 'rgb(var(--blood))', stopOpacity: 0.5 }} />
+                <stop offset="1" style={{ stopColor: 'rgb(var(--blood))', stopOpacity: 0 }} />
+              </radialGradient>
+              {/* Свет из окна на стену вокруг него: светом, а не слоем поверх подвала. */}
+              <radialGradient id={`${id}-spill`} gradientUnits="userSpaceOnUse" cx={mx} cy={my} r={280}>
+                <stop offset="0" style={{ stopColor: 'rgb(var(--blood))', stopOpacity: 0.3 * moonlit }} />
+                <stop offset="0.45" style={{ stopColor: 'rgb(var(--blood))', stopOpacity: 0.1 * moonlit }} />
+                <stop offset="1" style={{ stopColor: 'rgb(var(--blood))', stopOpacity: 0 }} />
+              </radialGradient>
+            </>
+          ) : null}
           {/* Стена темнее у потолка и у пола: свет лампочки до них не добивает. */}
           <linearGradient id={`${id}-wall`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: 'rgb(var(--ink))', stopOpacity: 0.22 }} />
@@ -848,6 +884,7 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
             <path d={`M${L.drip} 30C${L.drip - 2} 60 ${L.drip + 4} 90 ${L.drip} 120`} className="stroke-ink/10" strokeWidth={6} strokeLinecap="round" fill="none" />
           </>
         ) : null}
+        {blood ? <rect width={w} height={floor} fill={`url(#${id}-spill)`} pointerEvents="none" /> : null}
 
         {/* Трубы под потолком: блик сверху, хомуты, вентиль. */}
         <g>
@@ -861,119 +898,6 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
           <path d={`M${L.valve - 9} 9H${L.valve + 9}M${L.valve} 0V18`} className="stroke-loss/80" strokeWidth={2} />
         </g>
 
-        {/* Окошко у самой земли: небо и погода — цюрихские, сейчас. */}
-        {at(
-          'window',
-          <g className="gs-window">
-            <rect x={66} y={26} width={188} height={82} rx={5} style={{ fill: 'color-mix(in oklab, rgb(var(--ink)) 70%, rgb(var(--sunk)))' }} />
-            <rect x={74} y={34} width={172} height={66} rx={3} fill={`url(#${id}-sky)`} />
-            <g clipPath={`url(#${id}-window)`}>
-              {dark && look.overcast < 0.5
-                ? [
-                    [96, 48],
-                    [130, 42],
-                    [176, 54],
-                    [214, 44],
-                    [228, 62],
-                    [150, 66]
-                  ].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={1.3} className="fill-surface" opacity={mood === 'dusk' ? 0.35 : 0.8} />)
-                : null}
-              {look.overcast < 0.7 ? (
-                <g opacity={1 - look.overcast}>
-                  {mood === 'blood' ? <circle cx={206} cy={54} r={11} style={{ fill: 'color-mix(in oklab, rgb(var(--blood)) 75%, rgb(var(--halo)))' }} /> : null}
-                  {mood === 'night' ? <circle cx={206} cy={52} r={9} className="fill-surface" opacity={0.85} /> : null}
-                  {mood === 'day' ? <circle cx={214} cy={48} r={14} className="fill-halo" opacity={0.9} /> : null}
-                </g>
-              ) : null}
-              {/* Тучи: чем пасмурнее, тем их больше и тем они серее. */}
-              {look.overcast > 0 ? (
-                <g className={still ? undefined : 'gs-drift'} style={{ fill: cloud }} opacity={0.5 + look.overcast * 0.5}>
-                  {look.overcast > 0.6 ? <rect x={60} y={30} width={200} height={40} opacity={look.overcast - 0.4} /> : null}
-                  {[
-                    [104, 50, 1],
-                    [178, 44, 1.2],
-                    [236, 56, 0.9],
-                    [140, 64, 0.8],
-                    [90, 40, 0.7]
-                  ]
-                    .slice(0, look.overcast > 0.6 ? 5 : 3)
-                    .map(([cx, cy, k], i) => (
-                      <g key={i} transform={`translate(${cx} ${cy}) scale(${k})`}>
-                        <ellipse rx={17} ry={7} />
-                        <ellipse cx={-10} cy={2} rx={10} ry={6} />
-                        <ellipse cx={11} cy={2} rx={11} ry={6} />
-                        <ellipse cx={2} cy={-5} rx={10} ry={7} />
-                      </g>
-                    ))}
-                </g>
-              ) : null}
-              {look.storm ? (
-                <g className={still ? undefined : 'gs-flash'}>
-                  <rect x={74} y={34} width={172} height={66} className="fill-surface" opacity={0.7} />
-                  <path d="M170 34L160 54H168L156 76" fill="none" className="stroke-halo" strokeWidth={2.4} strokeLinejoin="round" />
-                </g>
-              ) : null}
-              {/* Трава на уровне земли: окно в подвале — у самой земли. */}
-              <path
-                d="M74 100L80 88L84 100L90 84L95 100L101 90L106 100L113 86L118 100L126 90L131 100L139 84L144 100L152 92L157 100L165 86L170 100L178 90L184 100L191 84L197 100L204 91L210 100L217 86L222 100L230 90L236 100L242 86L246 100Z"
-                style={{
-                  fill:
-                    look.fall === 'snow'
-                      ? 'color-mix(in oklab, rgb(var(--surface)) 80%, rgb(var(--water)))'
-                      : dark
-                        ? 'color-mix(in oklab, rgb(var(--win)) 35%, rgb(var(--deep)))'
-                        : 'color-mix(in oklab, rgb(var(--win)) 70%, rgb(var(--surface)))'
-                }}
-              />
-              {/* Дождь и снег: две копии раскладки друг над другом — цикл без шва. */}
-              {look.fall !== 'none' && look.fall !== 'snow' ? (
-                <g transform={`skewX(${tilt})`} style={{ transformOrigin: '160px 100px' }}>
-                  <g className={still ? undefined : 'gs-rain'} style={{ animationDuration: look.fall === 'drizzle' ? '0.9s' : look.fall === 'pour' ? '0.4s' : undefined }}>
-                    {[0, 66].map((dy) =>
-                      DROPS.slice(0, look.fall === 'drizzle' ? 14 : look.fall === 'pour' ? 34 : 24).map((d, i) => (
-                        <line key={`${dy}:${i}`} x1={d.x} y1={d.y + dy} x2={d.x} y2={d.y + dy + (look.fall === 'drizzle' ? 4 : 8)} style={{ stroke: fall }} strokeWidth={1} strokeLinecap="round" />
-                      ))
-                    )}
-                  </g>
-                </g>
-              ) : null}
-              {look.fall === 'snow' ? (
-                <g className={still ? undefined : 'gs-snow'}>
-                  {[0, 66].map((dy) => FLAKES.map((f, i) => <circle key={`${dy}:${i}`} cx={f.x} cy={f.y + dy} r={f.r} className={dark ? 'fill-surface/80' : 'fill-surface'} />))}
-                </g>
-              ) : null}
-              {/* Кот: проходит по траве, если засмотреться на окно. */}
-              <g className="gs-cat" style={{ fill: 'color-mix(in oklab, rgb(var(--ink)) 85%, rgb(var(--sunk)))' }}>
-                <ellipse cx={20} cy={91} rx={11} ry={5} />
-                <circle cx={32} cy={86} r={4.4} />
-                <path d="M29 83L30 78L33 82ZM33 82L36 78L36.5 83Z" />
-                <path d="M10 90C4 88 3 82 6 78" fill="none" style={{ stroke: 'color-mix(in oklab, rgb(var(--ink)) 85%, rgb(var(--sunk)))' }} strokeWidth={2.4} strokeLinecap="round" />
-                <rect x={12} y={94} width={2.4} height={6} />
-                <rect x={26} y={94} width={2.4} height={6} />
-              </g>
-              {look.fog ? (
-                <>
-                  <rect x={74} y={34} width={172} height={66} style={{ fill: dark ? 'rgb(var(--water) / 0.32)' : 'rgb(var(--surface) / 0.62)' }} />
-                  <ellipse cx={130} cy={88} rx={70} ry={14} style={{ fill: dark ? 'rgb(var(--water) / 0.25)' : 'rgb(var(--surface) / 0.5)' }} />
-                </>
-              ) : null}
-            </g>
-            <g style={{ fill: 'color-mix(in oklab, rgb(var(--ink)) 70%, rgb(var(--sunk)))' }}>
-              {[112, 152, 192, 230].map((x) => (
-                <rect key={x} x={x} y={34} width={4} height={66} />
-              ))}
-            </g>
-            {/* Стекло: блик. Наведение ловит весь проём. */}
-            <path d="M78 98L100 36H108L86 98Z" className="fill-surface/10" />
-            <rect x={66} y={26} width={188} height={82} fill="transparent" />
-          </g>
-        )}
-
-        {/* Зал славы: мопсы-легенды. Ронни — первый, Левроун — второй. */}
-        {s.legends.map((l, i) => (
-          <Portrait key={l.id} who={l.id} {...(L.hall[i] ?? L.hall[L.hall.length - 1])} s={L.hallScale} title={l.title} name={l.name} onPick={() => s.onLegend(l.id)} />
-        ))}
-
         {/* Лозунг краской по бетону, над стойкой. */}
         {at(
           'slogan',
@@ -983,25 +907,31 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
         )}
         {L.clock ? <Clock x={L.clock[0]} y={L.clock[1]} /> : null}
 
-        {/* Кроссовер у дальней стены — за мопсом, в полутени. */}
+        {at('board', <Board board={s.board} goal={s.goal} />)}
+
+        {/* Кроссовер у дальней стены — за мопсом, но перед доской: доска висит
+            на стене, а рама стоит перед стеной. На телефоне рама заходит на
+            нижний угол доски — под строками плана, а не поверх них. Полутень —
+            цветом, заранее смешанным со стеной, а не прозрачностью: сквозь
+            полупрозрачную раму доска просвечивала бы. */}
         {at(
           'cross',
-          <g opacity={0.5} style={{ fill: STEEL }}>
+          <g style={{ fill: shade(STEEL) }}>
             <rect x={318} y={150} width={12} height={298} />
             <rect x={630} y={150} width={12} height={298} />
             <rect x={312} y={144} width={336} height={10} rx={3} />
-            <rect x={296} y={372} width={22} height={74} rx={2} style={{ fill: IRON }} />
-            <rect x={642} y={372} width={22} height={74} rx={2} style={{ fill: IRON }} />
-            <circle cx={340} cy={166} r={6} className="fill-ink" />
-            <circle cx={620} cy={166} r={6} className="fill-ink" />
-            <line x1={340} y1={166} x2={346} y2={300} className="stroke-ink" strokeWidth={1.5} />
-            <line x1={620} y1={166} x2={614} y2={300} className="stroke-ink" strokeWidth={1.5} />
-            <rect x={341} y={298} width={10} height={14} rx={3} className="fill-ink" />
-            <rect x={609} y={298} width={10} height={14} rx={3} className="fill-ink" />
+            <rect x={296} y={372} width={22} height={74} rx={2} style={{ fill: shade(IRON) }} />
+            <rect x={642} y={372} width={22} height={74} rx={2} style={{ fill: shade(IRON) }} />
+            <g style={{ fill: shade(INK), stroke: shade(INK) }}>
+              <circle cx={340} cy={166} r={6} stroke="none" />
+              <circle cx={620} cy={166} r={6} stroke="none" />
+              <line x1={340} y1={166} x2={346} y2={300} strokeWidth={1.5} />
+              <line x1={620} y1={166} x2={614} y2={300} strokeWidth={1.5} />
+              <rect x={341} y={298} width={10} height={14} rx={3} stroke="none" />
+              <rect x={609} y={298} width={10} height={14} rx={3} stroke="none" />
+            </g>
           </g>
         )}
-
-        {at('board', <Board board={s.board} goal={s.goal} />)}
 
         {/* Пол — старое резиновое покрытие плитами, швы сходятся к точке за мопсом. */}
         <rect y={floor} width={w} height={h - floor} style={{ fill: floorFill }} />
@@ -1015,8 +945,8 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
         </g>
         <rect y={floor} width={w} height={h - floor} fill={`url(#${id}-floor)`} />
 
-        {/* Луч из окна на пол — днём и когда не затянуто. */}
-        {BEAM[mood] && look.overcast < 0.7 ? <path d={L.beam} fill={`url(#${id}-beam)`} pointerEvents="none" /> : null}
+        {/* Луч из окна на пол — днём, когда не затянуто, и красный — от кровавой луны. */}
+        {beam ? <path d={L.beam} fill={`url(#${id}-beam)`} pointerEvents="none" /> : null}
 
         {/* Стойка со штангой — тренировка. Ржавая, с лямками и поясом, рядом мел. */}
         {at(
@@ -1224,20 +1154,146 @@ function Basement({ L, ...s }: Shared & { L: Layout }) {
         )}
 
         {/* Свет: пятно от лампочки, углы темнее, пыль в свету. Мышь свет не ловит:
-            слои во всю сцену лежат поверх портретов, окна и гантелей и съедали бы
-            их наведение. */}
+            слои во всю сцену лежат поверх предметов и съедали бы их наведение. */}
         <rect width={w} height={h} fill={`url(#${id}-light)`} className={still ? undefined : 'animate-gym-flicker'} pointerEvents="none" />
+
+        {/* Окошко у самой земли: небо и погода — цюрихские, сейчас. Окно и
+            портреты — поверх света лампы: ночью он ложился на них молочной
+            пеленой, небо в окне светлело, а имена легенд у самой лампы было не
+            прочесть. Окно светит само, снимки — под стеклом. */}
+        {at(
+          'window',
+          <g className="gs-window">
+            <rect x={66} y={26} width={188} height={82} rx={5} style={{ fill: 'color-mix(in oklab, rgb(var(--ink)) 70%, rgb(var(--sunk)))' }} />
+            <rect x={74} y={34} width={172} height={66} rx={3} fill={`url(#${id}-sky)`} />
+            <g clipPath={`url(#${id}-window)`}>
+              {/* Звёзды; у кровавой луны они тусклее, а рядом с ней их не видно. */}
+              {dark && look.overcast < 0.5
+                ? [
+                    [96, 48],
+                    [130, 42],
+                    [176, 54],
+                    [214, 44],
+                    [228, 62],
+                    [150, 66]
+                  ]
+                    .filter(([x]) => !blood || x < MOON[0] - 30)
+                    .map(([x, y], i) => <circle key={i} cx={x} cy={y} r={1.3} className="fill-surface" opacity={mood === 'dusk' ? 0.35 : blood ? 0.45 : 0.8} />)
+                : null}
+              {blood ? (
+                <g opacity={0.5 + 0.5 * (1 - look.overcast)}>
+                  <circle cx={MOON[0]} cy={MOON[1]} r={36} fill={`url(#${id}-glow)`} />
+                  <circle cx={MOON[0]} cy={MOON[1]} r={12} fill={`url(#${id}-moon)`} />
+                </g>
+              ) : look.overcast < 0.7 ? (
+                <g opacity={1 - look.overcast}>
+                  {mood === 'night' ? <circle cx={206} cy={52} r={9} className="fill-surface" opacity={0.85} /> : null}
+                  {mood === 'day' ? <circle cx={214} cy={48} r={14} className="fill-halo" opacity={0.9} /> : null}
+                </g>
+              ) : null}
+              {/* Тучи: чем пасмурнее, тем их больше и тем они серее. */}
+              {look.overcast > 0 ? (
+                <g className={still ? undefined : 'gs-drift'} style={{ fill: cloud }} opacity={0.5 + look.overcast * 0.5}>
+                  {look.overcast > 0.6 ? <rect x={60} y={30} width={200} height={40} opacity={look.overcast - 0.4} /> : null}
+                  {[
+                    [104, 50, 1],
+                    [178, 44, 1.2],
+                    [236, 56, 0.9],
+                    [140, 64, 0.8],
+                    [90, 40, 0.7]
+                  ]
+                    .slice(0, look.overcast > 0.6 ? 5 : 3)
+                    .map(([cx, cy, k], i) => (
+                      <g key={i} transform={`translate(${cx} ${cy}) scale(${k})`}>
+                        <ellipse rx={17} ry={7} />
+                        <ellipse cx={-10} cy={2} rx={10} ry={6} />
+                        <ellipse cx={11} cy={2} rx={11} ry={6} />
+                        <ellipse cx={2} cy={-5} rx={10} ry={7} />
+                      </g>
+                    ))}
+                </g>
+              ) : null}
+              {look.storm ? (
+                <g className={still ? undefined : 'gs-flash'}>
+                  <rect x={74} y={34} width={172} height={66} className="fill-surface" opacity={0.7} />
+                  <path d="M170 34L160 54H168L156 76" fill="none" className="stroke-halo" strokeWidth={2.4} strokeLinejoin="round" />
+                </g>
+              ) : null}
+              {/* Трава на уровне земли: окно в подвале — у самой земли. */}
+              <path
+                d="M74 100L80 88L84 100L90 84L95 100L101 90L106 100L113 86L118 100L126 90L131 100L139 84L144 100L152 92L157 100L165 86L170 100L178 90L184 100L191 84L197 100L204 91L210 100L217 86L222 100L230 90L236 100L242 86L246 100Z"
+                style={{
+                  fill:
+                    look.fall === 'snow'
+                      ? 'color-mix(in oklab, rgb(var(--surface)) 80%, rgb(var(--water)))'
+                      : dark
+                        ? 'color-mix(in oklab, rgb(var(--win)) 35%, rgb(var(--deep)))'
+                        : 'color-mix(in oklab, rgb(var(--win)) 70%, rgb(var(--surface)))'
+                }}
+              />
+              {/* Дождь и снег: две копии раскладки друг над другом — цикл без шва. */}
+              {look.fall !== 'none' && look.fall !== 'snow' ? (
+                <g transform={`skewX(${tilt})`} style={{ transformOrigin: '160px 100px' }}>
+                  <g className={still ? undefined : 'gs-rain'} style={{ animationDuration: look.fall === 'drizzle' ? '0.9s' : look.fall === 'pour' ? '0.4s' : undefined }}>
+                    {[0, 66].map((dy) =>
+                      DROPS.slice(0, look.fall === 'drizzle' ? 14 : look.fall === 'pour' ? 34 : 24).map((d, i) => (
+                        <line key={`${dy}:${i}`} x1={d.x} y1={d.y + dy} x2={d.x} y2={d.y + dy + (look.fall === 'drizzle' ? 4 : 8)} style={{ stroke: fall }} strokeWidth={1} strokeLinecap="round" />
+                      ))
+                    )}
+                  </g>
+                </g>
+              ) : null}
+              {look.fall === 'snow' ? (
+                <g className={still ? undefined : 'gs-snow'}>
+                  {[0, 66].map((dy) => FLAKES.map((f, i) => <circle key={`${dy}:${i}`} cx={f.x} cy={f.y + dy} r={f.r} className={dark ? 'fill-surface/80' : 'fill-surface'} />))}
+                </g>
+              ) : null}
+              {/* Кот: проходит по траве, если засмотреться на окно. */}
+              <g className="gs-cat" style={{ fill: 'color-mix(in oklab, rgb(var(--ink)) 85%, rgb(var(--sunk)))' }}>
+                <ellipse cx={20} cy={91} rx={11} ry={5} />
+                <circle cx={32} cy={86} r={4.4} />
+                <path d="M29 83L30 78L33 82ZM33 82L36 78L36.5 83Z" />
+                <path d="M10 90C4 88 3 82 6 78" fill="none" style={{ stroke: 'color-mix(in oklab, rgb(var(--ink)) 85%, rgb(var(--sunk)))' }} strokeWidth={2.4} strokeLinecap="round" />
+                <rect x={12} y={94} width={2.4} height={6} />
+                <rect x={26} y={94} width={2.4} height={6} />
+              </g>
+              {look.fog ? (
+                <>
+                  <rect x={74} y={34} width={172} height={66} style={{ fill: dark ? 'rgb(var(--water) / 0.32)' : 'rgb(var(--surface) / 0.62)' }} />
+                  <ellipse cx={130} cy={88} rx={70} ry={14} style={{ fill: dark ? 'rgb(var(--water) / 0.25)' : 'rgb(var(--surface) / 0.5)' }} />
+                </>
+              ) : null}
+            </g>
+            <g style={{ fill: 'color-mix(in oklab, rgb(var(--ink)) 70%, rgb(var(--sunk)))' }}>
+              {[112, 152, 192, 230].map((x) => (
+                <rect key={x} x={x} y={34} width={4} height={66} />
+              ))}
+            </g>
+            {/* Стекло: блик. Наведение ловит весь проём. */}
+            <path d="M78 98L100 36H108L86 98Z" className="fill-surface/10" />
+            <rect x={66} y={26} width={188} height={82} fill="transparent" />
+          </g>
+        )}
+
+        {/* Зона толчка лампы — в сцене и неподвижная: качайся она вместе с
+            лампой, уезжала бы из-под курсора и возвращалась под него, и лампу
+            дёргало бы без конца — так и было у правого нижнего края. Сама
+            лампа — своим слоем ниже. Над окном — провод идёт по стеклу, — но
+            под портретами: иначе край портрета рядом с лампой качал её вместо
+            подписи. */}
+        <rect x={lx - 28} y={0} width={56} height={ly + 28} fill="transparent" className="cursor-pointer" onPointerEnter={swing} onClick={swing} />
+
+        {/* Зал славы: мопсы-легенды. Ронни — первый, Левроун — второй. */}
+        {s.legends.map((l, i) => (
+          <Portrait key={l.id} who={l.id} {...(L.hall[i] ?? L.hall[L.hall.length - 1])} s={L.hallScale} title={l.title} name={l.name} onPick={() => s.onLegend(l.id)} />
+        ))}
+
         <rect width={w} height={h} fill={`url(#${id}-corner)`} pointerEvents="none" />
         {still
           ? null
           : [0, 1, 2, 3, 4, 5].map((i) => (
               <circle key={i} cx={lx - 90 + i * 34} cy={ly + 82 + (i % 3) * 60} r={1.6} className="animate-gym-mote fill-halo" style={{ animationDelay: `${-i * 2.3}s`, opacity: 0 }} pointerEvents="none" />
             ))}
-        {/* Зона толчка лампы — в сцене и неподвижная: качайся она вместе с
-            лампой, уезжала бы из-под курсора и возвращалась под него, и лампу
-            дёргало бы без конца — так и было у правого нижнего края. Сама
-            лампа — своим слоем ниже. */}
-        <rect x={lx - 28} y={0} width={56} height={ly + 28} fill="transparent" className="cursor-pointer" onPointerEnter={swing} onClick={swing} />
       </svg>
 
       {/* Зерно старой фотографии: картинкой, а не фильтром в сцене — сцена

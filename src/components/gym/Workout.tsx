@@ -243,9 +243,14 @@ export function Workout({
             if (e.target.value.trim() !== workout.title) void run(renameWorkout, { sessionId: workout.id, title: e.target.value });
           }}
         />
-        <span className="ps-label tabular-nums">{t('workout.elapsed', { time: clock((now - workout.startedAt) / 1000) })}</span>
+        {/* Секундомер считает и сервер, и браузер — каждый по своим часам, и
+            секунда между ними роняла гидратацию. Первая цифра — серверная,
+            через секунду её сменит своя. */}
+        <span className="ps-label tabular-nums" suppressHydrationWarning>
+          {t('workout.elapsed', { time: clock((now - workout.startedAt) / 1000) })}
+        </span>
         <span className="ps-label tabular-nums">
-          {t('workout.volume')}: {num.format(volume)} kg
+          {t('workout.volume')}: {num.format(volume)} {t('workout.kg')}
         </span>
       </div>
 
