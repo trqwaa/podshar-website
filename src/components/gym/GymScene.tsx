@@ -247,11 +247,10 @@ function skyLook(sky: Sky | null) {
   }
 }
 
-/** Мех легенд: Ронни и Левроун — чёрные мопсы, тренер Алексей — загорелый, остальные — палевые. */
+/** Мех легенд: Ронни и Левроун — чёрные мопсы, остальные — палевые. */
 const FUR: Partial<Record<Legend, string>> = {
   ronnie: 'color-mix(in oklab, rgb(var(--pug-mask)) 86%, rgb(var(--pug)))',
-  levrone: 'color-mix(in oklab, rgb(var(--pug-mask)) 74%, rgb(var(--pug)))',
-  alexey: 'color-mix(in oklab, rgb(var(--pug)) 80%, rgb(var(--amber)))'
+  levrone: 'color-mix(in oklab, rgb(var(--pug-mask)) 74%, rgb(var(--pug)))'
 };
 const BLACK_MASK = 'color-mix(in oklab, rgb(var(--ink)) 88%, rgb(var(--pug-mask)))';
 
@@ -261,15 +260,16 @@ const BLACK_MASK = 'color-mix(in oklab, rgb(var(--ink)) 88%, rgb(var(--pug-mask)
  * buddy», Левроун — чёрный, с высоким флэттопом девяностых и серебряной «2»,
  * Арнольд — с причёской семидесятых и сигарой, Дориан — «тень» в капюшоне,
  * Власов — в очках и красном трико СССР, Алексеев — в том же трико и самый
- * широкий, тренер Алексей — тот, кто тренировал всех троих из Подшара:
- * загорелый, с укладкой и бородой, улыбается, на шее свисток на сине-жёлтом
- * шнурке.
+ * широкий, тренер Алексей — тот, кто тренировал всех троих из Подшара, по его
+ * фотографиям: тёмные волосы торчком, виски коротко, бороды нет, улыбка во
+ * весь рот; в жизни ещё и басист, но здесь качок — плечи вширь, белая
+ * борцовка и свисток на сине-жёлтом шнурке.
  */
 function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: number; y: number; s: number; title: string; name: string; onPick: () => void }) {
   const skin = FUR[who] ?? 'rgb(var(--pug))';
   const black = who === 'ronnie' || who === 'levrone';
   const mask = black ? BLACK_MASK : 'rgb(var(--pug-mask))';
-  const wide = who === 'alekseyev' ? 1.12 : 1;
+  const wide = who === 'alekseyev' ? 1.12 : who === 'alexey' ? 1.08 : 1;
   const lines = name.length > 10 && name.includes(' ') ? [name.slice(0, name.lastIndexOf(' ')), name.slice(name.lastIndexOf(' ') + 1)] : [name];
   return (
     <g transform={`translate(${x} ${y})${s === 1 ? '' : ` scale(${s})`}`} className="gs-frame cursor-pointer" onClick={onPick}>
@@ -283,7 +283,13 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         <rect x={0} y={0} width={40} height={50} style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 22%, rgb(var(--surface)))' }} />
         {/* Плечи качка; у Алексеева шире всех. */}
         <path transform={`translate(20 0) scale(${wide} 1) translate(-20 0)`} d="M1 50C2 41 8 37 14 36C16 34 18 33 20 33C22 33 24 34 26 36C32 37 38 41 39 50Z" style={{ fill: skin }} />
-        {who === 'alexey' ? <path d="M9 50C10 45 12 42 14 41M31 50C30 45 28 42 26 41" fill="none" style={{ stroke: 'rgb(var(--pug-mask))' }} strokeOpacity={0.35} strokeWidth={0.8} /> : null}
+        {who === 'alexey' ? (
+          <>
+            {/* Дельты и трапеции качка, поверх — белая борцовка с узкими лямками. */}
+            <path d="M8 50C9 45 11 42 14 41M32 50C31 45 29 42 26 41M14 37.4Q20 35.4 26 37.4" fill="none" style={{ stroke: 'rgb(var(--pug-mask))' }} strokeOpacity={0.35} strokeWidth={0.8} />
+            <path d="M11 50C11.6 46 13 43.4 15.2 42L16.6 41.4C17.2 44.2 18.5 46 20 46C21.5 46 22.8 44.2 23.4 41.4L24.8 42C27 43.4 28.4 46 29 50Z" className="fill-surface stroke-ink/30" strokeWidth={0.6} />
+          </>
+        ) : null}
         {who === 'vlasov' || who === 'alekseyev' ? (
           <>
             {/* Красное трико сборной: лямки и грудь, буквы белым. */}
@@ -310,7 +316,16 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         ) : null}
         {who === 'arnold' ? <path d="M8 19C7 10 13 5.5 21 5.5C28 5.5 33 9.5 32.5 16C30 12.5 26 11.5 22 12.5C17 10.5 12 13 8 19Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 45%, rgb(var(--ink)))' }} /> : null}
         {who === 'vlasov' || who === 'alekseyev' ? <path d="M9 16C10 10 15 8.2 20 8.2C25 8.2 30 10 31 16C27 13 13 13 9 16Z" className="fill-ink/85" /> : null}
-        {who === 'alexey' ? <path d="M9 15C9 8 14 4.6 21 4.6C27 4.6 31.5 7.5 31 12.5C28.5 10 24.5 9.8 21 10.8C17 9.8 12.5 11.5 9 15Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 30%, rgb(var(--ink)))' }} /> : null}
+        {who === 'alexey' ? (
+          <>
+            {/* Верх торчком на геле, виски коротко — как на его фотографиях. */}
+            <path
+              d="M10.5 14.5C10.5 10 12.5 7.6 15 6.6L15.6 3.4L17.8 5.6L19.6 1.8L21.6 5.2L24 2.6L25 6.2L27.6 5L27.4 8.4C29.6 9.8 30.6 12 30 14.6C27.6 11.4 23.8 10.6 20.4 11.2C16.8 10.4 13 12 10.5 14.5Z"
+              style={{ fill: 'color-mix(in oklab, rgb(var(--ink)) 88%, rgb(var(--amber)))' }}
+            />
+            <path d="M18.2 6.2L19.8 3.4M22.4 6.6L24.2 4" className="stroke-surface/25" strokeWidth={0.6} strokeLinecap="round" />
+          </>
+        ) : null}
         {who === 'ronnie' ? <ellipse cx={17} cy={14.5} rx={4} ry={1.8} className="fill-surface/25" /> : null}
         {who === 'dorian' ? null : (
           <>
@@ -321,7 +336,6 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         )}
         <path d="M15 15Q20 12.6 25 15" fill="none" style={{ stroke: black ? 'rgb(var(--surface))' : mask }} strokeWidth={0.9} strokeOpacity={black ? 0.18 : 0.6} />
         <path d="M11.6 21.6C11.6 17.8 28.4 17.8 28.4 21.6C28.4 29.6 24.4 32.6 20 32.6C15.6 32.6 11.6 29.6 11.6 21.6Z" style={{ fill: mask }} />
-        {who === 'alexey' ? <path d="M12.4 26C13 31 16 33.6 20 33.6C24 33.6 27 31 27.6 26C25 29 15 29 12.4 26Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 30%, rgb(var(--ink)))' }} /> : null}
         {black ? (
           <>
             <circle cx={15.8} cy={21} r={2.9} className="fill-surface/80" />
@@ -360,8 +374,9 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         ) : null}
         {who === 'alexey' ? (
           <>
-            {/* Улыбка тренера, который тебя и так видит насквозь. */}
-            <path d="M16.4 29.2Q20 32.4 23.6 29.2" fill="none" className="stroke-surface/60" strokeWidth={0.8} strokeLinecap="round" />
+            {/* Улыбка во весь рот, как на фото с басом: рот открыт, зубы видно. */}
+            <path d="M15.6 28.4Q20 30.2 24.4 28.4Q23.6 33.2 20 33.4Q16.4 33.2 15.6 28.4Z" className="fill-loss/75" />
+            <path d="M16.2 28.8Q20 30.4 23.8 28.8L23.5 30Q20 31.4 16.5 30Z" className="fill-surface" />
             {/* Свисток на шнурке — синем и жёлтом. */}
             <path d="M14.5 35.5Q16 41 19 43" fill="none" style={{ stroke: 'color-mix(in oklab, rgb(var(--accent)) 80%, rgb(var(--ink)))' }} strokeWidth={1.3} />
             <path d="M25.5 35.5Q24 41 21 43" fill="none" style={{ stroke: 'color-mix(in oklab, rgb(var(--note-yellow)) 40%, rgb(var(--halo)))' }} strokeWidth={1.3} />
