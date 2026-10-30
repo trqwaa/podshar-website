@@ -7,23 +7,20 @@ import { GymOpening } from '@/components/gym/GymOpening';
 import { GymScene, type BoardRow, type Legend, type SceneLink } from '@/components/gym/GymScene';
 import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
-import { gymContext, weekdayNames } from '@/lib/gym/context';
+import { gymContext, gymMood, weekdayNames } from '@/lib/gym/context';
 import { pickLine, verdictOf, hoursOf, type Dossier } from '@/lib/gym/critic';
 import { foodDay, gymOpened, gymWeek, initialOf, latestVerdict, type PlanDayView, type WeekDigest } from '@/lib/gym/data';
 import { dossierFor } from '@/lib/gym/dossier';
-import { SHOWCASES, musclesOf, showcaseFor, type Showcase } from '@/lib/gym/exercises';
+import { SHOWCASES, musclesOf, showcaseOfDay, trainsOn, type Showcase } from '@/lib/gym/exercises';
 import { fridgeGroupOf, type FridgeGroup } from '@/lib/gym/foods';
 import { DEFAULTS, targetsFor } from '@/lib/gym/norms';
 import { resolveLocale } from '@/lib/locale';
-import { moodAt, type Mood } from '@/lib/sun';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = resolveLocale((await params).locale);
   const t = await getTranslations({ locale, namespace: 'gym' });
   return { title: t('title') };
 }
-
-const MOODS: readonly Mood[] = ['day', 'dusk', 'night', 'blood'];
 
 /** Зал славы слева направо: Ронни — первое место, Левроун — второе. */
 const LEGENDS: Legend[] = ['ronnie', 'levrone', 'arnold', 'dorian', 'vlasov', 'alekseyev', 'alexey'];
@@ -55,9 +52,7 @@ export default async function GymPage({
 
   const now = new Date();
   const today = dayKey(now);
-  // В разработке небо задаётся адресом (`?mood=blood`): кровавую луну иначе
-  // ждать до двух ночи. На проде — только настоящее небо.
-  const mood: Mood = process.env.NODE_ENV === 'development' && MOODS.includes(asked as Mood) ? (asked as Mood) : moodAt(now.getTime());
+  const mood = gymMood(asked, now.getTime());
   const seed = sharedDayIndex(now);
   const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
   const score = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
@@ -91,9 +86,11 @@ export default async function GymPage({
   const fridge = [...new Set(eatenToday.map((f) => fridgeGroupOf(f.food, f.name)).filter((g): g is FridgeGroup => g !== null))];
 
   // ── Упражнение дня ──
-  const hasPlan = digest.plan.some((d) => d.items.length > 0);
+  // Вписанное на доске название главнее упражнений: «грудь» — жим, даже если
+  // первым в дне стоит присед и даже если упражнений ещё нет (`showcaseOfDay`).
+  const hasPlan = digest.plan.some((d) => trainsOn(d.title, d.items.length));
   const showcase: Showcase | 'rest' = digest.todayPlan
-    ? showcaseFor(digest.todayPlan.items.map((i) => i.exercise), seed)
+    ? showcaseOfDay(digest.todayPlan.title, digest.todayPlan.items.map((i) => i.exercise), seed)
     : hasPlan
       ? 'rest'
       : SHOWCASES[((seed % 3) + 3) % 3];
@@ -121,8 +118,8 @@ export default async function GymPage({
 
   // ── Доска: семь дней с понедельника ──
   const titleOf = (day: PlanDayView | undefined) => {
+    if (day?.title) return day.title;
     if (!day || day.items.length === 0) return t('restDay');
-    if (day.title) return day.title;
     return musclesOf(day.items.map((i) => i.exercise)).map((m) => t(`muscles.${m}`)).join(' · ');
   };
   const names = weekdayNames(locale);
@@ -152,7 +149,7 @@ export default async function GymPage({
     : t('lines.foodEmpty');
   const night = digest.sleep.find((n) => n.night === today);
   const sleepLine = night ? t('lines.sleep', { hours: hoursOf(night.minutes, locale) }) : t('lines.sleepEmpty');
-  const planDays = digest.plan.filter((d) => d.items.length > 0).length;
+  const planDays = digest.plan.filter((d) => trainsOn(d.title, d.items.length)).length;
   const planLine = planDays ? t('lines.planWeek', { n: planDays }) : t('lines.trainingNoPlan');
 
   // Стойка ведёт сразу в тренировку — начать или продолжить, — а доска в план.

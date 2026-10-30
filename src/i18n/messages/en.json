@@ -1305,7 +1305,7 @@
       "library": "exercises"
     },
     "board": {
-      "hint": "the week's plan in chalk. a day without exercises is a rest day",
+      "hint": "the week's plan in chalk. call a day “chest”, “back” or “legs” and the pug in the basement benches, rows or squats. an empty day or “rest” is a rest day",
       "titlePlaceholder": "name of the day",
       "empty": "rest",
       "add": "+ exercise",

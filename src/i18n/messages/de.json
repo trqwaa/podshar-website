@@ -1305,7 +1305,7 @@
       "library": "übungen"
     },
     "board": {
-      "hint": "der wochenplan mit kreide an der tafel. ein tag ohne übungen ist ein ruhetag",
+      "hint": "der wochenplan mit kreide an der tafel. nenn einen tag „brust“, „rücken“ oder „beine“, und der mops im keller drückt, rudert oder beugt. ein leerer tag oder „ruhe“ ist ein ruhetag",
       "titlePlaceholder": "name des tages",
       "empty": "ruhe",
       "add": "+ übung",

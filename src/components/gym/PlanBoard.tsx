@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import type { Locale } from '@/i18n/routing';
 import { addPlanItem, removePlanDay, removePlanItem, savePlanDay, updatePlanItem } from '@/lib/gym/actions';
 import type { PlanDayView, PlanItemView } from '@/lib/gym/data';
-import { exerciseOf, musclesOf } from '@/lib/gym/exercises';
+import { exerciseOf, musclesOf, trainsOn } from '@/lib/gym/exercises';
 import { ExercisePicker } from './ExercisePicker';
 import { ProgramPicker } from './ProgramPicker';
 import { ErrorLine, parseNumber, useGymAction } from './ui';
@@ -178,7 +178,7 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
                       }}
                     />
                   ) : (
-                    <span className={`py-1 font-semibold ${items.length ? 'text-surface' : 'text-surface/35'}`}>{d?.title || (items.length ? auto(items) : t('board.empty'))}</span>
+                    <span className={`py-1 font-semibold ${trainsOn(d?.title ?? '', items.length) ? 'text-surface' : 'text-surface/35'}`}>{d?.title || (items.length ? auto(items) : t('board.empty'))}</span>
                   )}
                   {editable && d ? (
                     <button type="button" disabled={pending} onClick={() => void run(removePlanDay, { weekday })} className="ps-label !text-surface/45 hover:!text-surface">

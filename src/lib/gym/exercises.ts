@@ -502,24 +502,68 @@ const SHOWCASE_OF = new Map<Motion, Showcase>([
 
 export const SHOWCASES: Showcase[] = ['bench', 'row', 'squat'];
 
+/** Чего больше; при равенстве — то, с чего день начинается. Голосов нет — `null`. */
+function vote(kinds: Showcase[]): Showcase | null {
+  const votes: Record<Showcase, number> = { bench: 0, row: 0, squat: 0 };
+  for (const kind of kinds) votes[kind] += 1;
+  const best = Math.max(votes.bench, votes.row, votes.squat);
+  if (best === 0) return null;
+  const first = kinds[0];
+  return votes[first] === best ? first : SHOWCASES.find((s) => votes[s] === best) ?? 'bench';
+}
+
 /**
  * Что показывать по списку упражнений дня: чего в нём больше. Пресс и кардио
  * голосом не считаются — день «пресс и кардио» выбирается по номеру дня,
  * одинаково у троих.
  */
 export function showcaseFor(exerciseIds: string[], dayIndex: number): Showcase {
-  const votes: Record<Showcase, number> = { bench: 0, row: 0, squat: 0 };
-  let first: Showcase | null = null;
-  for (const id of exerciseIds) {
+  const kinds = exerciseIds.flatMap((id) => {
     const motion = BY_ID.get(id)?.motion;
     const kind = motion ? SHOWCASE_OF.get(motion) : undefined;
-    if (!kind) continue;
-    votes[kind] += 1;
-    first ??= kind;
-  }
-  const best = Math.max(votes.bench, votes.row, votes.squat);
-  if (best === 0) return SHOWCASES[((dayIndex % 3) + 3) % 3];
-  return first && votes[first] === best ? first : SHOWCASES.find((s) => votes[s] === best) ?? 'bench';
+    return kind ? [kind] : [];
+  });
+  return vote(kinds) ?? SHOWCASES[((dayIndex % 3) + 3) % 3];
+}
+
+/*
+ * Название дня на доске, вписанное руками, главнее упражнений: написал
+ * «грудь» — мопс жмёт, даже если первым в дне стоит присед и даже если
+ * упражнений в дне ещё нет. Слова — начала слов на всех четырёх языках сразу:
+ * доску пишут как привыкли, а не на языке страницы. Руки, пресс и кардио
+ * голосом не считаются, как и в упражнениях. `спин(?!н)` — не «спиннинг»,
+ * `lats?$` — не «lateral raise», это плечи.
+ */
+const TITLE_WORDS: [RegExp, Showcase | 'rest'][] = [
+  [/^(груд|плеч|триц|дельт|жим|отжим|віджим|брус|верх|chest|pec|shoulder|delt|tricep|push|bench|press|dips?$|upper|brust|schulter|trizeps|dr(ü|ue)ck|bankdr|oberk(ö|oe)rper)/u, 'bench'],
+  [/^(спин(?!н)|тяг|подтяг|підтяг|биц|біц|широч|трапец|станов|back|lats?$|bicep|pull|row|deadlift|chin|traps?$|r(ü|ue)cken|bizeps|zug|zieh|klimmz|kreuzheb|rudern|latzug)/u, 'row'],
+  [/^(ног|ніг|присед|присід|бедр|стегн|ягодиц|сідниц|икр|литк|квадр|низ|выпад|випад|leg|squat|glute|quad|hamstr|calf|calv|lower|lunge|rdl$|bein|kniebeug|po$|ges(ä|ae)(ß|ss)|wade|oberschenkel|unterk(ö|oe)rper|ausfallschritt)/u, 'squat'],
+  [/^(отдых|выходн|восстан|відпоч|вихідн|віднов|rest|off$|recover|ruhe|pause$|frei$|erhol)/u, 'rest']
+];
+
+/** Что значит вписанное название: упражнение подвала, «отдых» или ничего. */
+export function showcaseOfTitle(title: string): Showcase | 'rest' | null {
+  const hits = title
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .split(/[^\p{L}]+/u)
+    .map((word) => TITLE_WORDS.find(([pattern]) => pattern.test(word))?.[1]);
+  return vote(hits.filter((hit): hit is Showcase => hit !== undefined && hit !== 'rest')) ?? (hits.includes('rest') ? 'rest' : null);
+}
+
+/**
+ * День в зале или нет: на доске есть упражнения или вписано название — и это
+ * не «отдых». Одно название без упражнений — тоже день в зале: написал
+ * «грудь» и ещё не расписал, что жать.
+ */
+export function trainsOn(title: string, exercises: number): boolean {
+  return showcaseOfTitle(title) !== 'rest' && (exercises > 0 || /\p{L}/u.test(title));
+}
+
+/** Упражнение дня по дню доски: вписанное название главнее упражнений. */
+export function showcaseOfDay(title: string, exerciseIds: string[], dayIndex: number): Showcase {
+  const named = showcaseOfTitle(title);
+  return named && named !== 'rest' ? named : showcaseFor(exerciseIds, dayIndex);
 }
 
 type Cue = Record<Locale, [string, string]>;

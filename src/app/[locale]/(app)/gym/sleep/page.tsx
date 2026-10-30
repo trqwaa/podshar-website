@@ -6,12 +6,11 @@ import { SleepChart, SleepLog } from '@/components/gym/SleepLog';
 import { dayKey, shiftDay } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
 import { GymDoors } from '@/components/gym/GymDoors';
-import { gymContext } from '@/lib/gym/context';
+import { gymContext, gymMood } from '@/lib/gym/context';
 import { hoursOf, nightFace } from '@/lib/gym/critic';
 import { gymProfile, sleepRange } from '@/lib/gym/data';
 import { DEFAULTS, sleepNormFor } from '@/lib/gym/norms';
 import { resolveLocale } from '@/lib/locale';
-import { moodAt } from '@/lib/sun';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = resolveLocale((await params).locale);
@@ -28,7 +27,7 @@ export default async function SleepPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ who?: string }>;
+  searchParams: Promise<{ who?: string; mood?: string }>;
 }) {
   const locale = resolveLocale((await params).locale);
   const query = await searchParams;
@@ -104,7 +103,7 @@ export default async function SleepPage({
       <GymDoors
         current="sleep"
         query={whoQuery}
-        mood={moodAt(Date.now())}
+        mood={gymMood(query.mood, Date.now())}
         words={{
           title: t('doors.title'),
           rooms: {

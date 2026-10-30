@@ -11,14 +11,13 @@ import { Workout } from '@/components/gym/Workout';
 import { TAB } from '@/components/gym/styles';
 import { dayKey } from '@/lib/calendar/scales';
 import { GymDoors } from '@/components/gym/GymDoors';
-import { gymContext, weekdayNames } from '@/lib/gym/context';
+import { gymContext, gymMood, weekdayNames } from '@/lib/gym/context';
 import { activeWorkout, bestLifts, goalsOf, gymProfile, gymWeek, measuresOf, planOf, previousSets, recentWorkouts, recordsOf, weekdayOf, type RecordSet } from '@/lib/gym/data';
 import { pickLine } from '@/lib/gym/critic';
 import { exerciseOf } from '@/lib/gym/exercises';
 import { REST_SECONDS } from '@/lib/gym/norms';
 import { birthdayOf } from '@/lib/birthdays';
 import { resolveLocale } from '@/lib/locale';
-import { moodAt } from '@/lib/sun';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = resolveLocale((await params).locale);
@@ -41,7 +40,7 @@ export default async function TrainingPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ who?: string; tab?: string }>;
+  searchParams: Promise<{ who?: string; tab?: string; mood?: string }>;
 }) {
   const locale = resolveLocale((await params).locale);
   const query = await searchParams;
@@ -215,7 +214,7 @@ export default async function TrainingPage({
       <GymDoors
         current="training"
         query={whoQuery}
-        mood={moodAt(Date.now())}
+        mood={gymMood(query.mood, Date.now())}
         words={{
           title: t('doors.title'),
           rooms: {

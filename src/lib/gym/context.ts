@@ -2,6 +2,7 @@ import 'server-only';
 
 import { readSession } from '@/lib/auth/session';
 import { guestModeAllowed } from '@/lib/auth/config';
+import { moodAt, type Mood } from '@/lib/sun';
 import { gymMembers, pickMember } from './data';
 
 /**
@@ -16,6 +17,17 @@ export async function gymContext(who: string | undefined) {
   const members = await gymMembers();
   const { member, mine } = pickMember(members, who, session?.userId ?? null);
   return { session, members, member, mine };
+}
+
+const MOODS: readonly Mood[] = ['day', 'dusk', 'night', 'blood'];
+
+/**
+ * Небо зала — у подвала и у дверей внизу страниц. В разработке оно задаётся
+ * адресом (`?mood=blood`): кровавую луну иначе ждать до двух ночи. На проде —
+ * только настоящее небо.
+ */
+export function gymMood(asked: string | undefined, at: number): Mood {
+  return process.env.NODE_ENV === 'development' && MOODS.includes(asked as Mood) ? (asked as Mood) : moodAt(at);
 }
 
 /** Короткие дни недели на языке страницы, с понедельника, строчными. */

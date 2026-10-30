@@ -5,7 +5,7 @@ import { authConfigured } from '@/lib/auth/config';
 import { birthdayOf } from '@/lib/birthdays';
 import { zurichMidnight } from '@/lib/calendar/events';
 import { dayKey, shiftDay } from '@/lib/calendar/scales';
-import { kindOf, oneRepMax, type Kind } from './exercises';
+import { kindOf, oneRepMax, trainsOn, type Kind } from './exercises';
 import {
   DEFAULTS,
   PARTS,
@@ -134,8 +134,8 @@ export async function planOf(userId: string): Promise<PlanDayView[]> {
 
 /**
  * Кто когда в зале — по доскам всех троих: на какой день недели у кого есть
- * упражнения, и кто сегодня уже был или прямо сейчас качается. Чтобы глянуть
- * и не спрашивать в группе.
+ * упражнения или вписано название, не «отдых» (`trainsOn`), и кто сегодня уже
+ * был или прямо сейчас качается. Чтобы глянуть и не спрашивать в группе.
  *
  * «Сейчас» — тренировка начата не раньше шести часов назад и не закончена:
  * забытая вчерашняя не должна держать человека в зале сутками.
@@ -168,7 +168,10 @@ export async function gymWeek(memberIds: string[], today: string): Promise<GymWe
   if (!authConfigured() || memberIds.length === 0) return empty;
   const since = zurichMidnight(today);
   const [plans, sessions] = await Promise.all([
-    prisma.gymPlanDay.findMany({ where: { userId: { in: memberIds }, items: { some: {} } }, select: { userId: true, weekday: true } }),
+    prisma.gymPlanDay.findMany({
+      where: { userId: { in: memberIds }, OR: [{ items: { some: {} } }, { title: { not: '' } }] },
+      select: { userId: true, weekday: true, title: true, _count: { select: { items: true } } }
+    }),
     prisma.gymSession.findMany({
       where: {
         userId: { in: memberIds },
@@ -177,7 +180,7 @@ export async function gymWeek(memberIds: string[], today: string): Promise<GymWe
       select: { userId: true, completedAt: true }
     })
   ]);
-  for (const p of plans) if (p.weekday >= 0 && p.weekday < 7) empty.days[p.weekday].push(p.userId);
+  for (const p of plans) if (p.weekday >= 0 && p.weekday < 7 && trainsOn(p.title, p._count.items)) empty.days[p.weekday].push(p.userId);
   // Порядок — как у троих в списке, а не как вернула база.
   for (const day of empty.days) day.sort((a, b) => memberIds.indexOf(a) - memberIds.indexOf(b));
   const now = new Set(sessions.filter((s) => s.completedAt === null).map((s) => s.userId));
@@ -596,7 +599,7 @@ export async function weekDigest(userId: string, today: string): Promise<WeekDig
   return {
     today,
     plan,
-    todayPlan: plan.find((d) => d.weekday === weekday && d.items.length > 0) ?? null,
+    todayPlan: plan.find((d) => d.weekday === weekday && trainsOn(d.title, d.items.length)) ?? null,
     active,
     workouts: workouts.filter((w) => (w.finishedAt ?? 0) >= since),
     food,
