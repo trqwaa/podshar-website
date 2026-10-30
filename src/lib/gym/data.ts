@@ -148,6 +148,21 @@ export function initialOf(displayName: string): string {
   return (words[words.length - 1]?.[0] ?? '?').toLowerCase();
 }
 
+/**
+ * Открыт ли зал для человека: ленточку режут один раз на человека, а не на
+ * устройство. Отметка — в `countdowns`, как у поздравления с днём рождения, —
+ * без миграции, и с телефона и ноутбука церемония не повторится. Сбой базы —
+ * «открыт»: лучше пропустить церемонию, чем показывать её каждый заход.
+ */
+export const openedKey = (userId: string) => `gym-opened:${userId}`;
+
+export async function gymOpened(userId: string): Promise<boolean> {
+  const row = await prisma.countdown
+    .findUnique({ where: { key: openedKey(userId) }, select: { key: true } })
+    .catch(() => ({ key: '' }));
+  return row !== null;
+}
+
 export async function gymWeek(memberIds: string[], today: string): Promise<GymWeek> {
   const empty: GymWeek = { days: Array.from({ length: 7 }, () => []), now: [], done: [] };
   if (!authConfigured() || memberIds.length === 0) return empty;

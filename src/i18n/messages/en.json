@@ -1619,6 +1619,10 @@
       "title": "who trains when",
       "now": "in the gym right now: {names}",
       "done": "already trained today: {names}"
+    },
+    "opening": {
+      "title": "grand opening",
+      "skip": "skip"
     }
   }
 }

@@ -1619,6 +1619,10 @@
       "title": "wer wann trainiert",
       "now": "gerade im gym: {names}",
       "done": "heute schon trainiert: {names}"
+    },
+    "opening": {
+      "title": "feierliche eröffnung",
+      "skip": "überspringen"
     }
   }
 }

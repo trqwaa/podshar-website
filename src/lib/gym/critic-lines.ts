@@ -305,6 +305,31 @@ export const LINES = {
     uk: ['сьогоднішнє тренування зроблене. можеш пишатися, але мовчки'],
     de: ['das heutige training ist erledigt. sei stolz, aber leise']
   },
+  /** Первый заход в зал: мопс режет ленточку и объявляет зал открытым. */
+  opening: {
+    ru: [
+      'объявляю зал открытым. ныть — снаружи, жать — внутри',
+      'ленточку перерезал. самая лёгкая тяга за сегодня. зал открыт',
+      'зал открыт. отмазки больше не принимаются',
+      'всё, открыто. хули стоишь в дверях — штанга вон там',
+      'торжественно открываю подвал. аплодисменты — подходами'
+    ],
+    en: [
+      'i declare this gym open. whining outside, lifting inside',
+      'ribbon cut. easiest pull of the day. the gym is open',
+      'it’s open. why the hell are you standing in the doorway — the bar is over there'
+    ],
+    uk: [
+      'оголошую зал відкритим. скиглити — надворі, жати — всередині',
+      'стрічку перерізав. найлегша тяга за сьогодні. зал відкрито',
+      'відкрито. якого біса стоїш у дверях — штанга он там'
+    ],
+    de: [
+      'hiermit ist das gym eröffnet. jammern draußen, drücken drinnen',
+      'band durchgeschnitten. leichtester zug des tages. das gym ist offen',
+      'offen. was zur hölle stehst du in der tür rum — die stange ist da drüben'
+    ]
+  },
   /** Человек бросает тренировку на середине: мопс в окне «бросить?» вместо системного «точно?». */
   discardPug: {
     ru: [
