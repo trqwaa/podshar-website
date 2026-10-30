@@ -51,7 +51,7 @@ import { PugRig } from './PugRig';
 export type BoardRow = { day: string; title: string; today: boolean; crew: string[] };
 export type SceneKind = 'workout' | 'plan' | 'food' | 'sleep';
 export type SceneLink = { kind: SceneKind; href: React.ComponentProps<typeof Link>['href']; label: string; line: string | null };
-export type Legend = 'ronnie' | 'levrone' | 'arnold' | 'dorian' | 'vlasov' | 'alekseyev' | 'kirpach';
+export type Legend = 'ronnie' | 'levrone' | 'arnold' | 'dorian' | 'vlasov' | 'alekseyev' | 'alexey';
 export type LegendWords = { id: Legend; name: string; title: string };
 type Sky = { condition: Condition; wind: number | null };
 type Look = ReturnType<typeof skyLook>;
@@ -141,7 +141,7 @@ const WIDE: Layout = {
 
 /**
  * Телефон: та же комната стоя. Под потолком окно, по бокам от него две пары
- * легенд, под внутренними — Левроун, Ронни и Кирпач: галерея зеркальная, а
+ * легенд, под внутренними — Левроун, Ронни и тренер Алексей: галерея зеркальная, а
  * чемпион в середине, и лампочка висит над ним, как подсветка над картиной.
  * Ниже фраза мопса и сам мопс крупно посередине. Слева доска на уровне глаз и
  * холодильник, справа часы, лозунг и стойка; на полу спереди гантели,
@@ -168,7 +168,7 @@ const TALL: Layout = {
     stool: put(1, [744, 448], [64, 750]),
     mattress: put(0.95, [34, 516], [14, 823])
   },
-  // В порядке `LEGENDS`: Ронни, Левроун, Арнольд, Дориан, Власов, Алексеев, Кирпач.
+  // В порядке `LEGENDS`: Ронни, Левроун, Арнольд, Дориан, Власов, Алексеев, тренер Алексей.
   // Рамка в 1.5 шириной 60 и центром в x + 30 — пары зеркальны относительно 270.
   hall: [
     { x: 240, y: 168 },
@@ -247,11 +247,11 @@ function skyLook(sky: Sky | null) {
   }
 }
 
-/** Мех легенд: Ронни и Левроун — чёрные мопсы, Кирпач — загорелый, остальные — палевые. */
+/** Мех легенд: Ронни и Левроун — чёрные мопсы, тренер Алексей — загорелый, остальные — палевые. */
 const FUR: Partial<Record<Legend, string>> = {
   ronnie: 'color-mix(in oklab, rgb(var(--pug-mask)) 86%, rgb(var(--pug)))',
   levrone: 'color-mix(in oklab, rgb(var(--pug-mask)) 74%, rgb(var(--pug)))',
-  kirpach: 'color-mix(in oklab, rgb(var(--pug)) 80%, rgb(var(--amber)))'
+  alexey: 'color-mix(in oklab, rgb(var(--pug)) 80%, rgb(var(--amber)))'
 };
 const BLACK_MASK = 'color-mix(in oklab, rgb(var(--ink)) 88%, rgb(var(--pug-mask)))';
 
@@ -261,14 +261,16 @@ const BLACK_MASK = 'color-mix(in oklab, rgb(var(--ink)) 88%, rgb(var(--pug-mask)
  * buddy», Левроун — чёрный, с высоким флэттопом девяностых и серебряной «2»,
  * Арнольд — с причёской семидесятых и сигарой, Дориан — «тень» в капюшоне,
  * Власов — в очках и красном трико СССР, Алексеев — в том же трико и самый
- * широкий, Кирпач — загорелый, с укладкой, бородой и медалью на сине-жёлтой
- * ленте.
+ * широкий, тренер Алексей — тот, кто тренировал всех троих из Подшара:
+ * загорелый, с укладкой и бородой, улыбается, на шее свисток на сине-жёлтом
+ * шнурке.
  */
 function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: number; y: number; s: number; title: string; name: string; onPick: () => void }) {
   const skin = FUR[who] ?? 'rgb(var(--pug))';
   const black = who === 'ronnie' || who === 'levrone';
   const mask = black ? BLACK_MASK : 'rgb(var(--pug-mask))';
   const wide = who === 'alekseyev' ? 1.12 : 1;
+  const lines = name.length > 10 && name.includes(' ') ? [name.slice(0, name.lastIndexOf(' ')), name.slice(name.lastIndexOf(' ') + 1)] : [name];
   return (
     <g transform={`translate(${x} ${y})${s === 1 ? '' : ` scale(${s})`}`} className="gs-frame cursor-pointer" onClick={onPick}>
       <title>{title}</title>
@@ -281,7 +283,7 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         <rect x={0} y={0} width={40} height={50} style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 22%, rgb(var(--surface)))' }} />
         {/* Плечи качка; у Алексеева шире всех. */}
         <path transform={`translate(20 0) scale(${wide} 1) translate(-20 0)`} d="M1 50C2 41 8 37 14 36C16 34 18 33 20 33C22 33 24 34 26 36C32 37 38 41 39 50Z" style={{ fill: skin }} />
-        {who === 'kirpach' ? <path d="M9 50C10 45 12 42 14 41M31 50C30 45 28 42 26 41" fill="none" style={{ stroke: 'rgb(var(--pug-mask))' }} strokeOpacity={0.35} strokeWidth={0.8} /> : null}
+        {who === 'alexey' ? <path d="M9 50C10 45 12 42 14 41M31 50C30 45 28 42 26 41" fill="none" style={{ stroke: 'rgb(var(--pug-mask))' }} strokeOpacity={0.35} strokeWidth={0.8} /> : null}
         {who === 'vlasov' || who === 'alekseyev' ? (
           <>
             {/* Красное трико сборной: лямки и грудь, буквы белым. */}
@@ -308,7 +310,7 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         ) : null}
         {who === 'arnold' ? <path d="M8 19C7 10 13 5.5 21 5.5C28 5.5 33 9.5 32.5 16C30 12.5 26 11.5 22 12.5C17 10.5 12 13 8 19Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 45%, rgb(var(--ink)))' }} /> : null}
         {who === 'vlasov' || who === 'alekseyev' ? <path d="M9 16C10 10 15 8.2 20 8.2C25 8.2 30 10 31 16C27 13 13 13 9 16Z" className="fill-ink/85" /> : null}
-        {who === 'kirpach' ? <path d="M9 15C9 8 14 4.6 21 4.6C27 4.6 31.5 7.5 31 12.5C28.5 10 24.5 9.8 21 10.8C17 9.8 12.5 11.5 9 15Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 30%, rgb(var(--ink)))' }} /> : null}
+        {who === 'alexey' ? <path d="M9 15C9 8 14 4.6 21 4.6C27 4.6 31.5 7.5 31 12.5C28.5 10 24.5 9.8 21 10.8C17 9.8 12.5 11.5 9 15Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 30%, rgb(var(--ink)))' }} /> : null}
         {who === 'ronnie' ? <ellipse cx={17} cy={14.5} rx={4} ry={1.8} className="fill-surface/25" /> : null}
         {who === 'dorian' ? null : (
           <>
@@ -319,7 +321,7 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         )}
         <path d="M15 15Q20 12.6 25 15" fill="none" style={{ stroke: black ? 'rgb(var(--surface))' : mask }} strokeWidth={0.9} strokeOpacity={black ? 0.18 : 0.6} />
         <path d="M11.6 21.6C11.6 17.8 28.4 17.8 28.4 21.6C28.4 29.6 24.4 32.6 20 32.6C15.6 32.6 11.6 29.6 11.6 21.6Z" style={{ fill: mask }} />
-        {who === 'kirpach' ? <path d="M12.4 26C13 31 16 33.6 20 33.6C24 33.6 27 31 27.6 26C25 29 15 29 12.4 26Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 30%, rgb(var(--ink)))' }} /> : null}
+        {who === 'alexey' ? <path d="M12.4 26C13 31 16 33.6 20 33.6C24 33.6 27 31 27.6 26C25 29 15 29 12.4 26Z" style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 30%, rgb(var(--ink)))' }} /> : null}
         {black ? (
           <>
             <circle cx={15.8} cy={21} r={2.9} className="fill-surface/80" />
@@ -356,12 +358,15 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
             </text>
           </>
         ) : null}
-        {who === 'kirpach' ? (
+        {who === 'alexey' ? (
           <>
-            {/* Лента — синяя и жёлтая. */}
-            <path d="M16 35.5L18.6 41.6" style={{ stroke: 'color-mix(in oklab, rgb(var(--accent)) 80%, rgb(var(--ink)))' }} strokeWidth={1.6} />
-            <path d="M24 35.5L21.4 41.6" style={{ stroke: 'color-mix(in oklab, rgb(var(--note-yellow)) 40%, rgb(var(--halo)))' }} strokeWidth={1.6} />
-            <circle cx={20} cy={44.4} r={3.4} className="fill-halo stroke-amber" strokeWidth={0.8} />
+            {/* Улыбка тренера, который тебя и так видит насквозь. */}
+            <path d="M16.4 29.2Q20 32.4 23.6 29.2" fill="none" className="stroke-surface/60" strokeWidth={0.8} strokeLinecap="round" />
+            {/* Свисток на шнурке — синем и жёлтом. */}
+            <path d="M14.5 35.5Q16 41 19 43" fill="none" style={{ stroke: 'color-mix(in oklab, rgb(var(--accent)) 80%, rgb(var(--ink)))' }} strokeWidth={1.3} />
+            <path d="M25.5 35.5Q24 41 21 43" fill="none" style={{ stroke: 'color-mix(in oklab, rgb(var(--note-yellow)) 40%, rgb(var(--halo)))' }} strokeWidth={1.3} />
+            <rect x={17} y={42.4} width={6.4} height={3.8} rx={1.9} style={{ fill: CHROME }} className="stroke-ink/60" strokeWidth={0.6} />
+            <rect x={22.6} y={43.1} width={3} height={1.9} rx={0.5} style={{ fill: CHROME }} />
           </>
         ) : null}
         {who === 'arnold' ? (
@@ -376,10 +381,22 @@ function Portrait({ who, x, y, s, title, name, onPick }: { who: Legend; x: numbe
         {/* Стекло: блик по диагонали. */}
         <path d="M0 0H14L0 18Z" className="fill-surface/10" />
         {/* Табличка шире рамки: имя должно читаться, а не угадываться. На
-            телефоне рамки крупнее, и буквы на табличке — тоже. */}
-        <rect x={s > 1 ? -7 : -2} y={55} width={s > 1 ? 54 : 44} height={s > 1 ? 13 : 10.5} rx={1.5} style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 40%, rgb(var(--surface)))' }} />
-        <text x={20} y={s > 1 ? 64.6 : 62.8} textAnchor="middle" className="fill-ink" style={{ font: `700 ${s > 1 ? 9.6 : 7.6}px var(--font-sans), sans-serif` }}>
-          {name}
+            телефоне рамки крупнее, и буквы на табличке — тоже. Длинное имя из
+            двух слов — в две строки: «тренер алексей» в одну не влезал. */}
+        <rect
+          x={s > 1 ? -7 : -2}
+          y={55}
+          width={s > 1 ? 54 : 44}
+          height={(s > 1 ? 13 : 10.5) + (lines.length - 1) * (s > 1 ? 10.4 : 8.2)}
+          rx={1.5}
+          style={{ fill: 'color-mix(in oklab, rgb(var(--amber)) 40%, rgb(var(--surface)))' }}
+        />
+        <text textAnchor="middle" className="fill-ink" style={{ font: `700 ${s > 1 ? 9.6 : 7.6}px var(--font-sans), sans-serif` }}>
+          {lines.map((line, i) => (
+            <tspan key={line} x={20} y={(s > 1 ? 64.6 : 62.8) + i * (s > 1 ? 10.4 : 8.2)}>
+              {line}
+            </tspan>
+          ))}
         </text>
       </g>
     </g>

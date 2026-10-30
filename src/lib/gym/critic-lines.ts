@@ -387,7 +387,28 @@ export const LINES = {
       'noch ein satz, dann geh, wohin du willst'
     ]
   },
-  /** Ткнули в мопса на сцене: одна реплика на тычок, по кругу. */
+  /** Ткнули в мопса в день отдыха: он сидит в капюшоне и думает, подходов нет. */
+  scenePokeRest: {
+    ru: ['не трогай. я думаю о жиме', 'сегодня отдых. завтра потыкаешь', 'тыкнешь ещё раз — завтра двойная', 'отдыхать — тоже работа. не мешай', 'мышцы растут, пока я сижу. не сбивай'],
+    en: ['leave me be. i’m thinking about bench', 'rest day. poke me tomorrow', 'poke me again and tomorrow is a double', 'resting is work too. don’t interrupt'],
+    uk: ['не чіпай. я думаю про жим', 'сьогодні відпочинок. потицяєш завтра', 'ще раз тицьнеш — завтра подвійне', 'відпочивати — теж робота. не заважай'],
+    de: ['lass mich. ich denke ans bankdrücken', 'ruhetag. stups mich morgen', 'noch einmal, und morgen gibt’s doppelt', 'ausruhen ist auch arbeit. stör nicht']
+  },
+  /** Тренировка сегодня уже сделана, а в мопса тыкают. */
+  scenePokeDone: {
+    ru: ['на сегодня хватит. это я так, для формы', 'всё сделано. тыкай завтра', 'отработал? тогда не мешай мне', 'сегодня ты молодец. не порти'],
+    en: ['enough for today. this is just for form', 'done for today. poke me tomorrow', 'you trained? then let me work', 'you did well today. don’t ruin it'],
+    uk: ['на сьогодні досить. це я так, для форми', 'все зроблено. тицяй завтра', 'відпрацював? тоді не заважай мені', 'сьогодні ти молодець. не псуй'],
+    de: ['genug für heute. das ist nur für die form', 'für heute erledigt. stups mich morgen', 'du hast trainiert? dann lass mich arbeiten', 'heute warst du gut. mach’s nicht kaputt']
+  },
+  /** Под кровавой луной, с двух до четырёх ночи. */
+  scenePokeNight: {
+    ru: ['ночь на дворе. иди спать', 'тыкать в мопса ночью — это диагноз', 'сон — лучшая добавка. иди за ней', 'я и то сплю вполглаза'],
+    en: ['it’s the middle of the night. go to sleep', 'poking a pug at night is a diagnosis', 'sleep is the best supplement. go get it'],
+    uk: ['ніч надворі. іди спати', 'тицяти в мопса вночі — це діагноз', 'сон — найкраща добавка. йди по неї'],
+    de: ['es ist mitten in der nacht. geh schlafen', 'nachts einen mops stupsen ist eine diagnose', 'schlaf ist das beste supplement. hol ihn dir']
+  },
+  /** Ткнули в мопса на сцене в день тренировки, посреди подхода: одна реплика на тычок, по кругу. */
   scenePoke: {
     ru: [
       'не тыкай в меня. тыкай в штангу',

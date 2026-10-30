@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 const MOODS: readonly Mood[] = ['day', 'dusk', 'night', 'blood'];
 
 /** Зал славы слева направо: Ронни — первое место, Левроун — второе. */
-const LEGENDS: Legend[] = ['ronnie', 'levrone', 'arnold', 'dorian', 'vlasov', 'alekseyev', 'kirpach'];
+const LEGENDS: Legend[] = ['ronnie', 'levrone', 'arnold', 'dorian', 'vlasov', 'alekseyev', 'alexey'];
 
 /** Пустое досье: гостевой режим разработки или человек без единой записи. */
 function emptyDigest(today: string): WeekDigest {
@@ -114,6 +114,11 @@ export default async function GymPage({
                 ? 'sceneRow'
                 : 'sceneSquat';
 
+  // Огрызается мопс по тому же дню, что и говорит: «я на подходе» — только
+  // когда он на подходе, а не в капюшоне на отдыхе.
+  const pokeKey =
+    mood === 'blood' ? 'scenePokeNight' : doneToday ? 'scenePokeDone' : showcase === 'rest' ? 'scenePokeRest' : 'scenePoke';
+
   // ── Доска: семь дней с понедельника ──
   const titleOf = (day: PlanDayView | undefined) => {
     if (!day || day.items.length === 0) return t('restDay');
@@ -186,7 +191,7 @@ export default async function GymPage({
           goal={t('goalOn', { goal: t(`goals.${dossier.goal}`) })}
           links={links}
           speech={pickLine(speechKey, locale, seed)}
-          pokes={Array.from({ length: 4 }, (_, i) => pickLine('scenePoke', locale, seed + i))}
+          pokes={Array.from({ length: 4 }, (_, i) => pickLine(pokeKey, locale, seed + i))}
           pugTitle={showcase === 'rest' ? t('pug.rest') : t(`pug.${showcase}`, { n: plate })}
           sceneLabel={t('sceneLabel')}
           food={fridge}

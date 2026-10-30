@@ -137,30 +137,9 @@ function crease(j: P, toward: P, half: number, depth: number, along = 0): string
   return `M${n2(c[0] - d[1] * half)} ${n2(c[1] + d[0] * half)}Q${n2(c[0] + d[0] * depth)} ${n2(c[1] + d[1] * depth)} ${n2(c[0] + d[1] * half)} ${n2(c[1] - d[0] * half)}`;
 }
 
-/** Рубчик манжеты: продольные полоски на отрезке от `a` до `b`. */
-function ribs(a: P, b: P, half: number, count: number): string {
-  const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-  const m: P = [-(b[1] - a[1]) / L, (b[0] - a[0]) / L];
-  let d = '';
-  for (let i = 0; i < count; i++) {
-    const k = -half + (2 * half * (i + 0.5)) / count;
-    d += `M${n2(a[0] + m[0] * k)} ${n2(a[1] + m[1] * k)}L${n2(b[0] + m[0] * k)} ${n2(b[1] + m[1] * k)}`;
-  }
-  return d;
-}
-
-/** Худи: бока в тени, складки от подмышек к середине и над карманом, вытертые пятна. */
+/** Худи: бока в тени и одна складка над карманом — больше складок читались латами. */
 const HOOD_SIDE: [number, number][] = [[-1, -0.06], [-1, 0.5], [-1, 0.9], [-0.8, 0.88], [-0.72, 0.6], [-0.78, 0.2], [-0.82, -0.06]];
-const HOOD_FOLDS: [number, number][][] = [
-  [[-0.88, 0.72], [-0.6, 0.62], [-0.3, 0.52]],
-  [[-0.92, 0.5], [-0.66, 0.44], [-0.44, 0.42]],
-  [[-0.55, 0.47], [-0.2, 0.44], [0.15, 0.48], [0.52, 0.45]],
-  [[0, 0.8], [0.04, 0.66], [0, 0.55]]
-];
-const HOOD_WEAR: [number, number][][] = [
-  [[0.3, 0.64], [0.42, 0.66], [0.44, 0.58], [0.32, 0.56]],
-  [[-0.5, 0.22], [-0.36, 0.25], [-0.38, 0.16], [-0.5, 0.14]]
-];
+const HOOD_FOLDS: [number, number][][] = [[[-0.55, 0.47], [-0.2, 0.44], [0.15, 0.48], [0.52, 0.45]]];
 
 export type Layer = 'ropeBack' | 'legR' | 'legL' | 'torso' | 'armR' | 'armL' | 'loadR' | 'loadL' | 'head' | 'bar' | 'extra' | 'ropeFront';
 
@@ -300,11 +279,9 @@ export function frontFrame(r: Solved, load: Load, live: Live, z: Widths, plan: F
     put('pocket', 'd', smoothPolygon(map(pocket, 1), 0.2));
     put('pocketSeam', 'd', curve(ctx, [[-0.6, 0.15], [-0.66, 0.33], [-0.33, 0.37], [0.33, 0.37], [0.66, 0.33], [0.6, 0.15]]));
     put('hoodShade', 'd', `${smoothPolygon(map(HOOD_SIDE, 1), 0.4)}${smoothPolygon(map(mirror(HOOD_SIDE), 1), 0.4)}`);
-    put('hoodFolds', 'd', HOOD_FOLDS.map((f, i) => `${curve(ctx, f)}${i < 2 ? curve(ctx, mirror(f)) : ''}`).join(''));
-    put('hoodWear', 'd', HOOD_WEAR.map((w) => smoothPolygon(map(w, 1), 0.5)).join(''));
-    // Подол на резинке: полоса и рубчик.
+    put('hoodFolds', 'd', HOOD_FOLDS.map((f) => curve(ctx, f)).join(''));
+    // Подол на резинке.
     put('hoodHem', 'd', smoothPolygon(map([[-1, -0.12], [-1, -0.01], [1, -0.01], [1, -0.12]], 1), 0.1));
-    put('hoodRibs', 'd', Array.from({ length: 15 }, (_, i) => curve(ctx, [[-0.93 + i * 0.133, -0.11], [-0.93 + i * 0.133, -0.02]])).join(''));
   }
 
   // ── Ноги: бедро, голень с икрой, лапа; шорты на бедре ──
@@ -323,12 +300,10 @@ export function frontFrame(r: Solved, load: Load, live: Live, z: Widths, plan: F
     put(`calfShade${side}`, 'd', offsetCapsule(at(knee, foot, 0.12), 5, at(knee, foot, 0.5), 3.5, 6, -1, lim));
     put(`paw${side}`, 'transform', `translate(${n2(foot[0])} ${n2(foot[1])})`);
     if (hood) {
-      // Треники: бок в тени, складки у колена, вытертая коленка, манжета на резинке.
+      // Треники: бок в тени, одна складка под коленом, манжета на резинке.
       put(`pantsShade${side}`, 'd', `${offsetCapsule(at(hip, knee, 0.1), 7, at(hip, knee, 0.9), 5, 8, 1, lim)}${offsetCapsule(at(knee, foot, 0.12), 5.5, at(knee, foot, 0.78), 4, 5, 1, lim)}`);
-      put(`kneeFold${side}`, 'd', `${crease(knee, foot, 9, 4.5, 5)}${crease(knee, foot, 8, 3.5, 11)}${crease(knee, hip, 10, 4, 7)}${crease(at(knee, foot, 0.45), foot, 7, 3)}`);
-      put(`kneeWear${side}`, 'd', circlePath([knee[0], knee[1] + 2], 5.5));
-      put(`ankle${side}`, 'd', capsule(at(knee, foot, 0.78), 8.4, at(knee, foot, 0.93), 8.4));
-      put(`ankleRibs${side}`, 'd', ribs(at(knee, foot, 0.79), at(knee, foot, 0.92), 6.6, 6));
+      put(`kneeFold${side}`, 'd', crease(knee, foot, 8, 3.5, 7));
+      put(`ankle${side}`, 'd', capsule(at(knee, foot, 0.8), 8, at(knee, foot, 0.93), 8));
     }
   };
   leg('L', hipL, kneeL, footL, r.leg.mid[0] - pose.hip[0]);
@@ -353,12 +328,10 @@ export function frontFrame(r: Solved, load: Load, live: Live, z: Widths, plan: F
     const n: P = [-dy / L, dx / L];
     put(`deltLine${side}`, 'd', `M${n2(a[0] + n[0] * 11)} ${n2(a[1] + n[1] * 11)}Q${n2(a[0] + (dx / L) * 4)} ${n2(a[1] + (dy / L) * 4)} ${n2(a[0] - n[0] * 11)} ${n2(a[1] - n[1] * 11)}`);
     if (hood) {
-      // Рукав: низ в тени, складки на сгибе и гармошка на предплечье, манжета.
+      // Рукав: низ в тени, одна складка на сгибе, манжета.
       put(`sleeveShade${side}`, 'd', `${offsetCapsule(at(sh, el, 0.15), 7, at(sh, el, 0.9), 5, 6.5, 1, lim)}${offsetCapsule(at(el, hd, 0.1), 5.5, at(el, hd, 0.7), 4, 4.5, 1, lim)}`);
-      put(`sleeveFold${side}`, 'd', `${crease(el, hd, 8, 4.5, 3)}${crease(el, sh, 9, 4, 6)}${crease(el, sh, 8.5, 3.5, 12)}${crease(at(el, hd, 0.42), hd, 6.5, 3)}`);
-      put(`shoulderSeam${side}`, 'd', crease(sh, el, 13, -5, 7));
-      put(`cuff${side}`, 'd', capsule(at(el, hd, 0.72), 8.4, at(el, hd, 0.9), 8.4));
-      put(`cuffRibs${side}`, 'd', ribs(at(el, hd, 0.73), at(el, hd, 0.89), 6.6, 6));
+      put(`sleeveFold${side}`, 'd', crease(el, sh, 8.5, 3.5, 6));
+      put(`cuff${side}`, 'd', capsule(at(el, hd, 0.74), 8, at(el, hd, 0.9), 8));
     }
   };
   arm('L', shL, elL, hdL);
@@ -482,11 +455,9 @@ function LegFront({ side, hood }: { side: 'L' | 'R'; hood: boolean }) {
       <PartPath name={`knee${side}`} fill={cloth} />
       {hood ? (
         <>
-          <PartPath name={`pantsShade${side}`} fill={C.ink} fillOpacity={0.22} />
-          <PartPath name={`kneeWear${side}`} fill={C.hoodieWorn} fillOpacity={0.2} />
-          <PartPath name={`kneeFold${side}`} stroke={C.ink} strokeOpacity={0.45} strokeWidth={1.3} fill="none" strokeLinecap="round" />
-          <PartPath name={`ankle${side}`} fill={C.hoodieFar} stroke={C.ink} strokeOpacity={0.35} strokeWidth={1} />
-          <PartPath name={`ankleRibs${side}`} stroke={C.ink} strokeOpacity={0.35} strokeWidth={0.8} fill="none" />
+          <PartPath name={`pantsShade${side}`} fill={C.ink} fillOpacity={0.16} />
+          <PartPath name={`kneeFold${side}`} stroke={C.ink} strokeOpacity={0.28} strokeWidth={1.2} fill="none" strokeLinecap="round" />
+          <PartPath name={`ankle${side}`} fill={C.hoodieFar} />
         </>
       ) : null}
       <Part name={`paw${side}`}>
@@ -520,11 +491,9 @@ function ArmFront({ side, hood }: { side: 'L' | 'R'; hood: boolean }) {
       )}
       {hood ? (
         <>
-          <PartPath name={`sleeveShade${side}`} fill={C.ink} fillOpacity={0.22} />
-          <PartPath name={`shoulderSeam${side}`} stroke={C.ink} strokeOpacity={0.4} strokeWidth={1.1} fill="none" strokeLinecap="round" />
-          <PartPath name={`sleeveFold${side}`} stroke={C.ink} strokeOpacity={0.45} strokeWidth={1.3} fill="none" strokeLinecap="round" />
-          <PartPath name={`cuff${side}`} fill={C.hoodieFar} stroke={C.ink} strokeOpacity={0.35} strokeWidth={1} />
-          <PartPath name={`cuffRibs${side}`} stroke={C.ink} strokeOpacity={0.35} strokeWidth={0.8} fill="none" />
+          <PartPath name={`sleeveShade${side}`} fill={C.ink} fillOpacity={0.16} />
+          <PartPath name={`sleeveFold${side}`} stroke={C.ink} strokeOpacity={0.28} strokeWidth={1.2} fill="none" strokeLinecap="round" />
+          <PartPath name={`cuff${side}`} fill={C.hoodieFar} />
         </>
       ) : null}
       <PartPath name={`paw${side}H`} fill={skin} />
@@ -592,11 +561,9 @@ export function FrontBody({ load, hood, plan }: { load: Load; hood: boolean; pla
         <PartPath name="abs" stroke={C.tankShade} strokeWidth={1.2} strokeOpacity={0.7} fill="none" strokeLinecap="round" />
         {hood ? (
           <>
-            <PartPath name="hoodShade" fill={C.ink} fillOpacity={0.2} />
-            <PartPath name="hoodWear" fill={C.hoodieWorn} fillOpacity={0.3} />
-            <PartPath name="hoodFolds" stroke={C.ink} strokeOpacity={0.4} strokeWidth={1.4} fill="none" strokeLinecap="round" />
-            <PartPath name="hoodHem" fill={C.hoodieFar} stroke={C.ink} strokeOpacity={0.35} strokeWidth={1} />
-            <PartPath name="hoodRibs" stroke={C.ink} strokeOpacity={0.35} strokeWidth={0.8} fill="none" />
+            <PartPath name="hoodShade" fill={C.ink} fillOpacity={0.14} />
+            <PartPath name="hoodFolds" stroke={C.ink} strokeOpacity={0.28} strokeWidth={1.2} fill="none" strokeLinecap="round" />
+            <PartPath name="hoodHem" fill={C.hoodieFar} />
             <PartPath name="pocket" fill={C.hoodieFar} stroke={C.ink} strokeOpacity={0.35} strokeWidth={1} />
             <PartPath name="pocketSeam" stroke={C.hoodieWorn} strokeOpacity={0.7} strokeWidth={0.8} strokeDasharray="2 2" fill="none" />
           </>
