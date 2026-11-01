@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { Modal } from '@/components/Modal';
 import type { Locale } from '@/i18n/routing';
-import { EXERCISES, MUSCLES, cuesOf, exerciseOf, type Exercise, type Muscle } from '@/lib/gym/exercises';
+import { EXERCISES, MUSCLES, exerciseOf, type Exercise, type Muscle } from '@/lib/gym/exercises';
 import { PugRig } from './PugRig';
 import { BUTTON, CHIP, GHOST, INPUT } from './styles';
 
@@ -91,6 +91,18 @@ export function ExercisePicker({
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<Muscle | null>(null);
   const [chosen, setChosen] = useState<string | null>(initial);
+  // Техника приезжает с окном, а не со страницей (`exercise-cues.ts`): пока
+  // её нет, под мопсом пустые строки той же высоты, и карточка не прыгает.
+  const [cues, setCues] = useState<typeof import('@/lib/gym/exercise-cues') | null>(null);
+  useEffect(() => {
+    let live = true;
+    void import('@/lib/gym/exercise-cues').then((module) => {
+      if (live) setCues(module);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const list = useMemo(() => searchExercises(query, muscle), [query, muscle]);
 
@@ -128,8 +140,8 @@ export function ExercisePicker({
           <ExerciseDemo exercise={exercise} />
           <div>
             <p className="ps-label">{t('picker.technique')}</p>
-            <ul className="mt-1.5 space-y-1 text-sm leading-snug text-ink">
-              {cuesOf(exercise.motion, locale).map((cue) => (
+            <ul className="mt-1.5 min-h-[2.6rem] space-y-1 text-sm leading-snug text-ink">
+              {cues?.cuesOf(exercise.motion, locale).map((cue) => (
                 <li key={cue}>— {cue}</li>
               ))}
             </ul>

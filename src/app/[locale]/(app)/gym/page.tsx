@@ -3,13 +3,12 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
 import { CriticCard } from '@/components/gym/CriticCard';
 import { GymHeader } from '@/components/gym/GymHeader';
-import { GymOpening } from '@/components/gym/GymOpening';
 import { GymScene, type BoardRow, type Legend, type SceneLink } from '@/components/gym/GymScene';
 import { dayKey } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
 import { gymContext, gymMood, weekdayNames } from '@/lib/gym/context';
 import { pickLine, verdictOf, hoursOf, type Dossier } from '@/lib/gym/critic';
-import { foodDay, gymOpened, gymWeek, initialOf, latestVerdict, type PlanDayView, type WeekDigest } from '@/lib/gym/data';
+import { foodDay, gymWeek, initialOf, latestVerdict, type PlanDayView, type WeekDigest } from '@/lib/gym/data';
 import { dossierFor } from '@/lib/gym/dossier';
 import { SHOWCASES, musclesOf, showcaseOfDay, trainsOn, type Showcase } from '@/lib/gym/exercises';
 import { fridgeGroupOf, type FridgeGroup } from '@/lib/gym/foods';
@@ -43,10 +42,10 @@ export default async function GymPage({
   searchParams
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ who?: string; ribbon?: string; mood?: string }>;
+  searchParams: Promise<{ who?: string; mood?: string }>;
 }) {
   const locale = resolveLocale((await params).locale);
-  const { who, ribbon, mood: asked } = await searchParams;
+  const { who, mood: asked } = await searchParams;
   const t = await getTranslations({ locale, namespace: 'gym' });
   const { session, members, member, mine } = await gymContext(who);
 
@@ -62,9 +61,6 @@ export default async function GymPage({
     members.map((m) => m.id),
     today
   );
-  // Ленточку режут при первом заходе человека — в чей бы дневник он ни зашёл.
-  // `?ribbon` показывает церемонию ещё раз: посмотреть, не стирая отметку в базе.
-  const opening = session ? ribbon !== undefined || !(await gymOpened(session.userId)) : false;
   const loaded = member ? await dossierFor(member.id, today) : null;
   const digest = loaded?.digest ?? emptyDigest(today);
   const dossier: Dossier = loaded?.dossier ?? {
@@ -165,7 +161,6 @@ export default async function GymPage({
 
   return (
     <div className="grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4">
-      {opening ? <GymOpening line={pickLine('opening', locale, seed)} title={t('opening.title')} skip={t('opening.skip')} /> : null}
       <GymHeader
         title={t('title')}
         path="/gym"

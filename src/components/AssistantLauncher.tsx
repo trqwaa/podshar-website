@@ -56,7 +56,25 @@ export function AssistantLauncher({
 }) {
   const t = useTranslations('assistant');
   const boundsRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<HTMLDivElement>(null);
   const movedRef = useRef(false);
+
+  // Drag limits are numbers taken the moment a finger or the mouse goes down,
+  // not a ref to the bounds box. Given a ref, framer-motion repositions the
+  // dog itself whenever the box changes size, keeping his share of the way
+  // between its edges — and on a phone the box changes size all the time the
+  // page scrolls, as the address bar slides away and back. A dog dragged off
+  // the corner rode up and down with every scroll, in the gym most of all,
+  // where the pages are long. Numbers are never re-applied: he stays where he
+  // was put, and the clamp below still pulls him in if the window shrinks.
+  // They bound the x/y offsets from the resting bottom-right corner.
+  const [limits, setLimits] = useState({ top: 0, left: 0, right: 0, bottom: 0 });
+  const measureLimits = () => {
+    const box = boundsRef.current;
+    const own = handleRef.current;
+    if (!box || !own) return;
+    setLimits({ top: own.offsetHeight - box.clientHeight, left: own.offsetWidth - box.clientWidth, right: 0, bottom: 0 });
+  };
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -146,8 +164,10 @@ export function AssistantLauncher({
       className="pointer-events-none fixed inset-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 [html[data-docked]_&]:invisible"
     >
       <motion.div
+        ref={handleRef}
         drag
-        dragConstraints={boundsRef}
+        dragConstraints={limits}
+        onPointerDownCapture={measureLimits}
         dragElastic={0.04}
         dragMomentum={false}
         onDragStart={() => {

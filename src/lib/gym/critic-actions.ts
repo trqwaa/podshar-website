@@ -58,6 +58,14 @@ export async function askCritic(input: unknown): Promise<GymResult> {
   if (!text) return { error: 'noModel' };
 
   await prisma.gymVerdict.create({ data: { userId, locale: parsed.data.locale, text } });
+  // База на троих — полгигабайта на всё. Показывается последний разнос на
+  // каждом языке, потолку нужны сутки, поэтому хранится неделя плюс последний
+  // на каждом языке, а старше стирается тут же, без отдельной уборки. Иначе
+  // двадцать разносов в сутки копились бы годами ни для чего.
+  const latest = await prisma.gymVerdict.findMany({ where: { userId }, distinct: ['locale'], orderBy: { createdAt: 'desc' }, select: { id: true } });
+  await prisma.gymVerdict.deleteMany({
+    where: { userId, createdAt: { lt: new Date(now - 7 * 86_400_000) }, id: { notIn: latest.map((v) => v.id) } }
+  });
   revalidatePath('/[locale]/(app)/gym', 'layout');
   return { ok: true };
 }

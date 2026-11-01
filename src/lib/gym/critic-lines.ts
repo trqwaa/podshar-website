@@ -320,38 +320,6 @@ export const LINES = {
     uk: ['кривавий місяць. усі сплять, а ти витріщаєшся на штангу', 'ніч, місяць червоний, а ти в підвалі. сон — теж підхід, іди роби'],
     de: ['blutmond. alle schlafen, und du starrst die stange an', 'nacht, roter mond, und du im keller. schlaf ist auch ein satz']
   },
-  /**
-   * Первый заход в зал: тренер сжёг резинку вместо ленточки, всё прогорело до
-   * черноты, и в черноте — это. Жёстко: зал открывается один раз.
-   */
-  opening: {
-    ru: [
-      'отмазки сгорели первыми. дальше — ты',
-      'всё лишнее сгорело. остались ты и железо',
-      'это горела твоя зона комфорта. хорошо горела',
-      'пепел — это твоё «начну с понедельника»',
-      'назад дороги нет. я её сжёг',
-      'добро пожаловать в подвал. слабость сюда не проходит — сгорает на входе'
-    ],
-    en: [
-      'excuses burned first. you are next',
-      'everything soft burned. what is left is you and the iron',
-      'that was your comfort zone. it burned well',
-      'no way back. i burned it'
-    ],
-    uk: [
-      'відмовки згоріли першими. далі — ти',
-      'усе зайве згоріло. лишилися ти і залізо',
-      'це горіла твоя зона комфорту. добре горіла',
-      'дороги назад нема. я її спалив'
-    ],
-    de: [
-      'die ausreden sind zuerst verbrannt. du bist der nächste',
-      'alles weiche ist verbrannt. übrig bleiben du und das eisen',
-      'das war deine komfortzone. sie hat gut gebrannt',
-      'es gibt keinen weg zurück. ich habe ihn verbrannt'
-    ]
-  },
   /** Человек бросает тренировку на середине: мопс в окне «бросить?» вместо системного «точно?». */
   discardPug: {
     ru: [

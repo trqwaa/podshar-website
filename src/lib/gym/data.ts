@@ -8,7 +8,6 @@ import { dayKey, shiftDay } from '@/lib/calendar/scales';
 import { kindOf, oneRepMax, trainsOn, type Kind } from './exercises';
 import {
   DEFAULTS,
-  PARTS,
   ageFrom,
   isActivity,
   isGoal,
@@ -146,21 +145,6 @@ export type GymWeek = { days: string[][]; now: string[]; done: string[] };
 export function initialOf(displayName: string): string {
   const words = displayName.split(/[\s·]+/).filter(Boolean);
   return (words[words.length - 1]?.[0] ?? '?').toLowerCase();
-}
-
-/**
- * Открыт ли зал для человека: ленточку режут один раз на человека, а не на
- * устройство. Отметка — в `countdowns`, как у поздравления с днём рождения, —
- * без миграции, и с телефона и ноутбука церемония не повторится. Сбой базы —
- * «открыт»: лучше пропустить церемонию, чем показывать её каждый заход.
- */
-export const openedKey = (userId: string) => `gym-opened:${userId}`;
-
-export async function gymOpened(userId: string): Promise<boolean> {
-  const row = await prisma.countdown
-    .findUnique({ where: { key: openedKey(userId) }, select: { key: true } })
-    .catch(() => ({ key: '' }));
-  return row !== null;
 }
 
 export async function gymWeek(memberIds: string[], today: string): Promise<GymWeek> {
@@ -405,8 +389,6 @@ export async function measuresOf(userId: string): Promise<Partial<Record<Part, M
   }
   return out;
 }
-
-export const MEASURE_ORDER = PARTS;
 
 export type GoalView = {
   id: string;

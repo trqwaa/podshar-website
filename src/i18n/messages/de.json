@@ -1625,10 +1625,6 @@
       "now": "gerade im gym: {names}",
       "done": "heute schon trainiert: {names}"
     },
-    "opening": {
-      "title": "feierliche eröffnung",
-      "skip": "überspringen"
-    },
     "records": {
       "title": "rekorde",
       "hint": "dein bestes in jeder übung, wie in strong. oben das schwerste",

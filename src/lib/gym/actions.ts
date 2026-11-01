@@ -16,7 +16,7 @@ import { programOf } from './programs';
 import { parseFatsecretCsv } from './fatsecret-import';
 import { parseSleepCsv } from './sleep-import';
 import { parseStrongCsv } from './strong-import';
-import { openedKey, previousSets, weekdayOf } from './data';
+import { previousSets, weekdayOf } from './data';
 
 /**
  * Всё, что зал может менять.
@@ -56,17 +56,6 @@ async function me(): Promise<string | null> {
 
 /** Не дальше завтрашнего дня по Цюриху: записать обед в будущее — это опечатка, а не план. */
 const notFuture = (day: string) => day <= shiftDay(dayKey(new Date()), 1);
-
-// ─── Открытие зала ──────────────────────────────────────────────────────────
-
-/** Ленточка перерезана: больше церемонии этому человеку не показывать ни на каком устройстве. */
-export async function markGymOpened(): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const key = openedKey(userId);
-  await prisma.countdown.upsert({ where: { key }, create: { key, label: 'gym opened', targetAt: new Date() }, update: {} });
-  return { ok: true };
-}
 
 // ─── Цель и профиль ─────────────────────────────────────────────────────────
 

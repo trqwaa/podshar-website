@@ -1625,10 +1625,6 @@
       "now": "in the gym right now: {names}",
       "done": "already trained today: {names}"
     },
-    "opening": {
-      "title": "grand opening",
-      "skip": "skip"
-    },
     "records": {
       "title": "records",
       "hint": "your best in every exercise, like in strong. heaviest on top",

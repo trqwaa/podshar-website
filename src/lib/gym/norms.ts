@@ -37,27 +37,8 @@ export type Part = (typeof PARTS)[number];
 export const isPart = (v: unknown): v is Part => typeof v === 'string' && (PARTS as readonly string[]).includes(v);
 export const unitOf = (part: Part) => (part === 'weight' ? 'kg' : part === 'bodyfat' ? '%' : 'cm');
 
-/**
- * Где на замерах «лучше» — больше или меньше. Талия у сушки должна уходить,
- * бицепс у массы — расти. Вес зависит от цели, поэтому здесь его нет.
- */
-export const BIGGER_IS_BETTER: Partial<Record<Part, boolean>> = {
-  bodyfat: false,
-  waist: false,
-  neck: true,
-  shoulders: true,
-  chest: true,
-  biceps: true,
-  forearm: true,
-  hips: true,
-  thigh: true,
-  calf: true
-};
-
 export const GOAL_KINDS = ['bodyweight', 'lift', 'measure'] as const;
 export type GoalKind = (typeof GOAL_KINDS)[number];
-export const isGoalKind = (v: unknown): v is GoalKind =>
-  typeof v === 'string' && (GOAL_KINDS as readonly string[]).includes(v);
 
 /** Пока ничего не замерено, считаем на усреднённого семнадцатилетнего. И говорим об этом. */
 export const DEFAULTS = { weightKg: 70, heightCm: 178, age: 17 };
