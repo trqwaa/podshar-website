@@ -885,7 +885,7 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                     ровно над телом под водой. */}
                 <div className={`relative z-10 ${COLUMN}`}>
                   <span className="w-16 shrink-0" aria-hidden="true" />
-                  <div className="relative flex-1">
+                  <div className="relative min-w-0 flex-1">
                     {/* Вершина: свет и кольца — за льдом, ядро — перед ним. */}
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 sm:h-28 lg:h-32">
                       <Summit x={berg.tip.peak} mood={mood} still={still} haze={look.overcast} />
@@ -988,7 +988,7 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                 {mood === 'blood' ? <MoonGlint depth={0} still={still} /> : null}
                 <div className={`pointer-events-none absolute inset-0 ${COLUMN}`}>
                   <span className="w-16 shrink-0" />
-                  <div className="relative flex-1">
+                  <div className="relative min-w-0 flex-1">
                     <IceBand tip={berg.tip} dim={dim} />
                   </div>
                 </div>
@@ -1026,7 +1026,7 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                         стоит на льду — и цвет его по льду, а не по воде. */}
                     <div className={`pointer-events-none absolute inset-0 ${COLUMN}`}>
                       <span className="w-16 shrink-0" />
-                      <div className="relative flex-1">
+                      <div className="relative min-w-0 flex-1">
                         <IceBand tip={berg.tip} dim={dim} veil={look.fog ? fogOf(dark, 0.9) : null} />
                       </div>
                     </div>
@@ -1126,7 +1126,10 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                           label={`−${meters.format(depthOf(i, bands.length))}`}
                           still={still}
                         />
-                        <div data-ice="" className="relative flex-1">
+                        {/* `min-w-0`: без него слой не сжимается уже своей подписи, и
+                            длинная английская («lives at the very bottom…») растягивала
+                            мопсов слой за экран — низ айсберга ездил вбок. */}
+                        <div data-ice="" className="relative min-w-0 flex-1">
                           <IceSlice
                             layer={berg.layers[i]}
                             t={depth}
@@ -1187,12 +1190,12 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                             </span>
                             {band.kind !== 'soon' ? (
                               <span
-                                className={`mt-0.5 block max-w-full truncate text-sm tabular-nums lg:text-base ${
+                                className={`mt-0.5 block max-w-full text-sm tabular-nums lg:text-base ${band.kind === 'dog' ? 'line-clamp-2' : 'truncate'} ${
                                   iceDark ? 'text-surface/70' : 'text-ink-muted'
                                 }`}
                               >
                                 {band.answer ? (
-                                  <span key={band.answer} className="animate-rise-in block truncate">
+                                  <span key={band.answer} className={`animate-rise-in block ${band.kind === 'dog' ? '' : 'truncate'}`}>
                                     {band.answer}
                                   </span>
                                 ) : loading && band.kind === 'place' && band.key !== 'profile' ? (
@@ -1232,7 +1235,10 @@ export function Pult({ epic = null }: { epic?: string | null }) {
 
           {/* «Ниже — нишевее»: айсберг уходит за нижний край, и это надо
               сказать, пока человек не начал листать. Исчезает с первой
-              прокруткой и пока что-то набрано. */}
+              прокруткой и пока что-то набрано. Центрует `mx-auto` во всю
+              ширину, а не `-translate-x-1/2`: framer пишет свой `transform`
+              для подъёма и затирал сдвиг — по-английски подсказка начиналась
+              с середины экрана и уезжала за правый край. */}
           <AnimatePresence>
             {deepBelow && !scrolled && !q ? (
               <motion.p
@@ -1241,7 +1247,7 @@ export function Pult({ epic = null }: { epic?: string | null }) {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0, transition: { delay: 0.9, duration: 0.4 } }}
                 exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                className="ps-label pointer-events-none absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-deep/85 px-3 py-1.5 text-surface"
+                className="ps-label pointer-events-none absolute inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] mx-auto w-max max-w-[calc(100%-2rem)] rounded-full bg-deep/85 px-3 py-1.5 text-center text-surface"
               >
                 {t('deeper')} ↓
               </motion.p>

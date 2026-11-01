@@ -1,10 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { usePathname } from '@/i18n/routing';
 import { PodsharMark } from './PodsharMark';
-import { PugAvatar } from './gym/PugAvatar';
+
+// The gym's drawn pug ships only to the gym: the dog sits in every page's
+// shell, and importing the drawing outright put its 5 kB on the home page,
+// the calendar and the rest, which only ever show the photo. Gym pages load
+// the same chunk for their own header, so there it costs nothing extra.
+// Client-only: rendered on the server through the loader, the drawing's
+// `useId` came out one level deeper on hydration, and the clip-path ids no
+// longer matched. The empty circle under it is the same either way.
+const PugAvatar = dynamic(() => import('./gym/PugAvatar').then((m) => m.PugAvatar), { ssr: false });
 
 /**
  * Podshar's face: the pug in a hood.

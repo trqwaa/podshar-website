@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useMotionValue } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { AssistantAvatar } from './AssistantAvatar';
@@ -10,8 +10,17 @@ const STORE_KEY = 'podshar:launcher';
 const DRAG_SLOP = 4;
 /** Keep at least this much of the button on screen after a resize. */
 const EDGE_KEEP = 12;
+/**
+ * How close to the bottom edge, in px, the dog counts as standing on it. There
+ * he rides with the bottom: Safari's bottom bar grows and shrinks as the page
+ * scrolls, and a dog pinned in place down there would end up under it. Dropped
+ * any higher, he hangs from the top instead, and the bar no longer moves him at
+ * all. 64 is more than the bar grows by, so a hanging dog is never covered.
+ */
+const DOCK = 64;
 
-type Stored = { x: number; y: number; collapsed: boolean };
+/** `top`: `y` is measured down from the top edge. Without it, up from the bottom. */
+type Stored = { x: number; y: number; collapsed: boolean; top: boolean };
 
 function readStored(): Stored | null {
   try {
@@ -19,7 +28,7 @@ function readStored(): Stored | null {
     if (!raw) return null;
     const v = JSON.parse(raw) as Partial<Stored>;
     if (typeof v.x !== 'number' || typeof v.y !== 'number') return null;
-    return { x: v.x, y: v.y, collapsed: Boolean(v.collapsed) };
+    return { x: v.x, y: v.y, collapsed: Boolean(v.collapsed), top: v.top === true };
   } catch {
     // Private mode, blocked storage, or someone else's key in the way. The
     // launcher has a perfectly good default position; take it and move on.
@@ -67,18 +76,33 @@ export function AssistantLauncher({
   // the corner rode up and down with every scroll, in the gym most of all,
   // where the pages are long. Numbers are never re-applied: he stays where he
   // was put, and the clamp below still pulls him in if the window shrinks.
-  // They bound the x/y offsets from the resting bottom-right corner.
+  // They bound the x/y offsets from the corner he hangs from (`fromTop`).
   const [limits, setLimits] = useState({ top: 0, left: 0, right: 0, bottom: 0 });
   const measureLimits = () => {
     const box = boundsRef.current;
     const own = handleRef.current;
     if (!box || !own) return;
-    setLimits({ top: own.offsetHeight - box.clientHeight, left: own.offsetWidth - box.clientWidth, right: 0, bottom: 0 });
+    const room = box.clientHeight - own.offsetHeight;
+    const top = fromTopRef.current;
+    setLimits({ top: top ? 0 : -room, left: own.offsetWidth - box.clientWidth, right: 0, bottom: top ? room : 0 });
   };
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const [collapsed, setCollapsed] = useState(false);
+  // Which edge the dog hangs from: the bottom at rest and within `DOCK` of it,
+  // the top anywhere higher. Mirrored in a ref for the handlers below.
+  const [fromTop, setFromTop] = useState(false);
+  const fromTopRef = useRef(false);
+  fromTopRef.current = fromTop;
+  // A new `y` waits for the new edge: set together with the class swap, it
+  // would paint one frame measured from the old edge — a jump of a screen.
+  const pendingY = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (pendingY.current === null) return;
+    y.set(pendingY.current);
+    pendingY.current = null;
+  }, [fromTop, y]);
   // Until storage has been read, the button renders at its default spot. Doing
   // this in an effect rather than in the initial state is what keeps the server
   // and the first client paint identical.
@@ -88,7 +112,10 @@ export function AssistantLauncher({
     const saved = readStored();
     if (saved) {
       x.set(saved.x);
-      y.set(saved.y);
+      if (saved.top) {
+        pendingY.current = saved.y;
+        setFromTop(true);
+      } else y.set(saved.y);
       setCollapsed(saved.collapsed);
     }
     setRestored(true);
@@ -98,11 +125,34 @@ export function AssistantLauncher({
     try {
       localStorage.setItem(
         STORE_KEY,
-        JSON.stringify({ x: x.get(), y: y.get(), collapsed, ...next })
+        JSON.stringify({ x: x.get(), y: y.get(), collapsed, top: fromTopRef.current, ...next })
       );
     } catch {
       // Storage refused. The position still works for this session.
     }
+  };
+
+  // Where the dog was dropped decides what he hangs from: within `DOCK` of the
+  // bottom he rides with it, higher up he hangs from the top. His spot on the
+  // screen stays the same; only the edge it is measured from changes.
+  const settle = () => {
+    const box = boundsRef.current;
+    const own = handleRef.current;
+    if (!box || !own) return;
+    x.stop();
+    y.stop();
+    const room = Math.max(0, box.clientHeight - own.offsetHeight);
+    const nextX = Math.min(0, Math.max(own.offsetWidth - box.clientWidth, x.get()));
+    x.set(nextX);
+    const above = Math.min(room, Math.max(0, fromTopRef.current ? room - y.get() : -y.get()));
+    const top = above > DOCK;
+    const nextY = top ? room - above : -above;
+    if (top === fromTopRef.current) y.set(nextY);
+    else {
+      pendingY.current = nextY;
+      setFromTop(top);
+    }
+    persist({ x: nextX, y: nextY, top });
   };
 
   // A window that got smaller can leave the button off-screen, where it is
@@ -112,11 +162,16 @@ export function AssistantLauncher({
       const box = boundsRef.current?.getBoundingClientRect();
       if (!box) return;
       const minX = -(box.width - EDGE_KEEP);
-      const minY = -(box.height - EDGE_KEEP);
+      const reach = box.height - EDGE_KEEP;
       if (x.get() < minX) x.set(minX);
       if (x.get() > 0) x.set(0);
-      if (y.get() < minY) y.set(minY);
-      if (y.get() > 0) y.set(0);
+      if (fromTopRef.current) {
+        if (y.get() > reach) y.set(reach);
+        if (y.get() < 0) y.set(0);
+      } else {
+        if (y.get() < -reach) y.set(-reach);
+        if (y.get() > 0) y.set(0);
+      }
     };
     clamp();
     window.addEventListener('resize', clamp);
@@ -175,11 +230,11 @@ export function AssistantLauncher({
         }}
         onDragEnd={(_, info) => {
           movedRef.current = Math.hypot(info.offset.x, info.offset.y) > DRAG_SLOP;
-          persist();
+          settle();
         }}
         style={{ x, y }}
         onDragStartCapture={(e) => e.preventDefault()}
-        className={`pointer-events-auto absolute bottom-0 right-0 touch-none select-none transition-opacity duration-drape ${
+        className={`pointer-events-auto absolute right-0 ${fromTop ? 'top-0' : 'bottom-0'} touch-none select-none transition-opacity duration-drape ${
           hidden ? 'pointer-events-none opacity-0' : 'opacity-100'
         }`}
       >

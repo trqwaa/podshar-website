@@ -19,9 +19,16 @@ import '../globals.css';
  * page. Four weights cover body (400), stats and the greeting (500), labels
  * (600) and the rare emphasis (700). Nothing lighter than 400 exists in the
  * system any more.
+ *
+ * `subsets` are the files preloaded on the first visit, not the glyphs the face
+ * has: next/font declares every subset Google ships, each behind its own
+ * `unicode-range`, and the browser fetches one only when a page uses it. Latin
+ * Extended (č, ł, ő — none in our four languages; ä ö ü ß are plain Latin) was
+ * preloaded anyway: 15 KB of the 54 every new device downloaded first. It is
+ * still there for a name that needs it, just no longer up front.
  */
 const sans = Manrope({
-  subsets: ['latin', 'latin-ext', 'cyrillic'],
+  subsets: ['latin', 'cyrillic'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-sans',
   display: 'swap'
