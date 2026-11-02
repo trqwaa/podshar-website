@@ -1179,7 +1179,9 @@
     "unread": "{n, plural, one {# neu} other {# neu}}",
     "birthdayAsk": "die seite will es wissen",
     "birthdayTitle": "wann hast du geburtstag?",
-    "birthdayHint": "dich erwartet eine überraschung"
+    "birthdayHint": "dich erwartet eine überraschung",
+    "workout": "hat trainiert: „{title}“, {sets, plural, one {# satz} other {# sätze}}",
+    "workoutPlain": "hat trainiert: {sets, plural, one {# satz} other {# sätze}}"
   },
   "birthday": {
     "dialog": "Alles Gute zum Geburtstag",

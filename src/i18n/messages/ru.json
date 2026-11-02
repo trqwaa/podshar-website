@@ -1179,7 +1179,9 @@
     "unread": "{n, plural, one {# новое} few {# новых} many {# новых} other {# нового}}",
     "birthdayAsk": "сайт хочет знать",
     "birthdayTitle": "когда у тебя день рождения?",
-    "birthdayHint": "тебя ждёт сюрприз"
+    "birthdayHint": "тебя ждёт сюрприз",
+    "workout": "качался: «{title}», {sets, plural, one {# подход} few {# подхода} many {# подходов} other {# подхода}}",
+    "workoutPlain": "качался: {sets, plural, one {# подход} few {# подхода} many {# подходов} other {# подхода}}"
   },
   "birthday": {
     "dialog": "С днём рождения",

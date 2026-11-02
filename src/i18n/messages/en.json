@@ -1179,7 +1179,9 @@
     "unread": "{n, plural, one {# new} other {# new}}",
     "birthdayAsk": "the site wants to know",
     "birthdayTitle": "when is your birthday?",
-    "birthdayHint": "a surprise awaits you"
+    "birthdayHint": "a surprise awaits you",
+    "workout": "trained: “{title}”, {sets, plural, one {# set} other {# sets}}",
+    "workoutPlain": "trained: {sets, plural, one {# set} other {# sets}}"
   },
   "birthday": {
     "dialog": "Happy birthday",

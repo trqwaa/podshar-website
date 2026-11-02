@@ -19,6 +19,7 @@ import {
 } from '@/lib/gym/actions';
 import type { SetView, WorkoutView } from '@/lib/gym/data';
 import { countsVolume, exerciseOf, oneRepMax, type Kind } from '@/lib/gym/exercises';
+import { primeRestSignal, restOver } from './rest-signal';
 import { ExercisePicker } from './ExercisePicker';
 import { PugAvatar } from './PugAvatar';
 import { BUTTON, ErrorLine, GHOST, SMALL_INPUT, parseNumber, useGymAction } from './ui';
@@ -180,11 +181,14 @@ export function Workout({
   useEffect(() => {
     if (rest?.end != null && now >= rest.end) {
       setRest(null);
-      if ('vibrate' in navigator) navigator.vibrate?.([120, 80, 120]);
+      restOver();
     }
   }, [now, rest]);
 
-  const startRest = () => setRest({ total: restSeconds, end: Date.now() + restSeconds * 1000, left: 0 });
+  const startRest = () => {
+    primeRestSignal();
+    setRest({ total: restSeconds, end: Date.now() + restSeconds * 1000, left: 0 });
+  };
 
   const blocks = useMemo(() => {
     const map = new Map<number, SetView[]>();

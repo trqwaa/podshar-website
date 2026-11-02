@@ -1179,7 +1179,9 @@
     "unread": "{n, plural, one {# нове} few {# нових} many {# нових} other {# нового}}",
     "birthdayAsk": "сайт хоче знати",
     "birthdayTitle": "коли в тебе день народження?",
-    "birthdayHint": "на тебе чекає сюрприз"
+    "birthdayHint": "на тебе чекає сюрприз",
+    "workout": "качався: «{title}», {sets, plural, one {# підхід} few {# підходи} many {# підходів} other {# підходу}}",
+    "workoutPlain": "качався: {sets, plural, one {# підхід} few {# підходи} many {# підходів} other {# підходу}}"
   },
   "birthday": {
     "dialog": "З днем народження",

@@ -171,8 +171,34 @@ const patchesReleased: Source = async ({ userId, now, since, t, dayAt }) => {
   });
 };
 
+/**
+ * Кто из остальных двоих качался (1.55): законченные тренировки, с названием
+ * и числом сделанных подходов. Своя тренировка новостью для себя не бывает.
+ * Ссылка — в историю его дневника.
+ */
+const workoutsDone: Source = async ({ userId, since, t, dayAt }) => {
+  const rows = await prisma.gymSession.findMany({
+    where: { completedAt: { gte: since }, userId: { not: userId } },
+    orderBy: { completedAt: 'desc' },
+    take: FEED_LIMIT,
+    include: {
+      user: { select: { id: true, handle: true, displayName: true, avatarPreset: true } },
+      _count: { select: { sets: { where: { done: true } } } }
+    }
+  });
+  return rows.map((row) => ({
+    id: `workout:${row.id}`,
+    at: (row.completedAt ?? row.scheduledFor).getTime(),
+    who: person(row.user),
+    mine: false,
+    text: row.focus ? t('workout', { title: row.focus, sets: row._count.sets }) : t('workoutPlain', { sets: row._count.sets }),
+    when: dayAt(row.completedAt ?? row.scheduledFor, true),
+    href: `/gym/training?tab=history&who=${encodeURIComponent(row.user.handle)}`
+  }));
+};
+
 /** Источники ленты. Новое приложение — новая функция выше и строчка здесь. */
-const SOURCES: Source[] = [eventsAdded, notesPinned, patchesReleased];
+const SOURCES: Source[] = [eventsAdded, notesPinned, patchesReleased, workoutsDone];
 
 export async function newsFor({ userId, locale }: { userId: string; locale: Locale }): Promise<News> {
   const t: Translate = await getTranslations({ locale, namespace: 'news' });
