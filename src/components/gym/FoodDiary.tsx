@@ -12,6 +12,7 @@ import type { MealItem } from '@/lib/gym/food-estimate';
 import { foodOf, macrosFor, searchFoods, type Food } from '@/lib/gym/foods';
 import type { Targets } from '@/lib/gym/norms';
 import { CsvImport } from './CsvImport';
+import { BarcodeScanner } from './BarcodeScanner';
 import { FoodPhoto } from './FoodPhoto';
 import { BUTTON, CHIP, CHIP_OFF, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
 
@@ -231,7 +232,10 @@ function QuickAdd({ day, initialMeal, recent }: { day: string; initialMeal: Meal
     <section aria-label={t('food.quickTitle')} className="flex flex-col gap-3 rounded-[16px] border-2 border-ink p-3 sm:p-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-lg font-semibold lowercase text-ink">{t('food.quickTitle')}</h3>
-        <FoodPhoto day={day} meal={meal} onDone={() => setSaved(null)} />
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <BarcodeScanner day={day} meal={meal} />
+          <FoodPhoto day={day} meal={meal} onDone={() => setSaved(null)} />
+        </div>
       </div>
       <MealSwitch
         meal={meal}

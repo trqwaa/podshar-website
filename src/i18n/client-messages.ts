@@ -56,7 +56,8 @@ export const SIGNED_IN = [
   'profile',
   'pult',
   'news',
-  'people'
+  'people',
+  'connections'
 ] as const;
 
 /**

@@ -1,5 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 
+import { Connections } from '@/components/profile/Connections';
+import { CANONICAL_ORIGIN } from '@/lib/auth/origin';
+
 import {
   BirthdayForm,
   BirthdaysAdmin,
@@ -64,7 +67,7 @@ export default async function ProfilePage({
   // держать ссылки на них где-то в заметках.
   // День рождения: свой и кто его разблокирует. Владельцу — ещё и у всех, с
   // кнопкой «разблокировать».
-  const [games, own, owner, members] = await Promise.all([
+  const [games, own, owner, members, sleepKey] = await Promise.all([
     prisma.gameAccount.findMany({
       where: { userId: user.id },
       orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
@@ -74,7 +77,8 @@ export default async function ProfilePage({
     prisma.user.findFirst({ where: { role: 'OWNER' }, orderBy: { createdAt: 'asc' }, select: { displayName: true } }),
     user.role === 'OWNER'
       ? prisma.user.findMany({ orderBy: { createdAt: 'asc' }, select: { id: true, displayName: true } })
-      : null
+      : null,
+    prisma.countdown.findUnique({ where: { key: `sleep-token:${user.id}` }, select: { targetAt: true } })
   ]);
   const dates = members ? await birthdaysOf(members.map((member) => member.id)) : null;
   const dota = games.filter((g) => g.game === 'DOTA2');
@@ -107,6 +111,16 @@ export default async function ProfilePage({
           born={own.born}
           owner={owner?.displayName ?? ''}
           thisYear={Number(dayKey(new Date()).slice(0, 4))}
+        />
+      </div>
+
+      {/* Подключения: сон из «Здоровья» и уведомления мопса. Ключ уведомлений —
+          с сервера, при запросе: добавили его на Vercel — и без пересборки. */}
+      <div id="connections" className="animate-rise-in scroll-mt-20 [animation-delay:105ms]">
+        <Connections
+          sleepSince={sleepKey?.targetAt.getTime() ?? null}
+          pushKey={process.env.VAPID_PUBLIC_KEY ?? null}
+          sleepUrl={`${CANONICAL_ORIGIN}/api/gym/sleep`}
         />
       </div>
 

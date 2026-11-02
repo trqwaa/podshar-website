@@ -53,7 +53,8 @@ const BUILD = buildInfo();
  *     in the query string. A browser follows its own default otherwise, and a
  *     secret should not depend on which browser someone happens to use.
  *   nosniff   a file is what its content type says, not what the browser guesses.
- *   Permissions-Policy   the site uses no camera, microphone or location, so it
+ *   Permissions-Policy   the camera only for the site itself — the barcode scanner
+ *                        in the food diary (1.53); no microphone or location, so it
  *     says so, and a script that got in somehow could not ask for them either.
  *   Cross-Origin-Opener-Policy   a page this site links to gets no handle back
  *     on our window.
@@ -78,7 +79,7 @@ const SECURITY_HEADERS = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'
+    value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()'
   },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000' }

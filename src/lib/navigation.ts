@@ -139,6 +139,7 @@ export const PROFILE: Place = {
     { id: 'invite', terms: ['пригласи', 'запроси', 'инвайт', 'invite', 'einladung'] },
     // «др» сюда не идёт: подстрокой оно сидит в «друг», «адрес», «андрей».
     { id: 'birthday', terms: ['рожден', 'народжен', 'днюх', 'birthday', 'bday', 'geburtstag'] },
+    { id: 'connections', terms: ['подключ', 'підключ', 'здоровь', 'здоров’', 'apple health', 'уведомл', 'сповіщ', 'notif', 'benachricht', 'mitteilung', 'verbindung'] },
     {
       id: 'dota',
       // 'rang' тут нет намеренно: оно сидит внутри orange, strange и arrange, а

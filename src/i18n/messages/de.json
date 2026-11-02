@@ -594,7 +594,8 @@
       "invite": "holt eine vierte person. nur der besitzer",
       "dota": "dota-konto. steam-link rein, medaille steht in der schublade",
       "brawl": "brawl-stars-konto. tag rein, pokale stehen in der schublade",
-      "birthday": "geburtstag. einmal eintragen, und die seite gratuliert dir am tag"
+      "birthday": "geburtstag. einmal eintragen, und die seite gratuliert dir am tag",
+      "connections": "verbindungen: schlaf aus Apple Health und morgendliche mitteilungen vom mops"
     },
     "todos": {
       "here": "das aufgabenbrett. zwei listen — eine gemeinsame und deine eigene, schalter oben",
@@ -1598,7 +1599,9 @@
       "foodNoModel": "der mops ist offline — wähl aus der liste",
       "foodNotFood": "hab nicht erkannt, was das ist. schreib einfacher: „reis 200 g und hähnchen“",
       "foodCooldown": "moment, der mops kaut noch am letzten",
-      "foodCap": "der mops hat für heute genug gerechnet. nimm die werte von der packung"
+      "foodCap": "der mops hat für heute genug gerechnet. nimm die werte von der packung",
+      "barcodeUnknown": "dieses produkt ist nicht in der datenbank — schreib es in worten, der mops rechnet",
+      "cameraDenied": "kein kamerazugriff — erlaube ihn für die seite in den einstellungen"
     },
     "kinds": {
       "weight": "gewicht & wdh.",
@@ -1692,6 +1695,47 @@
       "hamstrings": "beinbeuger",
       "calves": "waden",
       "adductors": "adduktoren"
+    },
+    "scanner": {
+      "open": "scanner",
+      "title": "barcode-scanner",
+      "per100": "pro 100 g",
+      "add": "eintragen: {meal}",
+      "again": "nochmal",
+      "looking": "suche das produkt…",
+      "hint": "halte die kamera auf den barcode der packung"
     }
+  },
+  "connections": {
+    "title": "verbindungen",
+    "sleepTitle": "schlaf aus Apple Health",
+    "sleepWhat": "die uhr schreibt den schlaf in Health auf dem iphone, und ein kurzbefehl schickt die nacht jeden morgen hierher",
+    "sleepOn": "verbunden seit {date}",
+    "sleepOff": "nicht verbunden",
+    "sleepGet": "schlüssel holen",
+    "sleepNew": "neuer schlüssel",
+    "sleepRevoke": "trennen",
+    "sleepKey": "der schlüssel — wird nur einmal gezeigt",
+    "copy": "kopieren",
+    "copied": "kopiert",
+    "sleepUrl": "adresse",
+    "sleepHow": "so baust du den kurzbefehl",
+    "sleepSteps": "1. Kurzbefehle → Automation → + → Tageszeit: 10:00, täglich, Sofort ausführen.\n2. Health-Beispiele suchen: Typ Schlafanalyse, Startdatum im letzten 1 Tag, sortiert nach Startdatum.\n3. Objekt aus Liste abrufen → Erstes Objekt → Details von Health-Beispiel abrufen → Startdatum.\n4. nochmal Objekt aus Liste abrufen, aus denselben Beispielen → Letztes Objekt → Details → Enddatum.\n5. beide Daten durch Datum formatieren, Format ISO 8601.\n6. Inhalte von URL abrufen: die Adresse oben, Methode POST, Header Authorization = „Bearer “, Leerzeichen und der Schlüssel, JSON-Body: start — das erste Datum, end — das zweite.",
+    "pushTitle": "mitteilungen vom mops",
+    "pushWhat": "jeden morgen schreibt der mops, was heute im plan steht: training oder ruhe",
+    "pushOn": "an auf diesem handy",
+    "pushOffLabel": "aus",
+    "pushEnable": "auf diesem handy einschalten",
+    "pushDisable": "ausschalten",
+    "pushNotReady": "mitteilungen sind noch nicht eingerichtet — die schlüssel fehlen",
+    "pushInstall": "auf dem iphone bekommt nur die seite vom home-bildschirm mitteilungen: in Safari teilen → zum home-bildschirm, die seite von dort öffnen und hierher zurückkommen",
+    "pushDenied": "mitteilungen sind in den handy-einstellungen gesperrt — erlaube sie für podshar",
+    "pushUnsupported": "dieser browser kann keine mitteilungen"
+  },
+  "push": {
+    "title": "mops-coach",
+    "train": "heute im plan: {title}. nicht drücken",
+    "rest": "heute ruhetag. iss dein eiweiss und schlaf ordentlich",
+    "workout": "training"
   }
 }

@@ -594,7 +594,8 @@
       "invite": "adds a fourth person. owner only",
       "dota": "dota account. paste a steam link, the drawer shows your medal",
       "brawl": "brawl stars account. paste your player tag, cups show up in the drawer",
-      "birthday": "birthday. set it once and the site congratulates you on the day"
+      "birthday": "birthday. set it once and the site congratulates you on the day",
+      "connections": "connections: sleep from Apple Health and morning notifications from the pug"
     },
     "todos": {
       "here": "the task board. two lists — one shared between the three of you and your own, switch on top",
@@ -1598,7 +1599,9 @@
       "foodNoModel": "the pug is offline — pick from the list",
       "foodNotFood": "couldn’t tell what food that is. try plainer: “rice 200 g and chicken”",
       "foodCooldown": "a second, the pug is still chewing the last one",
-      "foodCap": "the pug has counted enough for today. use the label numbers"
+      "foodCap": "the pug has counted enough for today. use the label numbers",
+      "barcodeUnknown": "this product is not in the database — write it in words and the pug will count it",
+      "cameraDenied": "no camera access — allow it for the site in the settings"
     },
     "kinds": {
       "weight": "weight & reps",
@@ -1692,6 +1695,47 @@
       "hamstrings": "hamstrings",
       "calves": "calves",
       "adductors": "adductors"
+    },
+    "scanner": {
+      "open": "scanner",
+      "title": "barcode scanner",
+      "per100": "per 100 g",
+      "add": "log to {meal}",
+      "again": "again",
+      "looking": "looking it up…",
+      "hint": "point the camera at the barcode on the pack"
     }
+  },
+  "connections": {
+    "title": "connections",
+    "sleepTitle": "sleep from Apple Health",
+    "sleepWhat": "your watch writes sleep into Health on the iPhone, and a shortcut sends last night here every morning",
+    "sleepOn": "connected since {date}",
+    "sleepOff": "not connected",
+    "sleepGet": "get a key",
+    "sleepNew": "new key",
+    "sleepRevoke": "disconnect",
+    "sleepKey": "the key — shown once",
+    "copy": "copy",
+    "copied": "copied",
+    "sleepUrl": "address",
+    "sleepHow": "how to build the shortcut",
+    "sleepSteps": "1. Shortcuts → Automation → + → Time of Day: 10:00, daily, Run Immediately.\n2. Find Health Samples: type Sleep Analysis, start date in the last 1 day, sorted by start date.\n3. Get Item from List → First Item → Get Details of Health Sample → Start Date.\n4. Get Item from List again, from the same samples → Last Item → details → End Date.\n5. run both dates through Format Date, format ISO 8601.\n6. Get Contents of URL: the address above, method POST, header Authorization = “Bearer ”, a space and the key, JSON body: start — the first date, end — the second.",
+    "pushTitle": "notifications from the pug",
+    "pushWhat": "every morning the pug tells you what is on the plan: gym or rest",
+    "pushOn": "on for this phone",
+    "pushOffLabel": "off",
+    "pushEnable": "turn on for this phone",
+    "pushDisable": "turn off",
+    "pushNotReady": "notifications are not set up yet — their keys have not been added",
+    "pushInstall": "on an iPhone only the site added to the Home Screen gets notifications: in Safari tap Share → Add to Home Screen, open the site from there and come back here",
+    "pushDenied": "notifications are blocked in the phone settings — allow them for podshar",
+    "pushUnsupported": "this browser cannot do notifications"
+  },
+  "push": {
+    "title": "pug coach",
+    "train": "today on the plan: {title}. don’t bail",
+    "rest": "rest day today. eat your protein and sleep properly",
+    "workout": "workout"
   }
 }

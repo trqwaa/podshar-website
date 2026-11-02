@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { readSession } from '@/lib/auth/session';
 import { routing } from '@/i18n/routing';
+import { productByBarcode, type Barcoded } from './barcode';
 import { Day, MEALS, addFoodsFor } from './diary';
 import { estimateMeal, type MealItem } from './food-estimate';
 
@@ -93,4 +94,17 @@ export async function logMeal(input: unknown): Promise<LoggedMeal> {
     }))
   });
   return saved.ok ? { ids: saved.ids, items: result.items } : { error: saved.error };
+}
+
+/** Штрихкод с упаковки — продукт и КБЖУ на 100 г. Бесплатно: модель не зовётся. */
+export async function lookupBarcode(input: unknown): Promise<{ product?: Barcoded; error?: string }> {
+  const session = await readSession();
+  if (!session) return { error: 'signedOut' };
+  const code = z
+    .string()
+    .regex(/^\d{8,14}$/)
+    .safeParse((input as { code?: unknown })?.code);
+  if (!code.success) return { error: 'invalid' };
+  const product = await productByBarcode(code.data);
+  return product ? { product } : { error: 'barcodeUnknown' };
 }
