@@ -12,7 +12,7 @@ import type { GymResult } from '@/lib/gym/actions';
  * айфон зумит страницу при тапе и оставляет её зумнутой.
  */
 
-export { BUTTON, CHIP, GHOST, INPUT, SMALL_INPUT, TAB } from './styles';
+export { BUTTON, CHIP, CHIP_OFF, CHIP_ON, GHOST, INPUT, SMALL_INPUT, TAB } from './styles';
 
 /**
  * Вызвать серверное действие и запомнить ошибку ключом каталога.

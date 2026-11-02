@@ -1,32 +1,38 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+import type { Locale } from '@/i18n/routing';
 import { ALL_PLACES } from '@/lib/navigation';
+import type { Brief } from '@/lib/assistant/brief';
+import { GYM_LOOKUP_TOOLS, GYM_WRITE_TOOLS, isGymLookup, isGymWrite, runGymLookup, runGymWrite } from '@/lib/assistant/gym';
 import { LOOKUP_TOOLS, isLookup, runLookup } from '@/lib/assistant/lookup';
 import { WRITE_TOOLS, isWrite, runWrite } from '@/lib/assistant/write';
 
 /**
  * Which model answers as Podshar.
  *
- * Sonnet, by the owner's call, after Opus looked expensive. It holds the voice
- * noticeably less well on its own, which is why the brief below carries far more
- * explicit instruction than a stronger model would need — that is the trade, and
- * it is a fair one at a fifth of the price.
+ * Sonnet, by the owner's call, after Opus looked expensive — and Sonnet 5.5
+ * since 2 November 2026, also his call: the newer one, at the same price as
+ * Sonnet 5. It holds the voice less well on its own than Opus, which is why the
+ * brief below carries far more explicit instruction than a stronger model would
+ * need — that is the trade, and it is a fair one at half the price.
  *
  * This is the cost dial and the only line that needs changing: add the model to
  * `PRICE_PER_MTOK` and nothing else here is model-specific.
  */
-export const MODEL: keyof typeof PRICE_PER_MTOK = 'claude-sonnet-5';
+export const MODEL: keyof typeof PRICE_PER_MTOK = 'claude-sonnet-5-5';
 
 /**
  * Generous on purpose, and not a cost control.
  *
  * Thinking tokens are drawn from the same allowance as the reply, so a tight cap
  * does not buy a short answer — it buys an answer truncated mid-sentence once
- * the model happens to think for a moment. Brevity is asked for in the brief,
+ * the model happens to think for a moment. A week's plan written as one tool
+ * call needs room as well: at 2000 it was cut off mid-JSON and the board stayed
+ * empty (1.52). Brevity is asked for in the brief,
  * where it belongs; billing only counts what is actually produced, and a pug
  * told to say one sentence does not say two thousand tokens.
  */
-const MAX_TOKENS = 2000;
+const MAX_TOKENS = 8000;
 
 /** Live destinations, which is also the only set the navigate tool will accept. */
 const LIVE_HREFS = ALL_PLACES.filter((p) => p.status === 'live').map((p) => p.href);
@@ -54,6 +60,9 @@ const NAVIGATE: Anthropic.Beta.BetaTool = {
   strict: true
 };
 
+/** Everything he has on every page. The gym adds its own on top (`coach`). */
+const SITE_TOOLS = [NAVIGATE, ...LOOKUP_TOOLS, ...WRITE_TOOLS];
+
 /**
  * Dollars per million tokens, per model.
  *
@@ -68,11 +77,12 @@ const NAVIGATE: Anthropic.Beta.BetaTool = {
  */
 export const PRICE_PER_MTOK = {
   // `serverFallbacks`: whether the model accepts the server-side retry that
-  // rescues a safety refusal. Opus does; Sonnet answers a request carrying it
-  // with a flat 400, which is a whole afternoon of the dog being mysteriously
-  // stupid if you assume the parameter is harmless everywhere. It rides here so
-  // that switching the dial above cannot leave it behind.
+  // rescues a safety refusal. Opus and Sonnet 5.5 do; Sonnet 5 answers a request
+  // carrying it with a flat 400, which is a whole afternoon of the dog being
+  // mysteriously stupid if you assume the parameter is harmless everywhere. It
+  // rides here so that switching the dial above cannot leave it behind.
   'claude-opus-5': { input: 5, output: 25, serverFallbacks: true },
+  'claude-sonnet-5-5': { input: 2, output: 10, serverFallbacks: true },
   'claude-sonnet-5': { input: 2, output: 10, serverFallbacks: false },
   'claude-haiku-4-5': { input: 1, output: 5, serverFallbacks: false }
 } as const;
@@ -86,16 +96,17 @@ export const PRICE_PER_MTOK = {
  * ever drops to zero, something that changes per request has crept into the
  * brief and the price roughly triples.
  */
-function logSpend(usage: Anthropic.Beta.BetaUsage) {
+function logSpend(usage: Anthropic.Beta.BetaUsage, writeRate: number) {
   const price = PRICE_PER_MTOK[MODEL];
   const cached = usage.cache_read_input_tokens ?? 0;
   const written = usage.cache_creation_input_tokens ?? 0;
   // Three different rates: fresh input, a cached read at a tenth, and writing
-  // the cache at a quarter over input — that write is why the first message
-  // after a quiet spell costs several times the ones that follow it.
+  // the cache — a quarter over input for five minutes, twice the input for an
+  // hour (`writeRate`). That write is why the first message after a quiet
+  // spell costs several times the ones that follow it.
   const dollars =
     (usage.input_tokens * price.input +
-      written * price.input * 1.25 +
+      written * price.input * writeRate +
       cached * price.input * 0.1 +
       usage.output_tokens * price.output) /
     1_000_000;
@@ -123,7 +134,7 @@ export type Answer = { reply: string; route?: string };
  * change under someone who is still reading the sentence explaining why it is
  * about to.
  */
-export type Beat = { text: string } | { route: string };
+export type Beat = { text: string } | { route: string } | { refresh: true };
 
 /** How much of the conversation travels with each turn. Four exchanges is enough
  *  for "and what about that one" to make sense, and cheap enough to send always. */
@@ -177,11 +188,10 @@ const hasWords = (text: string) => /\p{L}/u.test(text);
  * screen would be both a lie about what he said and a leak of the reasoning the
  * brief tells him to keep to himself.
  *
- * Whitespace is flattened for the same reason it always was — the bubble is a
- * single `<p>`, so a blank line the model intended becomes an invisible double
- * space. Doing it to the whole accumulated string rather than to each fragment
- * is what makes it safe: a run of spaces split across two deltas still collapses
- * to one. Normalising is prefix-stable, so what has already been sent never has
+ * Whitespace is normalised: runs of spaces collapse, line breaks survive — the
+ * bubble keeps them since 1.52, when the trainer started writing plans. Doing it
+ * to the whole accumulated string rather than to each fragment is what makes it
+ * safe: a run of spaces split across two deltas still collapses to one. Normalising is prefix-stable, so what has already been sent never has
  * to be taken back, and each turn of the loop emits only the tail that is new.
  *
  * The wordless-reply rule survives streaming by holding everything back until
@@ -210,9 +220,16 @@ async function* pour(
     if (event.type !== 'content_block_delta' || event.delta.type !== 'text_delta') continue;
     raw += event.delta.text;
 
-    // `trimStart` and not `trim`: a trailing space is not rubbish mid-stream, it
-    // is the gap before the next word arriving.
-    const norm = raw.replace(/\s+/g, ' ').trimStart();
+    // Spaces collapse, line breaks stay: a plan or a list of steps run together
+    // into one line is unreadable, and since 1.52 the trainer writes those. At
+    // most one blank line in a row. Whitespace at the very end is held back until
+    // a word follows it — whether "a \n" becomes "a\n" is only known once the next
+    // character arrives, and what has been sent can never be taken back.
+    const norm = raw
+      .replace(/[^\S\n]+/g, ' ')
+      .replace(/ ?\n ?/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     if (!opened) {
       if (!hasWords(norm)) continue;
       opened = true;
@@ -295,11 +312,21 @@ export async function* streamPodshar({
   brief,
   history,
   message,
+  locale,
+  coach,
   userId
 }: {
-  brief: string;
+  brief: Brief;
   history: Turn[];
   message: string;
+  /** Язык страницы — названия упражнений в дневнике зала приходят на нём. */
+  locale: Locale;
+  /**
+   * Страница зала: инструменты дневника и кеш на час. На остальном сайте их
+   * нет, и кеш — на пять минут: там пишут редко и по одному вопросу, а запись
+   * часового кеша вдвое дороже обычного ввода.
+   */
+  coach: boolean;
   /**
    * Whose private board a `board` lookup is allowed to read.
    *
@@ -340,9 +367,16 @@ export async function* streamPodshar({
       ...rescue,
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      // The brief is identical on every turn, so it is worth caching: it is by
-      // far the largest part of the request and it never changes within a day.
-      system: [{ type: 'text', text: brief, cache_control: { type: 'ephemeral' } }],
+      // The stable brief is identical for all three of them on every page, so
+      // it is worth caching: with the tools it is ten thousand tokens, by far
+      // the largest part of the request. For an hour, not five minutes: a
+      // session in the gym is an hour of a question every ten minutes, and a
+      // five-minute cache was written afresh for nearly every one of them.
+      // Who is talking, the time and the page come after the breakpoint.
+      system: [
+        { type: 'text', text: brief.stable, cache_control: coach ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' } },
+        { type: 'text', text: brief.live }
+      ],
       thinking: { type: 'adaptive' },
       output_config: { effort: 'low' },
       // Tools sit in front of the system block, so the cache breakpoint on the
@@ -350,7 +384,7 @@ export async function* streamPodshar({
       // charge on every turn. What the tools *return* is another matter — that
       // goes in `messages`, past the breakpoint, which is the whole reason the
       // lookups exist instead of the data being pasted into the brief.
-      tools: [NAVIGATE, ...LOOKUP_TOOLS, ...WRITE_TOOLS],
+      tools: coach ? [...SITE_TOOLS, ...GYM_LOOKUP_TOOLS, ...GYM_WRITE_TOOLS] : SITE_TOOLS,
       messages: turns
     });
 
@@ -364,6 +398,12 @@ export async function* streamPodshar({
     let spoke = false;
     let href: string | undefined;
     let writes = 0;
+    // Whether anything landed in the database this turn. The page under the
+    // panel was rendered before it did, so the browser is told to fetch it again
+    // — a meal the pug just logged that is not on the screen reads as a lie.
+    let wrote = false;
+    const reads = (name: string) => isLookup(name) || isGymLookup(name);
+    const writesTo = (name: string) => isWrite(name) || isGymWrite(name);
 
     for (let step = 0; step < MAX_STEPS; step += 1) {
       const stream = ask(turns);
@@ -373,7 +413,7 @@ export async function* streamPodshar({
       // reason and the bill all belong to the assembled message, not to any one
       // delta.
       const whole = await stream.finalMessage();
-      logSpend(whole.usage);
+      logSpend(whole.usage, coach ? 2 : 1.25);
       if (whole.stop_reason === 'refusal') return;
       if (out.said) spoke = true;
 
@@ -391,7 +431,7 @@ export async function* streamPodshar({
       // to be told what was actually saved and read it back: "готово" said
       // before the row exists is the one reply here that can be wrong without
       // anyone noticing until the day of the meeting.
-      const needsAnswer = calls.some((call) => isLookup(call.name) || isWrite(call.name));
+      const needsAnswer = calls.some((call) => reads(call.name) || writesTo(call.name));
       if (spoke && !needsAnswer) break;
 
       // Answer every call in one user turn. The API requires a result for each
@@ -400,13 +440,24 @@ export async function* streamPodshar({
       // Decided before anything runs, in order, so the ceiling on writes holds
       // even when a single response asks for twenty of them at once.
       const plan = calls.map((call) => {
-        if (!isWrite(call.name)) return { call, allowed: true };
+        if (!writesTo(call.name)) return { call, allowed: true };
         writes += 1;
         return { call, allowed: writes <= MAX_WRITES };
       });
 
-      const results = await Promise.all(
-        plan.map(async ({ call, allowed }) => ({
+      // Writes go one after another, not side by side: two of them into the
+      // same day of the food diary would each count the day's entries before
+      // the other had added its own, and the daily ceiling would let both in.
+      const write = async (name: string, input: unknown) => {
+        const said = isGymWrite(name) ? await runGymWrite(name, input, userId, locale) : await runWrite(name, input, userId);
+        // The openings of the success lines in `write.ts` and `gym.ts`; every
+        // refusal there starts lowercase with what did not happen.
+        if (/^(Pinned|Put in|Saved|Goal added|The board now|Logged|Added to|Removed)/.test(said)) wrote = true;
+        return said;
+      };
+      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
+      for (const { call, allowed } of plan) {
+        results.push({
           type: 'tool_result' as const,
           tool_use_id: call.id,
           // `navigate` has no answer — the browser does the moving, and by the
@@ -415,13 +466,15 @@ export async function* streamPodshar({
           // to it: arriving somewhere in silence reads like the site glitched.
           content: isLookup(call.name)
             ? asData(await runLookup(call.name, call.input, userId))
-            : isWrite(call.name)
-              ? allowed
-                ? await runWrite(call.name, call.input, userId)
-                : `not written: ${MAX_WRITES} things per message is the limit. Say which ones you did write, and that the rest did not go in.`
-              : 'done'
-        }))
-      );
+            : isGymLookup(call.name)
+              ? asData(await runGymLookup(call.name, call.input, userId, locale))
+              : writesTo(call.name)
+                ? allowed
+                  ? await write(call.name, call.input)
+                  : `not written: ${MAX_WRITES} things per message is the limit. Say which ones you did write, and that the rest did not go in.`
+                : 'done'
+        });
+      }
 
       turns = [
         ...turns,
@@ -430,6 +483,7 @@ export async function* streamPodshar({
       ];
     }
 
+    if (wrote) yield { refresh: true };
     if (spoke && href) yield { route: href };
   } catch (error) {
     // No key, no balance, rate limit, network, a malformed request — all the

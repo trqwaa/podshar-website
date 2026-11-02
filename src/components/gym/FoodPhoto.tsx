@@ -5,8 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
 import { addFoods } from '@/lib/gym/actions';
-import { estimateMeal } from '@/lib/gym/food-photo-actions';
-import type { PhotoItem } from '@/lib/gym/food-photo';
+import { estimatePhoto } from '@/lib/gym/food-actions';
+import type { MealItem } from '@/lib/gym/food-estimate';
 import { BUTTON, GHOST, SMALL_INPUT } from './styles';
 import { ErrorLine, parseNumber, useGymAction } from './ui';
 
@@ -30,7 +30,7 @@ async function shrink(file: File): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.82).split(',')[1] ?? '';
 }
 
-type Row = PhotoItem & { keep: boolean; base: number };
+type Row = MealItem & { keep: boolean; base: number };
 
 function scaled(row: Row) {
   const k = row.base > 0 ? row.grams / row.base : 1;
@@ -54,7 +54,7 @@ export function FoodPhoto({ day, meal, onDone }: { day: string; meal: string; on
     start(async () => {
       try {
         const image = await shrink(file);
-        const result = await estimateMeal({ image, mediaType: 'image/jpeg', locale });
+        const result = await estimatePhoto({ image, mediaType: 'image/jpeg', locale });
         if (result.error) setProblem(result.error);
         else setRows((result.items ?? []).map((item) => ({ ...item, keep: true, base: item.grams })));
       } catch {
@@ -85,7 +85,6 @@ export function FoodPhoto({ day, meal, onDone }: { day: string; meal: string; on
           onChange={(e) => pick(e.target.files?.[0])}
         />
       </label>
-      {!rows && !looking ? <p className="text-xs text-ink-muted">{t('food.photoHint')}</p> : null}
       {problem ? (
         <p role="status" className="text-sm font-medium text-loss">
           {t.has(`errors.${problem}`) ? t(`errors.${problem}`) : t('errors.generic')}

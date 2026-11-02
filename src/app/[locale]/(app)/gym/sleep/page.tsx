@@ -53,7 +53,6 @@ export default async function SleepPage({
     <div className="grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4">
       <GymHeader
         title={t('sleep.title')}
-        hint={t('sleep.hint')}
         back={t('back')}
         path="/gym/sleep"
         members={members}

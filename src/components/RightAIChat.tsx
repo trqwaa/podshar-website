@@ -31,9 +31,9 @@ const TYPE_CATCHUP = 40;
  * twitches at the end of every answer.
  */
 const SAID =
-  'max-w-[88%] rounded-block rounded-bl-sm border-2 border-rule bg-sunk px-3.5 py-2.5 text-[0.9375rem] leading-relaxed text-ink';
+  'max-w-[88%] whitespace-pre-line rounded-block rounded-bl-sm border-2 border-rule bg-sunk px-3.5 py-2.5 text-[0.9375rem] leading-relaxed text-ink';
 const ASKED =
-  'ml-auto max-w-[88%] rounded-block rounded-br-sm bg-accent px-3.5 py-2.5 text-[0.9375rem] font-medium leading-relaxed text-accent-ink';
+  'ml-auto max-w-[88%] whitespace-pre-line rounded-block rounded-br-sm bg-accent px-3.5 py-2.5 text-[0.9375rem] font-medium leading-relaxed text-accent-ink';
 
 /** Where the panel sits and whether it has been unclipped, per browser. */
 const STORE_KEY = 'podshar:chat';
@@ -856,7 +856,16 @@ function ChatBody({
   // happen: the shell only wraps routes that exist, and the homepage is the
   // only one of those.
   const here = placeForPath(pathname);
-  const opening = here?.status === 'live' ? tGuide(`${here.id}.here`) : t('intro');
+  // У места может быть своё приветствие (`hello`) — в зале это тренер, который
+  // говорит, что умеет, а не описание подвала.
+  const opening =
+    here?.status === 'live'
+      ? tGuide.has(`${here.id}.hello`)
+        ? tGuide(`${here.id}.hello`)
+        : tGuide(`${here.id}.here`)
+      : t('intro');
+  // В зале он тренер: пишет в дневник, а не только водит по страницам.
+  const coach = pathname.startsWith('/gym');
 
   // Reseed whenever that line changes — a new language, or a new page. It also
   // clears the log, which is the right trade while there is exactly one page to
@@ -983,6 +992,7 @@ function ChatBody({
     // after the interval happens to have been created.
     const typed = typeOut();
     let route: string | undefined;
+    let wrote = false;
     let broke = false;
 
     try {
@@ -1020,9 +1030,10 @@ function ChatBody({
         carry = lines.pop() ?? '';
         for (const line of lines) {
           if (!line.trim()) continue;
-          const beat = JSON.parse(line) as { text?: string; route?: string };
+          const beat = JSON.parse(line) as { text?: string; route?: string; refresh?: boolean };
           if (typeof beat.text === 'string') waiting.current += beat.text;
           if (typeof beat.route === 'string') route = beat.route;
+          if (beat.refresh) wrote = true;
         }
       }
     } catch {
@@ -1050,6 +1061,10 @@ function ChatBody({
       // Give the reply a beat to land before the page changes underneath.
       const target = route;
       setTimeout(() => router.push(target), 600);
+    } else if (wrote) {
+      // He wrote into the diary or the calendar under the page that is open:
+      // fetch it again, or the meal he just logged is not on the screen.
+      router.refresh();
     }
   }
   sendRef.current = send;
@@ -1067,7 +1082,7 @@ function ChatBody({
         <AssistantAvatar className="h-9 w-9" />
         <div className="min-w-0 flex-1">
           <p className="text-base font-semibold text-ink">{t('name')}</p>
-          <p className="ps-label">{free ? t('roleFree') : t('role')}</p>
+          <p className="ps-label">{free ? t('roleFree') : coach ? t('roleCoach') : t('role')}</p>
         </div>
 
         {/* The grip.
@@ -1165,8 +1180,8 @@ function ChatBody({
             }
           }}
           rows={1}
-          placeholder={t('placeholder')}
-          aria-label={t('placeholder')}
+          placeholder={coach ? t('placeholderCoach') : t('placeholder')}
+          aria-label={coach ? t('placeholderCoach') : t('placeholder')}
           // 16px on a phone, 15 from `sm` up. Under 16, Safari on an iPhone
           // zooms the whole page in the moment the field is tapped and leaves
           // it zoomed — after which the page drags sideways. The one-row height

@@ -1,6 +1,5 @@
 import { getTranslations } from 'next-intl/server';
 
-import { Link } from '@/i18n/routing';
 import { BodyPanel } from '@/components/gym/BodyPanel';
 import { ExerciseLibrary, type RecordCard } from '@/components/gym/ExerciseLibrary';
 import { GymCrew } from '@/components/gym/GymCrew';
@@ -8,7 +7,7 @@ import { GymHeader } from '@/components/gym/GymHeader';
 import { History } from '@/components/gym/History';
 import { PlanBoard } from '@/components/gym/PlanBoard';
 import { Workout } from '@/components/gym/Workout';
-import { TAB } from '@/components/gym/styles';
+import { GymTabs } from '@/components/gym/GymTabs';
 import { dayKey } from '@/lib/calendar/scales';
 import { GymDoors } from '@/components/gym/GymDoors';
 import { gymContext, gymMood, weekdayNames } from '@/lib/gym/context';
@@ -56,7 +55,6 @@ export default async function TrainingPage({
   const header = (
     <GymHeader
       title={t('menu.training')}
-      hint={t('menuHint.training')}
       back={t('back')}
       path="/gym/training"
       members={members}
@@ -74,21 +72,17 @@ export default async function TrainingPage({
 
   const whoQuery = member && !mine ? { who: member.handle } : {};
   const tabs = (
-    <nav aria-label={t('menu.training')} className="flex flex-wrap gap-1">
-      {TABS.map((name) => (
-        <Link
-          key={name}
-          href={{ pathname: '/gym/training', query: { ...whoQuery, tab: name } }}
-          aria-current={tab === name ? 'page' : undefined}
-          className={`${TAB} ${
-            tab === name ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'
-          }`}
-        >
-          {t(`tabs.${name}`)}
-          {name === 'workout' && active ? <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-win align-middle" /> : null}
-        </Link>
-      ))}
-    </nav>
+    <GymTabs
+      id="training"
+      label={t('menu.training')}
+      items={TABS.map((name) => ({
+        key: name,
+        href: { pathname: '/gym/training', query: { ...whoQuery, tab: name } },
+        label: t(`tabs.${name}`),
+        current: tab === name,
+        dot: name === 'workout' && Boolean(active)
+      }))}
+    />
   );
 
   let body: React.ReactNode = null;

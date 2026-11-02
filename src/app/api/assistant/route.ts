@@ -5,6 +5,7 @@ import { HOME, placeForPath } from '@/lib/navigation';
 import { guestModeAllowed } from '@/lib/auth/config';
 import { readSession } from '@/lib/auth/session';
 import { buildBrief } from '@/lib/assistant/brief';
+import { diaryNow } from '@/lib/assistant/gym';
 import { answerWithoutModel } from '@/lib/assistant/fallback';
 import { modelConfigured, streamPodshar, type Turn } from '@/lib/assistant/model';
 import { withinDailyLimit } from '@/lib/assistant/quota';
@@ -91,11 +92,18 @@ export async function POST(request: Request) {
 
       try {
         if (modelConfigured() && withinDailyLimit(who)) {
-          const brief = await buildBrief({ locale, member, here });
+          // В зале сводка дневника едет сразу с сообщением: мопс не тратит
+          // отдельный круг, чтобы в него заглянуть. Гость (разработка без
+          // базы) дневника не имеет.
+          const coach = here.id === 'gym';
+          const diary = coach && who !== 'dev' ? await diaryNow(who, locale) : null;
+          const brief = await buildBrief({ locale, member, here, coach, diary });
           for await (const piece of streamPodshar({
             brief,
             history: history as Turn[],
             message,
+            locale,
+            coach,
             // The same identity the quota is counted against, and the only one
             // a private-board lookup will read. In guest mode it is 'dev',
             // which owns nothing and therefore sees nothing.

@@ -1,24 +1,32 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
-import { addFood, importFatsecret, removeFood } from '@/lib/gym/actions';
+import { addFood, importFatsecret, removeFood, removeFoods } from '@/lib/gym/actions';
 import type { FoodView } from '@/lib/gym/data';
+import { logMeal } from '@/lib/gym/food-actions';
+import type { MealItem } from '@/lib/gym/food-estimate';
 import { foodOf, macrosFor, searchFoods, type Food } from '@/lib/gym/foods';
 import type { Targets } from '@/lib/gym/norms';
 import { CsvImport } from './CsvImport';
 import { FoodPhoto } from './FoodPhoto';
-import { BUTTON, CHIP, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
+import { BUTTON, CHIP, CHIP_OFF, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
 
 /**
- * Дневник питания, как в FatSecret: четыре приёма пищи, в каждом — что съел,
- * сверху — сколько набралось против нормы.
+ * Дневник питания: сверху — «что съел?», ниже — сколько набралось против нормы
+ * и четыре приёма пищи.
  *
- * Добавление — поиском по справочнику на любом из четырёх языков, из
- * недавнего в один тап или своей едой с цифрами с упаковки. Фастфуд
- * помечается сам, и лицо мопса над дневником это замечает.
+ * Главный путь — словами: «два яйца и тост с маслом», Enter — и мопс сам
+ * раскладывает на продукты, берёт КБЖУ из справочника, таблиц или сайта
+ * производителя и сразу записывает (`logMeal`). Решение владельца от 2 ноября
+ * 2026: поиск по справочнику не находил половину того, что едят, а в зале
+ * некогда выбирать из списка. Записанное отменяется одной кнопкой.
+ *
+ * Справочник остался: из него — недавнее в один тап и запасной выбор, когда
+ * мопс не на связи. Своя еда с цифрами с упаковки — по ссылке.
  */
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -41,132 +49,296 @@ function Bar({ label, value, target, unit, limit = false }: { label: string; val
         </span>
       </div>
       <span className="mt-1 block h-2 overflow-hidden rounded-full bg-sunk">
-        <span className={`block h-full rounded-full ${over ? 'bg-loss' : 'bg-accent'}`} style={{ width: `${Math.min(100, Math.round(share * 100))}%` }} />
+        <span
+          className={`block h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none ${over ? 'bg-loss' : 'bg-accent'}`}
+          style={{ width: `${Math.min(100, Math.round(share * 100))}%` }}
+        />
       </span>
     </div>
   );
 }
 
-function AddPanel({ meal, day, recent, onDone }: { meal: Meal; day: string; recent: FoodView[]; onDone: () => void }) {
+/** Приём пищи — переключателем, выбранный подсвечен плашкой, которая переезжает. */
+function MealSwitch({ meal, onPick }: { meal: Meal; onPick: (meal: Meal) => void }) {
+  const t = useTranslations('gym');
+  const still = useReducedMotion();
+  return (
+    <div role="radiogroup" aria-label={t('food.mealPick')} className="grid grid-cols-4 gap-1 rounded-full bg-sunk p-1">
+      {MEALS.map((m) => (
+        <button
+          key={m}
+          type="button"
+          role="radio"
+          aria-checked={meal === m}
+          onClick={() => onPick(m)}
+          className="relative rounded-full px-1 py-2 text-[0.8rem] font-semibold lowercase sm:text-sm"
+        >
+          {meal === m ? (
+            <motion.span
+              layoutId="food-meal"
+              className="absolute inset-0 rounded-full bg-ink"
+              transition={still ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 38 }}
+            />
+          ) : null}
+          <span className={`relative transition-colors ${meal === m ? 'text-surface' : 'text-ink-muted'}`}>{t(`food.meals.${m}`)}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Своя еда с цифрами с упаковки. */
+function CustomForm({ day, meal, onDone }: { day: string; meal: Meal; onDone: () => void }) {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
   const { run, pending, error } = useGymAction();
-  const [query, setQuery] = useState('');
-  const [picked, setPicked] = useState<Food | null>(null);
+  return (
+    <form
+      className="flex flex-col gap-2 rounded-[12px] bg-sunk p-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        const num = (k: string) => parseNumber(String(data.get(k) ?? ''));
+        const result = await run(addFood, {
+          day,
+          meal,
+          locale,
+          name: String(data.get('name') ?? ''),
+          grams: num('grams'),
+          kcal: num('kcal'),
+          protein: num('protein'),
+          fat: num('fat'),
+          carbs: num('carbs'),
+          fiber: num('fiber'),
+          sugar: num('sugar'),
+          satFat: num('satFat'),
+          sodium: num('sodium')
+        });
+        if (result.ok) onDone();
+      }}
+    >
+      <input name="name" required maxLength={80} autoFocus placeholder={t('food.name')} aria-label={t('food.name')} className={INPUT} />
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+        {(['grams', 'kcal', 'protein', 'fat', 'carbs', 'fiber', 'sugar', 'satFat', 'sodium'] as const).map((k) => (
+          <label key={k} className="flex flex-col gap-1 text-[0.7rem] text-ink-muted">
+            {k === 'sodium' ? `${t('food.sodium')}, ${t('food.mg')}` : t(`food.${k}`)}
+            <input name={k} inputMode="decimal" required={k === 'kcal'} className={`${INPUT} w-full px-2`} />
+          </label>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={BUTTON}>
+          {t('food.add')}
+        </button>
+        <button type="button" className={GHOST} onClick={onDone}>
+          {t('food.cancel')}
+        </button>
+      </div>
+      <ErrorLine message={error} />
+    </form>
+  );
+}
+
+/** Продукт из справочника — граммы и запись. Запасной путь, когда мопс не отвечает. */
+function Picked({ item, day, meal, onDone }: { item: Food; day: string; meal: Meal; onDone: () => void }) {
+  const t = useTranslations('gym');
+  const locale = useLocale() as Locale;
+  const { run, pending, error } = useGymAction();
   const [grams, setGrams] = useState('');
-  const [custom, setCustom] = useState(false);
-  const results = useMemo(() => searchFoods(query, locale, 10), [query, locale]);
+  const amount = parseNumber(grams) ?? item.portion.grams;
+  const preview = macrosFor(item, amount);
+  return (
+    <div className="flex flex-col gap-2 rounded-[12px] bg-sunk p-3">
+      <span className="font-semibold text-ink">{item.name[locale]}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1 text-sm text-ink-muted">
+          <input autoFocus value={grams} onChange={(e) => setGrams(e.target.value)} placeholder={String(item.portion.grams)} inputMode="decimal" aria-label={t('food.grams')} className={`${INPUT} w-24`} />
+          {t('food.grams')}
+        </label>
+        {[0.5, 1, 2].map((k) => (
+          <button key={k} type="button" onClick={() => setGrams(String(Math.round(item.portion.grams * k)))} className={`${CHIP} ${CHIP_OFF}`}>
+            {t('food.portion', { n: k === 0.5 ? '½' : k, unit: t(`food.units.${item.portion.unit}`) })}
+          </button>
+        ))}
+      </div>
+      <p className="text-sm tabular-nums text-ink">
+        {preview.kcal} {t('food.kcal')} · {t('food.protein')} {preview.protein} · {t('food.fat')} {preview.fat} · {t('food.carbs')} {preview.carbs}
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={pending || amount <= 0}
+          className={BUTTON}
+          onClick={async () => {
+            if ((await run(addFood, { day, meal, locale, food: item.id, grams: amount })).ok) onDone();
+          }}
+        >
+          {t('food.add')}
+        </button>
+        <button type="button" className={GHOST} onClick={onDone}>
+          {t('food.cancel')}
+        </button>
+      </div>
+      <ErrorLine message={error} />
+    </div>
+  );
+}
 
-  const amount = parseNumber(grams) ?? picked?.portion.grams ?? 0;
-  const preview = picked ? macrosFor(picked, amount) : null;
+type Saved = { ids: string[]; items: MealItem[]; meal: Meal; gone?: boolean };
 
-  const add = async (input: Record<string, unknown>) => {
-    const result = await run(addFood, { day, meal, locale, ...input });
-    if (result.ok) onDone();
+/**
+ * «Что съел?» — одно поле, Enter. Мопс считает и записывает в выбранный приём
+ * пищи; под полем — что легло и «отменить».
+ */
+function QuickAdd({ day, initialMeal, recent }: { day: string; initialMeal: Meal; recent: FoodView[] }) {
+  const t = useTranslations('gym');
+  const locale = useLocale() as Locale;
+  const still = useReducedMotion();
+  const [meal, setMeal] = useState<Meal>(initialMeal);
+  const [text, setText] = useState('');
+  const [busy, start] = useTransition();
+  const [saved, setSaved] = useState<Saved | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [offline, setOffline] = useState<string | null>(null);
+  const [extra, setExtra] = useState<'custom' | Food | null>(null);
+  const field = useRef<HTMLInputElement | null>(null);
+  const { run, pending, error } = useGymAction();
+  const options = useMemo(() => (offline ? searchFoods(offline, locale, 6) : []), [offline, locale]);
+
+  const say = (key: string) => (t.has(`errors.${key}`) ? t(`errors.${key}`) : t('errors.generic'));
+
+  const send = () => {
+    const said = text.trim();
+    if (said.length < 2 || busy) return;
+    setProblem(null);
+    setOffline(null);
+    setSaved(null);
+    start(async () => {
+      const result = await logMeal({ text: said, day, meal, locale }).catch(() => ({ error: 'generic' }) as { error: string; ids?: undefined; items?: undefined });
+      if (result.ids && result.items) {
+        setSaved({ ids: result.ids, items: result.items, meal });
+        setText('');
+        return;
+      }
+      setProblem(result.error ?? 'generic');
+      if (result.error === 'foodNoModel') setOffline(said);
+    });
   };
 
-  if (picked) {
-    return (
-      <div className="flex flex-col gap-2 rounded-[10px] border-2 border-ink p-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="font-semibold text-ink">{picked.name[locale]}</span>
-          {picked.quality === 'junk' ? <span className="rounded bg-loss/10 px-1.5 py-0.5 text-xs font-bold text-loss">{t('food.junk')}</span> : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1 text-sm text-ink-muted">
-            <input
-              autoFocus
-              value={grams}
-              onChange={(e) => setGrams(e.target.value)}
-              placeholder={String(picked.portion.grams)}
-              inputMode="decimal"
-              aria-label={t('food.grams')}
-              className={`${INPUT} w-24`}
-            />
-            {t('food.grams')}
-          </label>
-          {[0.5, 1, 2].map((k) => (
-            <button key={k} type="button" onClick={() => setGrams(String(Math.round(picked.portion.grams * k)))} className={`${CHIP} border-rule text-ink hover:border-ink`}>
-              {t('food.portion', { n: k === 0.5 ? '½' : k, unit: t(`food.units.${picked.portion.unit}`) })}
-            </button>
-          ))}
-        </div>
-        {preview ? (
-          <p className="text-sm tabular-nums text-ink">
-            {preview.kcal} {t('food.kcal')} · {t('food.protein')} {preview.protein} · {t('food.fat')} {preview.fat} · {t('food.carbs')} {preview.carbs}
-          </p>
-        ) : null}
-        <div className="flex gap-2">
-          <button type="button" disabled={pending || amount <= 0} className={BUTTON} onClick={() => void add({ food: picked.id, grams: amount })}>
-            {t('food.add')}
-          </button>
-          <button type="button" className={GHOST} onClick={() => setPicked(null)}>
-            ←
-          </button>
-        </div>
-        <ErrorLine message={error} />
-      </div>
-    );
-  }
-
-  if (custom) {
-    return (
-      <form
-        className="flex flex-col gap-2 rounded-[10px] border-2 border-ink p-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const data = new FormData(e.currentTarget);
-          const num = (k: string) => parseNumber(String(data.get(k) ?? ''));
-          void add({
-            name: String(data.get('name') ?? ''),
-            grams: num('grams'),
-            kcal: num('kcal'),
-            protein: num('protein'),
-            fat: num('fat'),
-            carbs: num('carbs'),
-            fiber: num('fiber'),
-            sugar: num('sugar'),
-            satFat: num('satFat'),
-            sodium: num('sodium')
-          });
-        }}
-      >
-        <p className="text-xs text-ink-muted">{t('food.customHint')}</p>
-        <input name="name" required maxLength={80} autoFocus placeholder={t('food.name')} aria-label={t('food.name')} className={INPUT} />
-        <div className="grid grid-cols-5 gap-2">
-          {(['grams', 'kcal', 'protein', 'fat', 'carbs', 'fiber', 'sugar', 'satFat', 'sodium'] as const).map((k) => (
-            <label key={k} className="flex flex-col gap-1 text-[0.7rem] text-ink-muted">
-              {k === 'sodium' ? `${t('food.sodium')}, ${t('food.mg')}` : t(`food.${k}`)}
-              <input name={k} inputMode="decimal" required={k === 'kcal'} className={`${INPUT} w-full px-2`} />
-            </label>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <button type="submit" disabled={pending} className={BUTTON}>
-            {t('food.add')}
-          </button>
-          <button type="button" className={GHOST} onClick={() => setCustom(false)}>
-            ←
-          </button>
-        </div>
-        <ErrorLine message={error} />
-      </form>
-    );
-  }
+  const kcal = saved ? Math.round(saved.items.reduce((s, i) => s + i.kcal, 0)) : 0;
 
   return (
-    <div className="flex flex-col gap-2 rounded-[10px] border-2 border-ink p-3">
-      <FoodPhoto day={day} meal={meal} onDone={onDone} />
-      <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('food.search')} aria-label={t('food.search')} className={INPUT} />
-      {query ? (
+    <section aria-label={t('food.quickTitle')} className="flex flex-col gap-3 rounded-[16px] border-2 border-ink p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold lowercase text-ink">{t('food.quickTitle')}</h3>
+        <FoodPhoto day={day} meal={meal} onDone={() => setSaved(null)} />
+      </div>
+      <MealSwitch
+        meal={meal}
+        onPick={(m) => {
+          setMeal(m);
+          field.current?.focus();
+        }}
+      />
+      <form
+        className="relative"
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+      >
+        <input
+          ref={field}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={400}
+          enterKeyHint="send"
+          autoComplete="off"
+          placeholder={t('food.quickPlaceholder')}
+          aria-label={t('food.quickTitle')}
+          className={`${INPUT} w-full rounded-full py-3 pl-4 pr-14`}
+        />
+        <button
+          type="submit"
+          disabled={busy || text.trim().length < 2}
+          aria-label={t('food.quickSend')}
+          className="ps-press absolute right-1.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-ink text-surface transition-opacity disabled:opacity-30"
+        >
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 8h10M9 4l4 4-4 4" />
+          </svg>
+        </button>
+      </form>
+
+      <AnimatePresence initial={false} mode="popLayout">
+        {busy ? (
+          <motion.p
+            key="busy"
+            role="status"
+            initial={still ? false : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center gap-2 text-sm text-ink-muted"
+          >
+            <span className="flex gap-1" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-muted motion-reduce:animate-none" style={{ animationDelay: `${i * 120}ms` }} />
+              ))}
+            </span>
+            {t('food.quickWorking')}
+          </motion.p>
+        ) : saved ? (
+          <motion.div
+            key={saved.ids.join()}
+            role="status"
+            initial={still ? false : { opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className={`flex flex-col gap-1 rounded-[12px] px-3 py-2 ${saved.gone ? 'bg-sunk' : 'bg-accent/10'}`}
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm font-semibold text-ink">
+                {saved.gone ? t('food.undone') : t('food.quickSaved', { meal: t(`food.meals.${saved.meal}`), kcal })}
+              </p>
+              {saved.gone ? null : (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={async () => {
+                    if ((await run(removeFoods, { ids: saved.ids })).ok) setSaved({ ...saved, gone: true });
+                  }}
+                  className="ps-label shrink-0 hover:text-loss"
+                >
+                  {t('food.undo')}
+                </button>
+              )}
+            </div>
+            {saved.gone ? null : (
+              <ul className="text-xs tabular-nums text-ink-muted">
+                {saved.items.map((i, n) => (
+                  <li key={n}>
+                    {i.name} · {Math.round(i.grams)} {t('food.grams')} · {Math.round(i.kcal)} {t('food.kcal')}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {problem ? (
+        <p role="status" className="text-sm font-medium text-loss">
+          {say(problem)}
+        </p>
+      ) : null}
+      <ErrorLine message={error} />
+
+      {options.length ? (
         <ul className="flex flex-col divide-y divide-rule-soft">
-          {results.map((f) => (
+          {options.map((f) => (
             <li key={f.id}>
-              <button type="button" onClick={() => setPicked(f)} className="flex w-full items-baseline justify-between gap-3 py-2 text-left hover:text-accent">
-                <span className="text-ink">
-                  {f.name[locale]}
-                  {f.quality === 'junk' ? <span className="ml-1.5 text-xs font-bold text-loss">{t('food.junk')}</span> : null}
-                </span>
+              <button type="button" onClick={() => setExtra(f)} className="flex w-full items-baseline justify-between gap-3 py-2 text-left hover:text-accent">
+                <span className="text-ink">{f.name[locale]}</span>
                 <span className="shrink-0 text-xs tabular-nums text-ink-muted">
                   {f.per100.kcal} {t('food.kcal')} / 100 {t('food.grams')}
                 </span>
@@ -174,40 +346,45 @@ function AddPanel({ meal, day, recent, onDone }: { meal: Meal; day: string; rece
             </li>
           ))}
         </ul>
-      ) : recent.length ? (
-        <div>
-          <p className="ps-label">{t('food.recent')}</p>
-          <ul className="mt-1 flex flex-wrap gap-1.5">
-            {recent.map((r) => {
-              const item = r.food ? foodOf(r.food) : undefined;
-              return (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      void add(
-                        item
-                          ? { food: item.id, grams: r.grams ?? item.portion.grams }
-                          : { name: r.name, grams: r.grams, kcal: r.kcal, protein: r.protein, fat: r.fat, carbs: r.carbs }
-                      )
-                    }
-                    className={`${CHIP} border-rule text-ink hover:border-ink`}
-                  >
-                    {item ? item.name[locale] : r.name}
-                    {r.grams ? ` · ${Math.round(r.grams)} ${t('food.grams')}` : ''}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+      ) : null}
+
+      {extra === 'custom' ? (
+        <CustomForm day={day} meal={meal} onDone={() => setExtra(null)} />
+      ) : extra ? (
+        <Picked item={extra} day={day} meal={meal} onDone={() => setExtra(null)} />
+      ) : null}
+
+      {recent.length || !extra ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {recent.map((r) => {
+            const item = r.food ? foodOf(r.food) : undefined;
+            return (
+              <button
+                key={r.id}
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  void run(
+                    addFood,
+                    item
+                      ? { day, meal, locale, food: item.id, grams: r.grams ?? item.portion.grams }
+                      : { day, meal, locale, name: r.name, grams: r.grams, kcal: r.kcal, protein: r.protein, fat: r.fat, carbs: r.carbs }
+                  )
+                }
+                className={`${CHIP} ${CHIP_OFF}`}
+              >
+                + {item ? item.name[locale] : r.name}
+              </button>
+            );
+          })}
+          {extra ? null : (
+            <button type="button" onClick={() => setExtra('custom')} className="ps-label px-1 hover:text-ink hover:underline">
+              {t('food.custom')}
+            </button>
+          )}
         </div>
       ) : null}
-      <button type="button" onClick={() => setCustom(true)} className="ps-label self-start hover:text-ink hover:underline">
-        + {t('food.custom')}
-      </button>
-      <ErrorLine message={error} />
-    </div>
+    </section>
   );
 }
 
@@ -216,18 +393,21 @@ export function FoodDiary({
   entries,
   targets,
   recent,
-  editable
+  editable,
+  initialMeal
 }: {
   day: string;
   entries: FoodView[];
   targets: Targets;
   recent: FoodView[];
   editable: boolean;
+  /** Приём пищи по часам Цюриха — считает сервер, чтобы не разойтись при гидратации. */
+  initialMeal: Meal;
 }) {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
+  const still = useReducedMotion();
   const { run, error } = useGymAction();
-  const [adding, setAdding] = useState<Meal | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const shown = entries.filter((e) => !hidden.has(e.id));
   const sum = shown.reduce(
@@ -261,31 +441,21 @@ export function FoodDiary({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {editable ? <QuickAdd day={day} initialMeal={initialMeal} recent={recent} /> : null}
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3">
         <Bar label={t('food.kcal')} value={sum.kcal} target={targets.kcal} unit="" />
         <Bar label={t('food.protein')} value={sum.protein} target={targets.protein} unit={t('food.grams')} />
         <Bar label={t('food.fat')} value={sum.fat} target={targets.fat} unit={t('food.grams')} />
         <Bar label={t('food.carbs')} value={sum.carbs} target={targets.carbs} unit={t('food.grams')} />
       </div>
-      <p className="text-sm font-medium text-ink">{left >= 0 ? t('food.left', { kcal: num.format(left) }) : t('food.over', { kcal: num.format(-left) })}</p>
-      <details className="rounded-[10px] border-2 border-rule-soft px-3 py-2">
-        <summary className="ps-label cursor-pointer">{t('food.details')}</summary>
-        <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Bar label={t('food.fiber')} value={sum.fiber} target={extras.fiber} unit={t('food.grams')} />
-          <Bar label={t('food.sugar')} value={sum.sugar} target={extras.sugar} unit={t('food.grams')} limit />
-          <Bar label={t('food.satFat')} value={sum.satFat} target={extras.satFat} unit={t('food.grams')} limit />
-          <Bar label={t('food.sodium')} value={sum.sodium} target={extras.sodium} unit={t('food.mg')} limit />
-          <Bar label={t('food.cholesterol')} value={sum.cholesterol} target={extras.cholesterol} unit={t('food.mg')} limit />
-          <Bar label={t('food.potassium')} value={sum.potassium} target={extras.potassium} unit={t('food.mg')} />
-        </div>
-        <p className="mt-2 text-xs text-ink-muted">{t('food.detailsHint')}</p>
-      </details>
+      <p className="-mt-2 text-sm font-medium text-ink">{left >= 0 ? t('food.left', { kcal: num.format(left) }) : t('food.over', { kcal: num.format(-left) })}</p>
 
       {MEALS.map((meal) => {
         const list = shown.filter((e) => e.meal === meal);
         const kcal = list.reduce((s, e) => s + e.kcal, 0);
         return (
-          <section key={meal} className="flex flex-col gap-2">
+          <section key={meal} className="flex flex-col gap-1.5">
             <header className="flex items-baseline justify-between border-b-2 border-rule-soft pb-1">
               <h3 className="font-semibold lowercase text-ink">{t(`food.meals.${meal}`)}</h3>
               <span className="text-sm tabular-nums text-ink-muted">
@@ -294,57 +464,70 @@ export function FoodDiary({
             </header>
             {list.length === 0 ? <p className="text-sm text-ink-faint">{t('food.empty')}</p> : null}
             <ul className="flex flex-col gap-1">
-              {list.map((e) => {
-                const item = e.food ? foodOf(e.food) : undefined;
-                return (
-                  <li key={e.id} className={`flex items-center justify-between gap-3 rounded-[8px] px-2 py-1.5 ${e.junk ? 'bg-loss/5' : ''}`}>
-                    <div className="min-w-0">
-                      <p className="truncate text-ink">
-                        {item ? item.name[locale] : e.name}
-                        {e.junk ? <span className="ml-1.5 text-xs font-bold text-loss">{t('food.junk')}</span> : null}
-                        {e.estimated ? (
-                          <span className="ml-1.5 text-xs text-ink-muted" title={t('food.estimated')}>
-                            ≈ {t('food.byPhoto')}
-                          </span>
+              <AnimatePresence initial={false}>
+                {list.map((e) => {
+                  const item = e.food ? foodOf(e.food) : undefined;
+                  return (
+                    <motion.li
+                      key={e.id}
+                      layout={!still}
+                      initial={still ? false : { opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={still ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, x: -12 }}
+                      className={`flex items-center justify-between gap-3 rounded-[10px] px-2 py-1.5 ${e.junk ? 'bg-loss/5' : ''}`}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-ink">
+                          {item ? item.name[locale] : e.name}
+                          {e.junk ? <span className="ml-1.5 text-xs font-bold text-loss">{t('food.junk')}</span> : null}
+                          {e.estimated ? (
+                            <span className="ml-1.5 text-xs text-ink-muted" title={t('food.estimated')}>
+                              ≈
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-xs tabular-nums text-ink-muted">
+                          {e.grams ? `${Math.round(e.grams)} ${t('food.grams')} · ` : ''}
+                          {t('food.protein')} {num.format(e.protein)} · {t('food.fat')} {num.format(e.fat)} · {t('food.carbs')} {num.format(e.carbs)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="text-sm font-semibold tabular-nums text-ink">{num.format(e.kcal)}</span>
+                        {editable ? (
+                          <button
+                            type="button"
+                            aria-label={t('food.remove')}
+                            onClick={() => {
+                              setHidden((h) => new Set(h).add(e.id));
+                              void run(removeFood, { id: e.id });
+                            }}
+                            className="grid h-8 w-8 place-items-center rounded-full text-lg text-ink-faint transition-colors hover:bg-loss/10 hover:text-loss"
+                          >
+                            ×
+                          </button>
                         ) : null}
-                      </p>
-                      <p className="text-xs tabular-nums text-ink-muted">
-                        {e.grams ? `${Math.round(e.grams)} ${t('food.grams')} · ` : ''}
-                        {t('food.protein')} {num.format(e.protein)} · {t('food.fat')} {num.format(e.fat)} · {t('food.carbs')} {num.format(e.carbs)}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-sm font-semibold tabular-nums text-ink">{num.format(e.kcal)}</span>
-                      {editable ? (
-                        <button
-                          type="button"
-                          aria-label={t('food.remove')}
-                          onClick={() => {
-                            setHidden((h) => new Set(h).add(e.id));
-                            void run(removeFood, { id: e.id });
-                          }}
-                          className="text-ink-faint hover:text-loss"
-                        >
-                          ×
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
+                      </div>
+                    </motion.li>
+                  );
+                })}
+              </AnimatePresence>
             </ul>
-            {editable ? (
-              adding === meal ? (
-                <AddPanel meal={meal} day={day} recent={recent} onDone={() => setAdding(null)} />
-              ) : (
-                <button type="button" onClick={() => setAdding(meal)} className={`${GHOST} self-start border-dashed`}>
-                  + {t('food.add')}
-                </button>
-              )
-            ) : null}
           </section>
         );
       })}
+
+      <details className="rounded-[12px] bg-sunk px-3 py-2">
+        <summary className="ps-label cursor-pointer">{t('food.details')}</summary>
+        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+          <Bar label={t('food.fiber')} value={sum.fiber} target={extras.fiber} unit={t('food.grams')} />
+          <Bar label={t('food.sugar')} value={sum.sugar} target={extras.sugar} unit={t('food.grams')} limit />
+          <Bar label={t('food.satFat')} value={sum.satFat} target={extras.satFat} unit={t('food.grams')} limit />
+          <Bar label={t('food.sodium')} value={sum.sodium} target={extras.sodium} unit={t('food.mg')} limit />
+          <Bar label={t('food.cholesterol')} value={sum.cholesterol} target={extras.cholesterol} unit={t('food.mg')} limit />
+          <Bar label={t('food.potassium')} value={sum.potassium} target={extras.potassium} unit={t('food.mg')} />
+        </div>
+      </details>
+
       <ErrorLine message={error} />
       {editable ? (
         <CsvImport

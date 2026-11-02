@@ -1,16 +1,18 @@
 import { Link } from '@/i18n/routing';
 import type { GymMember } from '@/lib/gym/data';
+import { GymTabs } from './GymTabs';
 import { PugAvatar } from './PugAvatar';
-import { TAB } from './styles';
 
 /**
  * Шапка каждой страницы зала: аватар мопса-качка, название, назад в подвал и
  * чей дневник открыт. Переключатель — ссылки с `?who=`, а не состояние: так
  * чужой дневник открывается ссылкой из чата, и «назад» работает.
+ *
+ * С 1.52 без подписи под названием: «качалка», «питание», «сон» говорят сами
+ * за себя, а строка пояснений на телефоне отодвигала дневник за экран.
  */
 export function GymHeader({
   title,
-  hint,
   back,
   path,
   members,
@@ -19,7 +21,6 @@ export function GymHeader({
   labels
 }: {
   title: string;
-  hint?: string | null;
   /** Подпись ссылки назад в подвал; нет — это и есть подвал. */
   back?: string | null;
   path: '/gym' | '/gym/training' | '/gym/food' | '/gym/sleep';
@@ -40,35 +41,37 @@ export function GymHeader({
               ← {back}
             </Link>
           ) : null}
-          <h1 className="text-xl font-semibold leading-tight text-ink sm:text-3xl">{title}</h1>
-          {hint ? <p className="mt-1 max-w-xl text-xs text-ink-muted sm:text-sm">{hint}</p> : null}
+          <h1 className="text-2xl font-semibold leading-tight text-ink sm:text-3xl">{title}</h1>
         </div>
       </div>
 
       {members.length > 1 ? (
-        <nav aria-label={labels.who} className="flex flex-col items-start gap-1.5 sm:items-end">
+        <div className="flex min-w-0 max-w-full flex-col items-start gap-1.5 sm:items-end">
           <span className="ps-label">{labels.who}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {members.map((m) => {
-              const current = m.id === memberId;
-              const self = m.id === selfId;
-              return (
-                <Link
-                  key={m.id}
-                  href={{ pathname: path, query: { ...(labels.extraQuery ?? {}), ...(self ? {} : { who: m.handle }) } }}
-                  aria-current={current ? 'page' : undefined}
-                  className={`${TAB} ${
-                    current ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'
-                  }`}
-                >
-                  {self ? labels.mine : m.displayName}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+          <GymTabs
+            id="who"
+            label={labels.who}
+            items={[...members]
+              // Свой — первым: его открывают чаще всего, и на телефоне он виден без прокрутки ряда.
+              .sort((a, b) => Number(b.id === selfId) - Number(a.id === selfId))
+              .map((m) => ({
+                key: m.id,
+                href: { pathname: path, query: { ...(labels.extraQuery ?? {}), ...(m.id === selfId ? {} : { who: m.handle }) } },
+                label: m.id === selfId ? labels.mine : m.displayName,
+                current: m.id === memberId
+              }))}
+          />
+        </div>
       ) : null}
-      {labels.readOnly ? <p className="w-full rounded border-2 border-dashed border-rule px-3 py-2 text-sm text-ink-muted">{labels.readOnly}</p> : null}
+      {labels.readOnly ? (
+        <p className="flex w-full items-center gap-2 rounded-full bg-sunk px-3.5 py-2 text-sm text-ink-muted">
+          <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" />
+            <circle cx="8" cy="8" r="2" />
+          </svg>
+          {labels.readOnly}
+        </p>
+      ) : null}
     </section>
   );
 }

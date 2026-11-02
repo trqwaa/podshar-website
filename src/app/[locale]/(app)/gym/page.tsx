@@ -229,6 +229,7 @@ export default async function GymPage({
           noScore: t('critic.noScore'),
           advice: t('critic.advice'),
           supplements: t('critic.supplements'),
+          more: t('critic.more'),
           take: t('critic.take'),
           skip: t('critic.skip'),
           disclaimer: t('critic.disclaimer'),

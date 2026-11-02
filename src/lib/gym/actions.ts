@@ -1,22 +1,47 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { readSession } from '@/lib/auth/session';
-import { zurichAt } from '@/lib/calendar/events';
-import { dayKey, shiftDay } from '@/lib/calendar/scales';
+import { dayKey } from '@/lib/calendar/scales';
 import { routing } from '@/i18n/routing';
 import { isExercise } from './exercises';
 import { foodOf, junkByName, macrosFor } from './foods';
-import { ACTIVITIES, GOALS, GOAL_KINDS, PARTS, SEXES, isPart } from './norms';
 import { programOf } from './programs';
 import { parseFatsecretCsv } from './fatsecret-import';
 import { parseSleepCsv } from './sleep-import';
 import { parseStrongCsv } from './strong-import';
 import { previousSets, weekdayOf } from './data';
+import {
+  Custom,
+  Day,
+  Distance,
+  Id,
+  MAX_FOOD_PER_DAY,
+  MAX_PLAN_ITEMS,
+  MEALS,
+  Reps,
+  Seconds,
+  Sets,
+  Weekday,
+  Weight,
+  addFoodsFor,
+  addGoalFor,
+  addMeasureFor,
+  addSleepFor,
+  customRow,
+  notFuture,
+  refresh,
+  removeFoodsFor,
+  removeGoalFor,
+  removeMeasureFor,
+  removeSleepFor,
+  removeWorkoutFor,
+  saveProfileFor,
+  type FoodRow
+} from './diary';
 
 /**
  * Всё, что зал может менять.
@@ -27,6 +52,9 @@ import { previousSets, weekdayOf } from './data';
  * **Писать можно только в свой дневник.** Каждое действие берёт человека из
  * сессии и проверяет, что строка его, — браузер может прислать любой id, а
  * действие — это открытый POST. Чужой дневник открывается на чтение, и только.
+ *
+ * Запись, которую умеет и мопс, лежит в `diary.ts` и зовётся отсюда с
+ * человеком из сессии: правила у кнопки и у мопса одни.
  */
 
 export type GymResult = {
@@ -42,88 +70,36 @@ export type GymResult = {
   unknown?: number;
 };
 
-const Id = z.string().trim().min(1).max(40);
-const Day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const Clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
-
-/** Все страницы зала на всех языках: дневник меняется — меняется и подвал, и критик. */
-const refresh = () => revalidatePath('/[locale]/(app)/gym', 'layout');
-
 async function me(): Promise<string | null> {
   const session = await readSession();
   return session?.userId ?? null;
 }
 
-/** Не дальше завтрашнего дня по Цюриху: записать обед в будущее — это опечатка, а не план. */
-const notFuture = (day: string) => day <= shiftDay(dayKey(new Date()), 1);
+/** Действие от имени человека из сессии; без сессии — `signedOut`. */
+const asMe =
+  <A extends unknown[], R>(run: (userId: string, ...args: A) => Promise<R>) =>
+  async (...args: A): Promise<R | GymResult> => {
+    const userId = await me();
+    return userId ? run(userId, ...args) : { error: 'signedOut' };
+  };
+
+const idOf = (input: unknown) => (input as { id?: unknown })?.id;
 
 // ─── Цель и профиль ─────────────────────────────────────────────────────────
 
 export async function saveProfile(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const parsed = z
-    .object({
-      goal: z.enum(GOALS).optional(),
-      heightCm: z.coerce.number().min(120).max(230).nullable().optional(),
-      sex: z.enum(SEXES).optional(),
-      activity: z.enum(ACTIVITIES).optional(),
-      bornYear: z.coerce.number().int().min(1950).max(2020).nullable().optional()
-    })
-    .safeParse(input);
-  if (!parsed.success) return { error: 'invalid' };
-
-  await prisma.gymProfile.upsert({
-    where: { userId },
-    update: parsed.data,
-    create: { userId, ...parsed.data }
-  });
-  refresh();
-  return { ok: true };
+  return asMe(saveProfileFor)(input);
 }
 
-const MAX_GOALS = 12;
-
 export async function addGoal(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const parsed = z
-    .object({
-      kind: z.enum(GOAL_KINDS),
-      subject: z.string().trim().max(40).nullable().optional(),
-      target: z.coerce.number().positive().max(1000),
-      deadline: Day.nullable().optional()
-    })
-    .safeParse(input);
-  if (!parsed.success) return { error: 'invalid' };
-  const { kind, target, deadline } = parsed.data;
-  const subject = kind === 'bodyweight' ? null : (parsed.data.subject ?? null);
-  if (kind === 'lift' && !(subject && isExercise(subject))) return { error: 'invalid' };
-  if (kind === 'measure' && !(subject && isPart(subject))) return { error: 'invalid' };
-
-  if ((await prisma.gymGoal.count({ where: { userId } })) >= MAX_GOALS) return { error: 'tooMany' };
-  const created = await prisma.gymGoal.create({
-    data: { userId, kind, subject, target, deadline: deadline ?? null },
-    select: { id: true }
-  });
-  refresh();
-  return { ok: true, id: created.id };
+  return asMe(addGoalFor)(input);
 }
 
 export async function removeGoal(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const id = Id.safeParse((input as { id?: unknown })?.id);
-  if (!id.success) return { error: 'invalid' };
-  await prisma.gymGoal.deleteMany({ where: { id: id.data, userId } });
-  refresh();
-  return { ok: true };
+  return asMe(removeGoalFor)(idOf(input));
 }
 
 // ─── План на доске ──────────────────────────────────────────────────────────
-
-const Weekday = z.coerce.number().int().min(0).max(6);
-const MAX_PLAN_ITEMS = 15;
 
 export async function savePlanDay(input: unknown): Promise<GymResult> {
   const userId = await me();
@@ -150,13 +126,6 @@ export async function removePlanDay(input: unknown): Promise<GymResult> {
   refresh();
   return { ok: true };
 }
-
-const Sets = z.coerce.number().int().min(1).max(12);
-const Reps = z.coerce.number().int().min(1).max(100);
-const Weight = z.coerce.number().min(0).max(600);
-/** Подход на время — до суток, кардио — до тысячи километров: больше — опечатка. */
-const Seconds = z.coerce.number().int().min(0).max(86_400);
-const Distance = z.coerce.number().min(0).max(1000);
 
 export async function addPlanItem(input: unknown): Promise<GymResult> {
   const userId = await me();
@@ -452,125 +421,20 @@ export async function finishWorkout(input: unknown): Promise<GymResult> {
 
 /** Бросить идущую тренировку или стереть из истории законченную. */
 export async function removeWorkout(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const id = Id.safeParse((input as { id?: unknown })?.id);
-  if (!id.success) return { error: 'invalid' };
-  await prisma.gymSession.deleteMany({ where: { id: id.data, userId } });
-  refresh();
-  return { ok: true };
+  return asMe(removeWorkoutFor)(idOf(input));
 }
 
 // ─── Замеры ─────────────────────────────────────────────────────────────────
 
-/** Где кончается правдоподобное: бицепс 400 см — это опечатка, а не прогресс. */
-const RANGE: Record<(typeof PARTS)[number], [number, number]> = {
-  weight: [30, 250],
-  bodyfat: [2, 60],
-  neck: [20, 70],
-  shoulders: [70, 180],
-  chest: [60, 170],
-  biceps: [15, 70],
-  forearm: [15, 55],
-  waist: [45, 160],
-  hips: [60, 170],
-  thigh: [30, 100],
-  calf: [20, 65]
-};
-
 export async function addMeasure(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const parsed = z.object({ part: z.enum(PARTS), value: z.coerce.number(), takenOn: Day }).safeParse(input);
-  if (!parsed.success) return { error: 'invalid' };
-  const { part, value, takenOn } = parsed.data;
-  const [lo, hi] = RANGE[part];
-  if (value < lo || value > hi) return { error: 'range' };
-  if (!notFuture(takenOn)) return { error: 'future' };
-  const created = await prisma.bodyMeasure.create({
-    data: { userId, part, value: Math.round(value * 10) / 10, takenOn },
-    select: { id: true }
-  });
-  refresh();
-  return { ok: true, id: created.id };
+  return asMe(addMeasureFor)(input);
 }
 
 export async function removeMeasure(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const id = Id.safeParse((input as { id?: unknown })?.id);
-  if (!id.success) return { error: 'invalid' };
-  await prisma.bodyMeasure.deleteMany({ where: { id: id.data, userId } });
-  refresh();
-  return { ok: true };
+  return asMe(removeMeasureFor)(idOf(input));
 }
 
 // ─── Питание ────────────────────────────────────────────────────────────────
-
-const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-const MAX_FOOD_PER_DAY = 60;
-
-const Nutrient = (max: number) => z.coerce.number().min(0).max(max).nullable().optional();
-
-/** Своя еда и еда с фото: цифры приходят готовыми, справочник их не знает. */
-const Custom = z.object({
-  name: z.string().trim().max(80).nullable().optional(),
-  grams: z.coerce.number().positive().max(3000).nullable().optional(),
-  kcal: Nutrient(5000),
-  protein: Nutrient(500),
-  fat: Nutrient(500),
-  carbs: Nutrient(800),
-  fiber: Nutrient(200),
-  sugar: Nutrient(500),
-  satFat: Nutrient(300),
-  sodium: Nutrient(20000),
-  cholesterol: Nutrient(5000),
-  potassium: Nutrient(20000),
-  /** С фото: модель решила, что это фастфуд. Название проверяется ещё и словарём. */
-  junk: z.boolean().optional(),
-  estimated: z.boolean().optional()
-});
-
-type FoodRow = {
-  food: string | null;
-  name: string;
-  grams: number | null;
-  kcal: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-  fiber: number | null;
-  sugar: number | null;
-  satFat: number | null;
-  sodium: number | null;
-  cholesterol: number | null;
-  potassium: number | null;
-  junk: boolean;
-  estimated: boolean;
-};
-
-function customRow(data: z.infer<typeof Custom>): FoodRow | { error: string } {
-  const name = data.name?.trim();
-  if (!name) return { error: 'empty' };
-  if (data.kcal == null) return { error: 'noKcal' };
-  return {
-    food: null,
-    name,
-    grams: data.grams ?? null,
-    kcal: Math.round(data.kcal),
-    protein: data.protein ?? 0,
-    fat: data.fat ?? 0,
-    carbs: data.carbs ?? 0,
-    fiber: data.fiber ?? null,
-    sugar: data.sugar ?? null,
-    satFat: data.satFat ?? null,
-    sodium: data.sodium ?? null,
-    cholesterol: data.cholesterol ?? null,
-    potassium: data.potassium ?? null,
-    junk: Boolean(data.junk) || junkByName(name),
-    estimated: Boolean(data.estimated)
-  };
-}
 
 export async function addFood(input: unknown): Promise<GymResult> {
   const userId = await me();
@@ -611,76 +475,26 @@ export async function addFood(input: unknown): Promise<GymResult> {
 
 /** Всё с одного фото разом: тарелка — это несколько записей, но одно нажатие. */
 export async function addFoods(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const parsed = z
-    .object({ day: Day, meal: z.enum(MEALS), items: z.array(Custom).min(1).max(12) })
-    .safeParse(input);
-  if (!parsed.success) return { error: 'invalid' };
-  const { day, meal, items } = parsed.data;
-  if (!notFuture(day)) return { error: 'future' };
-  const already = await prisma.foodEntry.count({ where: { userId, eatenOn: day } });
-  if (already + items.length > MAX_FOOD_PER_DAY) return { error: 'tooMany' };
-
-  const rows: FoodRow[] = [];
-  for (const item of items) {
-    const made = customRow({ ...item, estimated: true });
-    if ('error' in made) return made;
-    rows.push(made);
-  }
-  await prisma.foodEntry.createMany({ data: rows.map((row) => ({ userId, eatenOn: day, meal, ...row })) });
-  refresh();
-  return { ok: true, count: rows.length };
+  return asMe(addFoodsFor)(input);
 }
 
 export async function removeFood(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const id = Id.safeParse((input as { id?: unknown })?.id);
-  if (!id.success) return { error: 'invalid' };
-  await prisma.foodEntry.deleteMany({ where: { id: id.data, userId } });
-  refresh();
-  return { ok: true };
+  return asMe(removeFoodsFor)([idOf(input)]);
+}
+
+/** «Отменить» после записи словами: всё, что легло одним нажатием. */
+export async function removeFoods(input: unknown): Promise<GymResult> {
+  return asMe(removeFoodsFor)((input as { ids?: unknown })?.ids);
 }
 
 // ─── Сон ────────────────────────────────────────────────────────────────────
 
-/**
- * Ночь руками: утро, когда проснулся, и два времени. Лёг «в 23:40» — значит
- * накануне; лёг «в 01:10» — в ту же дату, что и встал. Решает сравнение, а не
- * отдельная галочка: позже подъёма лечь в тот же день нельзя.
- */
 export async function addSleep(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const parsed = z.object({ night: Day, bed: Clock, wake: Clock }).safeParse(input);
-  if (!parsed.success) return { error: 'invalid' };
-  const { night, bed, wake } = parsed.data;
-  if (!notFuture(night)) return { error: 'future' };
-
-  const wakeAt = zurichAt(night, wake);
-  let bedAt = zurichAt(night, bed);
-  if (bedAt >= wakeAt) bedAt = zurichAt(shiftDay(night, -1), bed);
-  const minutes = Math.round((wakeAt.getTime() - bedAt.getTime()) / 60_000);
-  if (minutes < 30 || minutes > 20 * 60) return { error: 'range' };
-
-  await prisma.sleepEntry.upsert({
-    where: { userId_night: { userId, night } },
-    update: { bedAt, wakeAt, minutes, deep: null, rem: null, source: 'manual' },
-    create: { userId, night, bedAt, wakeAt, minutes, source: 'manual' }
-  });
-  refresh();
-  return { ok: true };
+  return asMe(addSleepFor)(input);
 }
 
 export async function removeSleep(input: unknown): Promise<GymResult> {
-  const userId = await me();
-  if (!userId) return { error: 'signedOut' };
-  const id = Id.safeParse((input as { id?: unknown })?.id);
-  if (!id.success) return { error: 'invalid' };
-  await prisma.sleepEntry.deleteMany({ where: { id: id.data, userId } });
-  refresh();
-  return { ok: true };
+  return asMe(removeSleepFor)(idOf(input));
 }
 
 /** Файл больше этого — не выгрузка сна, а что-то другое. Год сна в CSV — десятки килобайт. */

@@ -8,7 +8,7 @@ import { Modal } from '@/components/Modal';
 import type { Locale } from '@/i18n/routing';
 import { EXERCISES, MUSCLES, exerciseOf, type Exercise, type Muscle } from '@/lib/gym/exercises';
 import { PugRig } from './PugRig';
-import { BUTTON, CHIP, GHOST, INPUT } from './styles';
+import { BUTTON, CHIP, CHIP_OFF, CHIP_ON, GHOST, INPUT } from './styles';
 
 /**
  * Выбор упражнения: поиск, мышцы и мопс, который показывает технику.
@@ -55,7 +55,7 @@ export function MuscleChips({ muscle, onChange }: { muscle: Muscle | null; onCha
       <button
         type="button"
         onClick={() => onChange(null)}
-        className={`${CHIP} ${muscle === null ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'}`}
+        className={`${CHIP} ${muscle === null ? CHIP_ON : CHIP_OFF}`}
       >
         {t('picker.all')}
       </button>
@@ -64,7 +64,7 @@ export function MuscleChips({ muscle, onChange }: { muscle: Muscle | null; onCha
           key={m}
           type="button"
           onClick={() => onChange(m === muscle ? null : m)}
-          className={`${CHIP} ${muscle === m ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'}`}
+          className={`${CHIP} ${muscle === m ? CHIP_ON : CHIP_OFF}`}
         >
           {t(`muscles.${m}`)}
         </button>

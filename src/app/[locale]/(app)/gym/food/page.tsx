@@ -40,6 +40,10 @@ export default async function FoodPage({
   const today = dayKey(now);
   const asked = query.day && /^\d{4}-\d{2}-\d{2}$/.test(query.day) && query.day <= today ? query.day : today;
   const day = asked;
+  // Куда ляжет «что съел?» по умолчанию — по часу в Цюрихе, на сервере:
+  // посчитанное браузером около границы часа разошлось бы при гидратации.
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Zurich', hour: 'numeric', hourCycle: 'h23' }).format(now));
+  const initialMeal = hour >= 5 && hour < 11 ? 'breakfast' : hour >= 11 && hour < 16 ? 'lunch' : hour >= 16 && hour < 22 ? 'dinner' : 'snack';
   const id = member?.id ?? null;
 
   const [profile, entries, recent, week] = id
@@ -68,7 +72,6 @@ export default async function FoodPage({
     <div className="grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4">
       <GymHeader
         title={t('food.title')}
-        hint={t('food.hint')}
         back={t('back')}
         path="/gym/food"
         members={members}
@@ -105,7 +108,7 @@ export default async function FoodPage({
               </Link>
             ) : null}
           </nav>
-          <FoodDiary key={`${id}-${day}`} day={day} entries={entries} targets={targets} recent={recent} editable={mine} />
+          <FoodDiary key={`${id}-${day}`} day={day} entries={entries} targets={targets} recent={recent} editable={mine} initialMeal={initialMeal} />
         </div>
 
         <aside className="flex flex-col gap-4 lg:border-l-2 lg:border-rule-soft lg:pl-5">

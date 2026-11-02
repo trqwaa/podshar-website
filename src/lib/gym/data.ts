@@ -141,10 +141,14 @@ export async function planOf(userId: string): Promise<PlanDayView[]> {
  */
 export type GymWeek = { days: string[][]; now: string[]; done: string[] };
 
-/** Буква человека на доске — первая в последнем слове имени: «тест · соня» — «с», а не «т» у всех троих. */
+/**
+ * Буква человека на доске — первая буква последнего слова имени, где буквы
+ * есть: «тест · соня» — «с», а не «т» у всех троих. Буквой, а не первым
+ * символом: имя «… (бот)» давало «(», а эмодзи в конце — половинку символа.
+ */
 export function initialOf(displayName: string): string {
-  const words = displayName.split(/[\s·]+/).filter(Boolean);
-  return (words[words.length - 1]?.[0] ?? '?').toLowerCase();
+  const words = displayName.split(/[\s·]+/).filter((w) => /\p{L}/u.test(w));
+  return (words[words.length - 1]?.match(/\p{L}/u)?.[0] ?? '?').toLowerCase();
 }
 
 export async function gymWeek(memberIds: string[], today: string): Promise<GymWeek> {

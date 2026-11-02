@@ -16,6 +16,8 @@ export type CriticWords = {
   noScore: string;
   advice: string;
   supplements: string;
+  /** Под этой кнопкой — остальные советы и добавки. */
+  more: string;
   take: string;
   skip: string;
   disclaimer: string;
@@ -99,14 +101,33 @@ export function CriticCard({
         <AreaTile label={words.areas.sleep} area={verdict.sleep} words={words} />
       </ul>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 border-t border-rule-soft pt-5 md:grid-cols-2">
+      <div className="mt-5 border-t border-rule-soft pt-5">
+        <h3 className="ps-label">{words.advice}</h3>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-snug text-ink">
+          {verdict.advice.slice(0, 2).map((tip, i) => (
+            <li key={i}>{tip}</li>
+          ))}
+        </ol>
+      </div>
+
+      {/* С 1.52 остальное — по нажатию: шесть советов и добавки на телефоне
+          были простынёй, которую никто не дочитывал. Два главных — сверху. */}
+      <details className="group mt-3">
+        <summary className="ps-press inline-flex cursor-pointer list-none items-center gap-1.5 rounded-full bg-sunk px-3.5 py-2 text-sm font-semibold lowercase text-ink [&::-webkit-details-marker]:hidden">
+          {words.more}
+          <span aria-hidden="true" className="transition-transform group-open:rotate-180">
+            ↓
+          </span>
+        </summary>
+      <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
         <div>
-          <h3 className="ps-label">{words.advice}</h3>
-          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-snug text-ink">
-            {verdict.advice.map((tip, i) => (
-              <li key={i}>{tip}</li>
-            ))}
-          </ol>
+          {verdict.advice.length > 2 ? (
+            <ol start={3} className="list-decimal space-y-1.5 pl-5 text-sm leading-snug text-ink">
+              {verdict.advice.slice(2).map((tip, i) => (
+                <li key={i}>{tip}</li>
+              ))}
+            </ol>
+          ) : null}
         </div>
         <div>
           <h3 className="ps-label">{words.supplements}</h3>
@@ -125,6 +146,7 @@ export function CriticCard({
           <p className="mt-3 text-xs text-ink-muted">{words.disclaimer}</p>
         </div>
       </div>
+      </details>
 
       <div className="mt-5 border-t border-rule-soft pt-5">
         {model && words.modelSaid ? (

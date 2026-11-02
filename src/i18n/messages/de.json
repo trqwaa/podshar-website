@@ -539,7 +539,7 @@
   },
   "assistant": {
     "name": "Podshar",
-    "role": "mops-navigator",
+    "role": "mops-helfer",
     "open": "Assistent öffnen",
     "close": "Assistent schliessen",
     "placeholder": "frag, oder sag wohin",
@@ -552,7 +552,9 @@
     "undock": "fenster lösen",
     "dock": "wieder anklemmen",
     "roleFree": "lose, zieh an der kopfzeile",
-    "resize": "fenstergrösse ändern"
+    "resize": "fenstergrösse ändern",
+    "roleCoach": "mops-coach",
+    "placeholderCoach": "frag, oder sag „trag ein“"
   },
   "guide": {
     "lost": "keine ahnung was das war. nenn einen bereich oder frag nach was du siehst",
@@ -627,7 +629,8 @@
       "measures": "masse: gewicht, bizeps, taille und der rest, mit verlauf",
       "food": "ernährung: was du heute gegessen hast und die makros. von fast food wird dem mops schlecht",
       "sleep": "schlaf: wie lange du geschlafen hast. unter sieben stunden ist der mops fertig",
-      "critic": "der mops-kritiker: bewertet die woche, zerlegt sie und sagt dann, was zu ändern ist"
+      "critic": "der mops-kritiker: bewertet die woche, zerlegt sie und sagt dann, was zu ändern ist",
+      "hello": "ich bin hier der trainer. frag nach training, essen oder schlaf — oder sag „trag ein“, dann schreib ich’s ins tagebuch"
     }
   },
   "quotes": {
@@ -1208,9 +1211,9 @@
       "plan": "plan"
     },
     "menuHint": {
-      "training": "plan an der tafel, training, ziele und masse",
-      "food": "was du heute gegessen hast, makros",
-      "sleep": "wie lange du geschlafen hast und wann du ins bett bist",
+      "training": "plan, training, ziele",
+      "food": "essen und makros",
+      "sleep": "wie lange du geschlafen hast",
       "workout": "training starten oder weitermachen",
       "plan": "was an welchem tag dran ist"
     },
@@ -1237,7 +1240,7 @@
     "who": {
       "label": "wessen tagebuch",
       "mine": "meins",
-      "readOnly": "das ist das tagebuch von {name}. anschauen ja, schreiben nur ins eigene",
+      "readOnly": "tagebuch von {name} — nur ansehen",
       "guest": "ohne datenbank kein tagebuch: das ist der gastmodus der entwicklung"
     },
     "goals": {
@@ -1276,7 +1279,7 @@
     },
     "critic": {
       "title": "der mops-kritiker",
-      "hint": "schaut auf die letzten sieben tage: essen, training und schlaf. ohne zuckerguss",
+      "hint": "die woche: essen, training, schlaf. ohne schönreden",
       "areas": {
         "food": "ernährung",
         "train": "training",
@@ -1295,7 +1298,8 @@
       "again": "nochmal zerlegen",
       "modelSaid": "verriss vom {date}",
       "onlyOwn": "richtig zerlegt wird nur das eigene tagebuch",
-      "facts": "worauf der verriss beruht"
+      "facts": "worauf der verriss beruht",
+      "more": "mehr tipps und supplements"
     },
     "tabs": {
       "board": "tafel",
@@ -1305,7 +1309,7 @@
       "library": "übungen"
     },
     "board": {
-      "hint": "der wochenplan mit kreide an der tafel. nenn einen tag „brust“, „rücken“ oder „beine“, und der mops im keller drückt, rudert oder beugt. ein leerer tag oder „ruhe“ ist ein ruhetag",
+      "hint": "nenn einen tag „brust“, „rücken“ oder „beine“ — der mops zeigt’s. ein leerer tag ist ruhe",
       "titlePlaceholder": "name des tages",
       "empty": "ruhe",
       "add": "+ übung",
@@ -1331,7 +1335,7 @@
       "startPlan": "starten: {title}",
       "startPlanUntitled": "nach plan starten",
       "startEmpty": "leeres training",
-      "noPlanToday": "für heute steht nichts im plan. starte ein leeres und füge übungen hinzu",
+      "noPlanToday": "heute steht nichts im plan",
       "titlePlaceholder": "name des trainings",
       "elapsed": "läuft {time}",
       "finish": "beenden",
@@ -1395,7 +1399,7 @@
     },
     "body": {
       "goal": "hauptziel",
-      "goalHint": "danach rechnet der mops deine werte und danach urteilt er",
+      "goalHint": "danach rechnet der mops deine ziele",
       "profile": "für die berechnung",
       "height": "grösse, cm",
       "sex": "geschlecht",
@@ -1460,7 +1464,6 @@
     },
     "food": {
       "title": "ernährung",
-      "hint": "alles, was du heute gegessen hast. die makros rechnen sich selbst",
       "meals": {
         "breakfast": "frühstück",
         "lunch": "mittagessen",
@@ -1468,16 +1471,13 @@
         "snack": "snack"
       },
       "add": "hinzufügen",
-      "search": "essen suchen: haferflocken, poulet, big mac…",
       "grams": "g",
-      "custom": "eigenes essen",
-      "customHint": "nicht in der liste — selbst eintragen, mit den zahlen von der packung",
+      "custom": "+ werte von der packung",
       "name": "name",
       "kcal": "kcal",
       "protein": "eiweiss",
       "fat": "fett",
       "carbs": "kohlenhydrate",
-      "recent": "zuletzt",
       "empty": "leer",
       "day": "heute gesamt",
       "norm": "ziel",
@@ -1503,10 +1503,9 @@
       },
       "portion": "{n} × {unit}",
       "week": "woche",
-      "readOnly": "fremdes tagebuch: essen trägt nur der besitzer ein",
+      "readOnly": "fremdes tagebuch — nur ansehen",
       "photo": "per foto",
       "photoLooking": "der mops schaut hin…",
-      "photoHint": "foto vom teller — der mops schätzt, was drauf ist und wie viel",
       "photoEstimate": "nach augenmaß, nicht gewogen: korrigier die gramm, wenn du es genauer weißt",
       "photoAdd": "eintragen · {kcal} kcal",
       "fiber": "ballaststoffe",
@@ -1517,13 +1516,19 @@
       "potassium": "kalium",
       "mg": "mg",
       "details": "mehr: ballaststoffe, zucker, salz",
-      "detailsHint": "selbst eingetragenes essen hat diese werte meist nicht — dann zählen sie nicht",
-      "byPhoto": "per foto",
-      "estimated": "werte vom mops nach foto geschätzt, nicht gewogen"
+      "estimated": "zahlen vom mops geschätzt, nicht gewogen",
+      "mealPick": "mahlzeit",
+      "cancel": "abbrechen",
+      "quickTitle": "was hast du gegessen?",
+      "quickPlaceholder": "2 eier, toast mit butter, kaffee",
+      "quickSend": "eintragen",
+      "quickWorking": "der mops rechnet…",
+      "quickSaved": "eingetragen: {meal} · {kcal} kcal",
+      "undo": "rückgängig",
+      "undone": "entfernt"
     },
     "sleep": {
       "title": "schlaf",
-      "hint": "wie lange du geschlafen hast und wann du ins bett bist. unter sieben stunden — der mops ist fertig",
       "add": "nacht eintragen",
       "night": "morgen",
       "bed": "ins bett",
@@ -1541,18 +1546,18 @@
       },
       "import": {
         "title": "aus einer datei",
-        "hint": "ein zepp-life-export (ordner SLEEP, eine .csv-datei) oder eine tabelle mit schlafbeginn und -ende",
+        "hint": "zepp life (ordner SLEEP, .csv) oder jede tabelle mit schlafbeginn und -ende",
         "button": "csv hochladen",
         "done": "importiert: {n, plural, one {# nacht} other {# nächte}}",
         "skipped": "von hand eingetragene nächte blieben unberührt: {n}"
       },
       "connect": {
         "title": "schlaf von der uhr holen",
-        "zepp": "zepp life hat keine offene api. es gibt einen export: in der app — profil → einstellungen → daten exportieren, das archiv kommt per mail; die datei aus dem ordner SLEEP hier hochladen",
-        "apple": "iphone: zepp life schreibt den schlaf in apple health. automatisch hierher geht es über einen kurzbefehl, der jeden morgen die nacht an die seite schickt (nächster schritt, noch nicht gebaut)",
-        "android": "android: zepp life schreibt in health connect. lesen kann das nur eine app auf dem handy, die website nicht — dafür braucht es eine kleine begleit-app (auch später)"
+        "zepp": "zepp life: profil → einstellungen → daten exportieren. das archiv kommt per mail, die datei aus SLEEP kommt hierher",
+        "apple": "iphone: automatisch — später, per kurzbefehl",
+        "android": "android: automatisch braucht eine begleit-app — später"
       },
-      "readOnly": "fremdes tagebuch: schlaf trägt nur der besitzer ein"
+      "readOnly": "fremdes tagebuch — nur ansehen"
     },
     "errors": {
       "signedOut": "zuerst anmelden",
@@ -1580,7 +1585,11 @@
       "strongFormat": "format unbekannt: nötig ist ein strong-export mit den spalten Date und Exercise Name",
       "noWorkouts": "keine trainings in der datei gefunden",
       "foodFormat": "format unbekannt: nötig sind spalten mit datum und kalorien",
-      "noFood": "kein essen in der datei gefunden"
+      "noFood": "kein essen in der datei gefunden",
+      "foodNoModel": "der mops ist offline — wähl aus der liste",
+      "foodNotFood": "hab nicht erkannt, was das ist. schreib einfacher: „reis 200 g und hähnchen“",
+      "foodCooldown": "moment, der mops kaut noch am letzten",
+      "foodCap": "der mops hat für heute genug gerechnet. nimm die werte von der packung"
     },
     "kinds": {
       "weight": "gewicht & wdh.",
@@ -1627,8 +1636,8 @@
     },
     "records": {
       "title": "rekorde",
-      "hint": "dein bestes in jeder übung, wie in strong. oben das schwerste",
-      "empty": "noch keine rekorde: beende ein training oder lade deinen verlauf aus strong im tab „verlauf“",
+      "hint": "deine bestwerte je übung",
+      "empty": "noch keine rekorde — beende ein training",
       "e1rm": "≈ {kg} kg für eine",
       "best": "bester satz",
       "heaviest": "am schwersten",
@@ -1641,7 +1650,7 @@
     },
     "strong": {
       "title": "verlauf aus strong",
-      "hint": "in strong: einstellungen → daten exportieren → csv. die trainings landen im verlauf, rekorde werden gezählt, und der mops weiß, womit du kommst",
+      "hint": "strong: einstellungen → daten exportieren → csv",
       "button": "csv hochladen",
       "done": "geladen: {n, plural, one {# training} other {# trainings}}, {sets, plural, one {# satz} other {# sätze}}",
       "skipped": "schon da: {n}",
@@ -1649,7 +1658,7 @@
     },
     "fatsecret": {
       "title": "tagebuch aus fatsecret",
-      "hint": "in fatsecret: ernährungstagebuch → exportieren → csv. ein früherer upload für dieselben tage wird ersetzt, von hand eingetragenes bleibt",
+      "hint": "fatsecret: tagebuch → export → csv. nochmal hochladen verdoppelt nichts",
       "button": "csv hochladen",
       "done": "geladen: {n, plural, one {# eintrag} other {# einträge}} an {days, plural, one {# tag} other {# tagen}}"
     },

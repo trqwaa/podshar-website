@@ -28,36 +28,49 @@ export function CsvImport({
   const file = useRef<HTMLInputElement | null>(null);
   const [result, setResult] = useState<string | null>(null);
 
+  // Свёрнуто: загрузка — раз в жизни, а не каждый день, и на телефоне блок
+  // отодвигал дневник. Файл уходит сразу, как выбран: второе нажатие
+  // «загрузить» было лишним. Системное поле спрятано — оно говорило на языке
+  // браузера, а не страницы («Datei auswählen» на русской странице).
   return (
-    <section className="rounded-[10px] border-2 border-rule-soft p-4">
-      <h3 className="font-semibold text-ink">{title}</h3>
-      <p className="mt-1 text-sm text-ink-muted">{hint}</p>
+    <details className="group rounded-[12px] bg-sunk px-4 py-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        {title}
+        <span aria-hidden="true" className="text-ink-muted transition-transform group-open:rotate-180">
+          ↓
+        </span>
+      </summary>
+      <p className="mt-2 text-sm text-ink-muted">{hint}</p>
       <form
-        className="mt-3 flex flex-wrap items-center gap-2"
+        className="mt-3"
         onSubmit={async (e) => {
           e.preventDefault();
           setResult(null);
           const answer = await run(action, new FormData(e.currentTarget));
-          if (answer.ok) {
-            setResult(done(answer));
-            if (file.current) file.current.value = '';
-          }
+          if (answer.ok) setResult(done(answer));
+          if (file.current) file.current.value = '';
         }}
       >
-        <input
-          ref={file}
-          name="file"
-          type="file"
-          accept=".csv,text/csv"
-          required
-          className="min-w-0 max-w-full text-sm text-ink file:mr-3 file:rounded file:border-2 file:border-rule file:bg-canvas file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
-        />
-        <button type="submit" disabled={pending} className={GHOST}>
+        <label className={`${GHOST} inline-flex cursor-pointer items-center gap-2 bg-canvas ${pending ? 'pointer-events-none opacity-40' : ''}`}>
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8 10.5V2.5M4.5 6 8 2.5 11.5 6M2.5 10.5v3h11v-3" />
+          </svg>
           {button}
-        </button>
+          <input
+            ref={file}
+            name="file"
+            type="file"
+            accept=".csv,text/csv"
+            required
+            className="sr-only"
+            onChange={(e) => {
+              if (e.currentTarget.files?.length) e.currentTarget.form?.requestSubmit();
+            }}
+          />
+        </label>
       </form>
       {result ? <p className="mt-2 text-sm font-medium text-win">{result}</p> : null}
       <ErrorLine message={error} />
-    </section>
+    </details>
   );
 }

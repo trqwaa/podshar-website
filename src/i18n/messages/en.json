@@ -539,7 +539,7 @@
   },
   "assistant": {
     "name": "Podshar",
-    "role": "pug navigator",
+    "role": "pug helper",
     "open": "Open assistant",
     "close": "Close assistant",
     "placeholder": "ask, or say where to",
@@ -552,7 +552,9 @@
     "undock": "unclip the panel",
     "dock": "clip it back",
     "roleFree": "loose, drag by the header",
-    "resize": "resize the window"
+    "resize": "resize the window",
+    "roleCoach": "pug coach",
+    "placeholderCoach": "ask, or say “log it”"
   },
   "guide": {
     "lost": "no idea what that was. name a section, or ask about what you see",
@@ -627,7 +629,8 @@
       "measures": "measurements: weight, biceps, waist and the rest, with history",
       "food": "food: what you ate today and the macros. fast food makes the pug sick",
       "sleep": "sleep: how long you slept. under seven hours — the pug is wrecked",
-      "critic": "the pug critic: grades the week, tears it apart, then says what to fix"
+      "critic": "the pug critic: grades the week, tears it apart, then says what to fix",
+      "hello": "i'm the coach down here. ask about training, food or sleep — or say “log it” and i'll write it into your diary"
     }
   },
   "quotes": {
@@ -1208,9 +1211,9 @@
       "plan": "plan"
     },
     "menuHint": {
-      "training": "the board, the workout, goals and measurements",
-      "food": "what you ate today, macros",
-      "sleep": "how long you slept and when you went to bed",
+      "training": "plan, workout, goals",
+      "food": "food and macros",
+      "sleep": "how long you slept",
       "workout": "start a workout or carry on",
       "plan": "what we train on which day"
     },
@@ -1237,7 +1240,7 @@
     "who": {
       "label": "whose diary",
       "mine": "mine",
-      "readOnly": "this is the diary of {name}. you can look, you can only write in your own",
+      "readOnly": "{name}’s diary — look only",
       "guest": "no database, no diary: this is development guest mode"
     },
     "goals": {
@@ -1276,7 +1279,7 @@
     },
     "critic": {
       "title": "the pug critic",
-      "hint": "looks at the last seven days: food, training and sleep. no sugar-coating",
+      "hint": "the week: food, gym, sleep. no sugar-coating",
       "areas": {
         "food": "food",
         "train": "lifting",
@@ -1295,7 +1298,8 @@
       "again": "roast me again",
       "modelSaid": "roast from {date}",
       "onlyOwn": "the proper roast is for your own diary only",
-      "facts": "what the roast is based on"
+      "facts": "what the roast is based on",
+      "more": "more tips and supplements"
     },
     "tabs": {
       "board": "board",
@@ -1305,7 +1309,7 @@
       "library": "exercises"
     },
     "board": {
-      "hint": "the week's plan in chalk. call a day “chest”, “back” or “legs” and the pug in the basement benches, rows or squats. an empty day or “rest” is a rest day",
+      "hint": "call a day “chest”, “back” or “legs” and the pug shows it. an empty day is rest",
       "titlePlaceholder": "name of the day",
       "empty": "rest",
       "add": "+ exercise",
@@ -1331,7 +1335,7 @@
       "startPlan": "start: {title}",
       "startPlanUntitled": "start from the plan",
       "startEmpty": "empty workout",
-      "noPlanToday": "nothing on the plan for today. start an empty one and add exercises",
+      "noPlanToday": "nothing on the plan today",
       "titlePlaceholder": "workout name",
       "elapsed": "running {time}",
       "finish": "finish",
@@ -1395,7 +1399,7 @@
     },
     "body": {
       "goal": "main goal",
-      "goalHint": "the pug sets your targets by it and judges you by it",
+      "goalHint": "the pug sets your targets by it",
       "profile": "for the targets",
       "height": "height, cm",
       "sex": "sex",
@@ -1460,7 +1464,6 @@
     },
     "food": {
       "title": "food",
-      "hint": "everything you ate today. macros add up by themselves",
       "meals": {
         "breakfast": "breakfast",
         "lunch": "lunch",
@@ -1468,16 +1471,13 @@
         "snack": "snack"
       },
       "add": "add",
-      "search": "find food: oats, chicken, big mac…",
       "grams": "g",
-      "custom": "your own food",
-      "customHint": "not on the list — type it in with the numbers from the pack",
+      "custom": "+ numbers from the label",
       "name": "name",
       "kcal": "kcal",
       "protein": "protein",
       "fat": "fat",
       "carbs": "carbs",
-      "recent": "recent",
       "empty": "empty",
       "day": "today's total",
       "norm": "target",
@@ -1503,10 +1503,9 @@
       },
       "portion": "{n} × {unit}",
       "week": "week",
-      "readOnly": "someone else's diary: only its owner logs food",
+      "readOnly": "someone else’s diary — look only",
       "photo": "from a photo",
       "photoLooking": "the pug is looking…",
-      "photoHint": "snap the plate — the pug will guess what’s on it and how much",
       "photoEstimate": "by eye, not by scale: fix the grams if you know better",
       "photoAdd": "add · {kcal} kcal",
       "fiber": "fiber",
@@ -1517,13 +1516,19 @@
       "potassium": "potassium",
       "mg": "mg",
       "details": "more: fiber, sugar, salt",
-      "detailsHint": "food typed in by hand usually lacks these — then they aren’t counted",
-      "byPhoto": "by photo",
-      "estimated": "numbers guessed by the pug from a photo, not weighed"
+      "estimated": "numbers estimated by the pug, not weighed",
+      "mealPick": "meal",
+      "cancel": "cancel",
+      "quickTitle": "what did you eat?",
+      "quickPlaceholder": "2 eggs, buttered toast, coffee",
+      "quickSend": "log it",
+      "quickWorking": "the pug is counting…",
+      "quickSaved": "logged to {meal} · {kcal} kcal",
+      "undo": "undo",
+      "undone": "removed"
     },
     "sleep": {
       "title": "sleep",
-      "hint": "how long you slept and when you went to bed. under seven hours — the pug is wrecked",
       "add": "log a night",
       "night": "morning",
       "bed": "bed",
@@ -1541,18 +1546,18 @@
       },
       "import": {
         "title": "from a file",
-        "hint": "a zepp life export (the SLEEP folder, a .csv file) or any table with sleep start and end",
+        "hint": "zepp life (the SLEEP folder, .csv) or any table with sleep start and end",
         "button": "upload csv",
         "done": "imported: {n, plural, one {# night} other {# nights}}",
         "skipped": "nights logged by hand were left alone: {n}"
       },
       "connect": {
         "title": "how to pull sleep from a watch",
-        "zepp": "zepp life has no public api. it does export: in the app — profile → settings → export data, the archive arrives by email; upload the file from its SLEEP folder here",
-        "apple": "iphone: zepp life writes sleep into apple health. sending it here automatically means a shortcut that posts last night to the site every morning (next step, not built yet)",
-        "android": "android: zepp life writes into health connect. only an app on the phone can read it, the website cannot — that needs a small companion app (also later)"
+        "zepp": "zepp life: profile → settings → export data. the archive comes by email, the file from SLEEP goes here",
+        "apple": "iphone: automatic — later, via a shortcut",
+        "android": "android: automatic needs a companion app — later"
       },
-      "readOnly": "someone else's diary: only its owner logs sleep"
+      "readOnly": "someone else’s diary — look only"
     },
     "errors": {
       "signedOut": "sign in first",
@@ -1580,7 +1585,11 @@
       "strongFormat": "unknown format: need a strong export with Date and Exercise Name columns",
       "noWorkouts": "no workouts found in the file",
       "foodFormat": "unknown format: need date and calorie columns",
-      "noFood": "no food found in the file"
+      "noFood": "no food found in the file",
+      "foodNoModel": "the pug is offline — pick from the list",
+      "foodNotFood": "couldn’t tell what food that is. try plainer: “rice 200 g and chicken”",
+      "foodCooldown": "a second, the pug is still chewing the last one",
+      "foodCap": "the pug has counted enough for today. use the label numbers"
     },
     "kinds": {
       "weight": "weight & reps",
@@ -1627,8 +1636,8 @@
     },
     "records": {
       "title": "records",
-      "hint": "your best in every exercise, like in strong. heaviest on top",
-      "empty": "no records yet: finish a workout or load your history from strong on the “history” tab",
+      "hint": "your best in every exercise",
+      "empty": "no records yet — finish a workout",
       "e1rm": "≈ {kg} kg for one",
       "best": "best set",
       "heaviest": "heaviest",
@@ -1641,7 +1650,7 @@
     },
     "strong": {
       "title": "history from strong",
-      "hint": "in strong: settings → export data → csv. workouts go into your history, records get counted, and the pug learns what you came in with",
+      "hint": "strong: settings → export data → csv",
       "button": "upload csv",
       "done": "loaded: {n, plural, one {# workout} other {# workouts}}, {sets, plural, one {# set} other {# sets}}",
       "skipped": "already here: {n}",
@@ -1649,7 +1658,7 @@
     },
     "fatsecret": {
       "title": "diary from fatsecret",
-      "hint": "in fatsecret: food diary → export → csv. an earlier upload for the same days is replaced, what you logged by hand stays",
+      "hint": "fatsecret: food diary → export → csv. uploading again won’t double it",
       "button": "upload csv",
       "done": "loaded: {n, plural, one {# entry} other {# entries}} over {days, plural, one {# day} other {# days}}"
     },

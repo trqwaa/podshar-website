@@ -9,7 +9,7 @@ import { addGoal, addMeasure, removeGoal, removeMeasure, saveProfile } from '@/l
 import type { GoalView, MeasureView } from '@/lib/gym/data';
 import { EXERCISES, exerciseOf } from '@/lib/gym/exercises';
 import { ACTIVITIES, GOALS, GOAL_KINDS, PARTS, SEXES, unitOf, type Activity, type Goal, type GoalKind, type Part, type Sex, type Targets } from '@/lib/gym/norms';
-import { BUTTON, CHIP, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
+import { BUTTON, CHIP, CHIP_OFF, CHIP_ON, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
 
 /**
  * Цели и замеры: основная цель, данные для норм, конкретные цели с
@@ -141,7 +141,7 @@ export function BodyPanel({
             <legend className="mb-1">{t('body.sex')}</legend>
             <div className="flex gap-1">
               {SEXES.map((s) => (
-                <button key={s} type="button" disabled={!editable} onClick={() => setSex(s)} className={`${CHIP} ${sex === s ? 'border-ink bg-ink text-surface' : 'border-rule text-ink'}`}>
+                <button key={s} type="button" disabled={!editable} onClick={() => setSex(s)} className={`${CHIP} ${sex === s ? CHIP_ON : CHIP_OFF}`}>
                   {t(`body.sexes.${s}`)}
                 </button>
               ))}
@@ -151,7 +151,7 @@ export function BodyPanel({
             <legend className="mb-1">{t('body.activity')}</legend>
             <div className="flex gap-1">
               {ACTIVITIES.map((a) => (
-                <button key={a} type="button" disabled={!editable} onClick={() => setActivity(a)} className={`${CHIP} ${activity === a ? 'border-ink bg-ink text-surface' : 'border-rule text-ink'}`}>
+                <button key={a} type="button" disabled={!editable} onClick={() => setActivity(a)} className={`${CHIP} ${activity === a ? CHIP_ON : CHIP_OFF}`}>
                   {t(`body.activities.${a}`)}
                 </button>
               ))}
@@ -234,7 +234,7 @@ export function BodyPanel({
           >
             <div className="flex gap-1">
               {GOAL_KINDS.map((k) => (
-                <button key={k} type="button" onClick={() => setKind(k)} className={`${CHIP} ${kind === k ? 'border-ink bg-ink text-surface' : 'border-rule text-ink'}`}>
+                <button key={k} type="button" onClick={() => setKind(k)} className={`${CHIP} ${kind === k ? CHIP_ON : CHIP_OFF}`}>
                   {t(`body.kinds.${k}`)}
                 </button>
               ))}

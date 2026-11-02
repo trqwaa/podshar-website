@@ -8,20 +8,24 @@
  *
  * Поля — 16px на телефоне (`text-[1rem]`), как везде на сайте: меньше — и
  * айфон зумит страницу при тапе и оставляет её зумнутой.
+ *
+ * С 1.52 кнопки — таблетки без серых рамок: главная залита чернилами, прочие —
+ * мягкой заливкой. Серые обводки читались как «неактивно» и были, по словам
+ * владельца, безвкусными. Ростом кнопки под палец: зал смотрят с телефона.
+ * Цвет у переключателей — отдельной строкой (`CHIP_ON`, `CHIP_OFF`): два
+ * класса фона в одной строке спорят, и побеждает не тот, что написан позже.
  */
 
 export const INPUT =
-  'min-w-0 rounded border-2 border-rule bg-canvas px-3 py-2 text-[1rem] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink sm:text-[0.9375rem]';
+  'min-w-0 rounded-[12px] border-2 border-rule bg-canvas px-3 py-2 text-[1rem] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink sm:text-[0.9375rem]';
 export const SMALL_INPUT =
-  'w-full min-w-0 rounded border-2 border-rule bg-canvas px-2 py-1.5 text-center text-[1rem] tabular-nums text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink sm:text-[0.9375rem]';
-// На телефоне кнопки мельче: крупные съедали пол-экрана, а палец и так
-// попадает. Поля при этом остаются 16px — правило про зум айфона.
+  'w-full min-w-0 rounded-[10px] border-2 border-rule bg-canvas px-2 py-1.5 text-center text-[1rem] tabular-nums text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-ink sm:text-[0.9375rem]';
 export const BUTTON =
-  'ps-press rounded border-2 border-ink bg-ink px-3 py-1.5 text-xs font-semibold lowercase text-surface hover:opacity-90 disabled:opacity-40 sm:px-4 sm:py-2 sm:text-sm';
+  'ps-press rounded-full bg-ink px-4 py-2 text-sm font-semibold lowercase text-surface transition-opacity hover:opacity-90 disabled:opacity-40';
 export const GHOST =
-  'ps-press rounded border-2 border-rule px-2.5 py-1.5 text-xs font-semibold lowercase text-ink hover:border-ink disabled:opacity-40 sm:px-3 sm:py-2 sm:text-sm';
-export const CHIP =
-  'ps-press rounded-full border-2 px-2.5 py-0.5 text-[0.7rem] font-semibold lowercase transition-colors sm:px-3 sm:py-1 sm:text-xs';
-/** Вкладки и переключатели над страницей — тот же размер, что у кнопок. */
-export const TAB =
-  'ps-press shrink-0 rounded border-2 px-2.5 py-1 text-xs font-semibold lowercase sm:px-3 sm:py-1.5 sm:text-sm';
+  'ps-press rounded-full bg-sunk px-4 py-2 text-sm font-semibold lowercase text-ink transition-colors hover:bg-rule-soft disabled:opacity-40';
+export const CHIP = 'ps-press rounded-full px-3 py-1.5 text-xs font-semibold lowercase transition-colors sm:text-sm';
+export const CHIP_ON = 'bg-ink text-surface';
+export const CHIP_OFF = 'bg-sunk text-ink hover:bg-rule-soft';
+/** Вкладки и переключатели над страницей. Подложку под выбранной рисует `GymTabs`. */
+export const TAB = 'ps-press relative shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold lowercase';
