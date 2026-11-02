@@ -651,3 +651,18 @@ export async function importFatsecret(formData: FormData): Promise<GymResult> {
   refresh();
   return { ok: true, count: rows.length, days: days.length };
 }
+
+/**
+ * Свои упражнения всех троих — те, что уже стоят у кого-то на доске или в
+ * тренировке. Отдельной таблицы нет (`custom:` в id, 1.54), поэтому «список
+ * своих» и есть то, чем пользуются.
+ */
+export async function customExercises(): Promise<string[]> {
+  if (!(await me())) return [];
+  const where = { exercise: { startsWith: 'custom:' } };
+  const [plan, sets] = await Promise.all([
+    prisma.gymPlanItem.findMany({ where, distinct: ['exercise'], select: { exercise: true } }),
+    prisma.gymSet.findMany({ where, distinct: ['exercise'], select: { exercise: true } })
+  ]);
+  return [...new Set([...plan, ...sets].map((r) => r.exercise))].filter(isExercise).slice(0, 200);
+}

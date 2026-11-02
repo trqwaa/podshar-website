@@ -6,7 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { Modal } from '@/components/Modal';
 import type { Locale } from '@/i18n/routing';
-import { EXERCISES, MUSCLES, exerciseOf, subgroupOf, subgroupsOf, type Exercise, type Muscle, type Subgroup } from '@/lib/gym/exercises';
+import { customExercises } from '@/lib/gym/actions';
+import { EXERCISES, MUSCLES, customId, exerciseOf, isCustom, subgroupOf, subgroupsOf, type Exercise, type Muscle, type Subgroup } from '@/lib/gym/exercises';
 import { PugRig } from './PugRig';
 import { BUTTON, CHIP, CHIP_OFF, CHIP_ON, GHOST, INPUT } from './styles';
 
@@ -28,9 +29,9 @@ export type MuscleFilter = { muscle: Muscle | null; sub: Subgroup | null };
 export const ANY_MUSCLE: MuscleFilter = { muscle: null, sub: null };
 
 /** Найти по запросу на любом из четырёх языков. */
-export function searchExercises(query: string, filter: MuscleFilter): Exercise[] {
+export function searchExercises(query: string, filter: MuscleFilter, own: Exercise[] = []): Exercise[] {
   const words = norm(query).split(/\s+/).filter(Boolean);
-  return EXERCISES.filter((e) => (!filter.muscle || e.muscle === filter.muscle) && (!filter.sub || subgroupOf(e) === filter.sub)).filter((e) => {
+  return [...own, ...EXERCISES].filter((e) => (!filter.muscle || e.muscle === filter.muscle) && (!filter.sub || subgroupOf(e) === filter.sub)).filter((e) => {
     if (!words.length) return true;
     const names = Object.values(e.name).map(norm);
     return words.every((w) => names.some((n) => n.includes(w)));
@@ -90,6 +91,44 @@ export function MuscleChips({ filter, onChange }: { filter: MuscleFilter; onChan
   );
 }
 
+/** «+ своё упражнение»: название, потом группа — и оно встаёт туда, куда выбирали. */
+function CustomForm({ start, onMake }: { start: Muscle | null; onMake: (id: string) => void }) {
+  const t = useTranslations('gym');
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [muscle, setMuscle] = useState<Muscle | null>(start);
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className={`${GHOST} self-start`}>
+        + {t('picker.custom')}
+      </button>
+    );
+  }
+  const ready = name.trim().length >= 2 && muscle !== null;
+  return (
+    <form
+      className="animate-rise-in flex flex-col gap-2 rounded-[12px] bg-sunk p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ready && muscle) onMake(customId(muscle, name));
+      }}
+    >
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder={t('picker.customName')} aria-label={t('picker.customName')} className={INPUT} />
+      <p className="ps-label">{t('picker.customGroup')}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {MUSCLES.map((m) => (
+          <button key={m} type="button" onClick={() => setMuscle(m)} className={`${CHIP} ${muscle === m ? CHIP_ON : CHIP_OFF}`}>
+            {t(`muscles.${m}`)}
+          </button>
+        ))}
+      </div>
+      <button type="submit" disabled={!ready} className={`${BUTTON} self-start`}>
+        {t('picker.customAdd')}
+      </button>
+    </form>
+  );
+}
+
 export function ExercisePicker({
   onPick,
   onClose,
@@ -121,7 +160,20 @@ export function ExercisePicker({
     };
   }, []);
 
-  const list = useMemo(() => searchExercises(query, filter), [query, filter]);
+  // Свои упражнения всех троих подтягиваются с окном, как и техника.
+  const [own, setOwn] = useState<Exercise[]>([]);
+  useEffect(() => {
+    let live = true;
+    void customExercises()
+      .then((ids) => {
+        if (live) setOwn(ids.flatMap((id) => exerciseOf(id) ?? []));
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  const list = useMemo(() => searchExercises(query, filter, own), [query, filter, own]);
 
   const exercise = chosen ? exerciseOf(chosen) : null;
   // Окно прокручивается само по себе: выбрал упражнение внизу списка — и
@@ -159,7 +211,7 @@ export function ExercisePicker({
           <div>
             <p className="ps-label">{t('picker.technique')}</p>
             <ul className="mt-1.5 min-h-[2.6rem] space-y-1 text-sm leading-snug text-ink">
-              {cues?.cuesOf(exercise.motion, locale).map((cue) => (
+              {(isCustom(exercise.id) ? [] : (cues?.cuesOf(exercise.motion, locale) ?? [])).map((cue) => (
                 <li key={cue}>— {cue}</li>
               ))}
             </ul>
@@ -191,12 +243,13 @@ export function ExercisePicker({
               <li key={e.id}>
                 <button type="button" onClick={() => setChosen(e.id)} className="flex w-full items-center justify-between gap-3 py-2.5 text-left hover:text-accent">
                   <span className="font-medium text-ink">{e.name[locale]}</span>
-                  <span className="ps-label shrink-0">{t(`gear.${e.gear}`)}</span>
+                  <span className="ps-label shrink-0">{isCustom(e.id) ? t('picker.mine') : t(`gear.${e.gear}`)}</span>
                 </button>
               </li>
             ))}
           </ul>
           {list.length === 0 ? <p className="text-sm text-ink-muted">{t('picker.nothing')}</p> : null}
+          {onPick ? <CustomForm start={filter.muscle} onMake={onPick} /> : null}
           <button type="button" onClick={onClose} className={`${GHOST} self-start`}>
             {t('picker.close')}
           </button>

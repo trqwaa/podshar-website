@@ -1395,7 +1395,12 @@
       "technique": "technique",
       "close": "close",
       "nothing": "no such exercise. yet",
-      "count": "{n, plural, one {# exercise} other {# exercises}}"
+      "count": "{n, plural, one {# exercise} other {# exercises}}",
+      "custom": "your own exercise",
+      "customName": "name",
+      "customGroup": "group",
+      "customAdd": "add",
+      "mine": "own"
     },
     "body": {
       "goal": "main goal",

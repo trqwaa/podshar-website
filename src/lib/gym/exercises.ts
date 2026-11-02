@@ -449,14 +449,50 @@ export const EXERCISES: Exercise[] = [
 
 const BY_ID = new Map(EXERCISES.map((e) => [e.id, e]));
 
-export const exerciseOf = (id: string): Exercise | undefined => BY_ID.get(id);
-export const isExercise = (id: string) => BY_ID.has(id);
+/**
+ * Своё упражнение (1.54) — без таблицы в базе: группа и название живут в самом
+ * id, `custom:<группа>:<название>`, и ложатся в план и подходы как любое
+ * другое. Список своих — всё, что уже стоит у кого-то на доске или в
+ * тренировке (`customExercises`), поэтому добавленное видят все трое. Показать
+ * его мопсу нечем — он делает похожее движение той же группы, без «как делать».
+ */
+const CUSTOM = /^custom:([a-z]+):(.{1,40})$/u;
+const LOOKS_LIKE: Record<Muscle, Motion> = {
+  chest: 'bench',
+  back: 'row',
+  shoulders: 'ohp',
+  arms: 'curl',
+  legs: 'squat',
+  glutes: 'hipThrust',
+  core: 'crunch',
+  full: 'burpee',
+  cardio: 'jumpRope'
+};
+const CUSTOMS = new Map<string, Exercise>();
+
+function customOf(id: string): Exercise | undefined {
+  const known = CUSTOMS.get(id);
+  if (known) return known;
+  const match = CUSTOM.exec(id);
+  const muscle = match?.[1] as Muscle | undefined;
+  const name = match?.[2].trim();
+  if (!muscle || !name || !(MUSCLES as readonly string[]).includes(muscle)) return undefined;
+  const made: Exercise = { id, motion: LOOKS_LIKE[muscle], gear: 'other', muscle, kind: muscle === 'cardio' ? 'cardio' : 'weight', name: { ru: name, en: name, uk: name, de: name } };
+  CUSTOMS.set(id, made);
+  return made;
+}
+
+export const isCustom = (id: string) => id.startsWith('custom:');
+export const customId = (muscle: Muscle, name: string) => `custom:${muscle}:${name.trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 40)}`;
+
+export const exerciseOf = (id: string): Exercise | undefined => BY_ID.get(id) ?? customOf(id);
+export const isExercise = (id: string) => BY_ID.has(id) || customOf(id) !== undefined;
 
 /** Название на языке страницы. Неизвестный id — как есть: подход переживёт выбывшее упражнение. */
-export const exerciseName = (id: string, locale: Locale) => BY_ID.get(id)?.name[locale] ?? id;
+export const exerciseName = (id: string, locale: Locale) => exerciseOf(id)?.name[locale] ?? id;
 
 /** Что пишется в подходе. Неизвестное упражнение — по-старому, вес и повторы. */
-export const kindOf = (id: string): Kind => BY_ID.get(id)?.kind ?? 'weight';
+export const kindOf = (id: string): Kind => exerciseOf(id)?.kind ?? 'weight';
 /** Рекорд по Эпли и «объём» считаются только там, где вес — нагрузка, а не помощь. */
 export const countsVolume = (kind: Kind) => kind === 'weight' || kind === 'body';
 
@@ -468,7 +504,7 @@ export const countsVolume = (kind: Kind) => kind === 'weight' || kind === 'body'
 export function musclesOf(ids: string[], limit = 2): Muscle[] {
   const count = new Map<Muscle, number>();
   for (const id of ids) {
-    const m = BY_ID.get(id)?.muscle;
+    const m = exerciseOf(id)?.muscle;
     if (m) count.set(m, (count.get(m) ?? 0) + 1);
   }
   // При равенстве — в порядке дня (сортировка устойчивая, а `Map` помнит
@@ -517,7 +553,7 @@ function vote(kinds: Showcase[]): Showcase | null {
  */
 export function showcaseFor(exerciseIds: string[], dayIndex: number): Showcase {
   const kinds = exerciseIds.flatMap((id) => {
-    const motion = BY_ID.get(id)?.motion;
+    const motion = exerciseOf(id)?.motion;
     const kind = motion ? SHOWCASE_OF.get(motion) : undefined;
     return kind ? [kind] : [];
   });

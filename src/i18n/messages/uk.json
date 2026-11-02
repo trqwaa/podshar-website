@@ -1395,7 +1395,12 @@
       "technique": "техніка",
       "close": "закрити",
       "nothing": "такої вправи нема. поки",
-      "count": "{n, plural, one {# вправа} few {# вправи} many {# вправ} other {# вправи}}"
+      "count": "{n, plural, one {# вправа} few {# вправи} many {# вправ} other {# вправи}}",
+      "custom": "своя вправа",
+      "customName": "назва",
+      "customGroup": "група",
+      "customAdd": "додати",
+      "mine": "своя"
     },
     "body": {
       "goal": "основна ціль",

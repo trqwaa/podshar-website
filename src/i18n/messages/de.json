@@ -1395,7 +1395,12 @@
       "technique": "technik",
       "close": "schliessen",
       "nothing": "diese übung gibt es nicht. noch nicht",
-      "count": "{n, plural, one {# übung} other {# übungen}}"
+      "count": "{n, plural, one {# übung} other {# übungen}}",
+      "custom": "eigene übung",
+      "customName": "name",
+      "customGroup": "gruppe",
+      "customAdd": "hinzufügen",
+      "mine": "eigene"
     },
     "body": {
       "goal": "hauptziel",
