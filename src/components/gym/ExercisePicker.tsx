@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { Modal } from '@/components/Modal';
 import type { Locale } from '@/i18n/routing';
-import { EXERCISES, MUSCLES, exerciseOf, type Exercise, type Muscle } from '@/lib/gym/exercises';
+import { EXERCISES, MUSCLES, exerciseOf, subgroupOf, subgroupsOf, type Exercise, type Muscle, type Subgroup } from '@/lib/gym/exercises';
 import { PugRig } from './PugRig';
 import { BUTTON, CHIP, CHIP_OFF, CHIP_ON, GHOST, INPUT } from './styles';
 
@@ -23,10 +23,14 @@ import { BUTTON, CHIP, CHIP_OFF, CHIP_ON, GHOST, INPUT } from './styles';
 
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е').replace(/[’'`-]/g, ' ');
 
+/** Группа и подгруппа мышц, по которым сужен список. */
+export type MuscleFilter = { muscle: Muscle | null; sub: Subgroup | null };
+export const ANY_MUSCLE: MuscleFilter = { muscle: null, sub: null };
+
 /** Найти по запросу на любом из четырёх языков. */
-export function searchExercises(query: string, muscle: Muscle | null): Exercise[] {
+export function searchExercises(query: string, filter: MuscleFilter): Exercise[] {
   const words = norm(query).split(/\s+/).filter(Boolean);
-  return EXERCISES.filter((e) => !muscle || e.muscle === muscle).filter((e) => {
+  return EXERCISES.filter((e) => (!filter.muscle || e.muscle === filter.muscle) && (!filter.sub || subgroupOf(e) === filter.sub)).filter((e) => {
     if (!words.length) return true;
     const names = Object.values(e.name).map(norm);
     return words.every((w) => names.some((n) => n.includes(w)));
@@ -48,27 +52,40 @@ export function ExerciseDemo({ exercise }: { exercise: Exercise }) {
   );
 }
 
-export function MuscleChips({ muscle, onChange }: { muscle: Muscle | null; onChange: (m: Muscle | null) => void }) {
+/** Группы мышц, а под выбранной — её подгруппы: дельты, верх и низ груди, икры. */
+export function MuscleChips({ filter, onChange }: { filter: MuscleFilter; onChange: (f: MuscleFilter) => void }) {
   const t = useTranslations('gym');
+  const { muscle, sub } = filter;
+  const subs = subgroupsOf(muscle);
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <button
-        type="button"
-        onClick={() => onChange(null)}
-        className={`${CHIP} ${muscle === null ? CHIP_ON : CHIP_OFF}`}
-      >
-        {t('picker.all')}
-      </button>
-      {MUSCLES.map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => onChange(m === muscle ? null : m)}
-          className={`${CHIP} ${muscle === m ? CHIP_ON : CHIP_OFF}`}
-        >
-          {t(`muscles.${m}`)}
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" onClick={() => onChange(ANY_MUSCLE)} className={`${CHIP} ${muscle === null ? CHIP_ON : CHIP_OFF}`}>
+          {t('picker.all')}
         </button>
-      ))}
+        {MUSCLES.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => onChange({ muscle: m === muscle ? null : m, sub: null })}
+            className={`${CHIP} ${muscle === m ? CHIP_ON : CHIP_OFF}`}
+          >
+            {t(`muscles.${m}`)}
+          </button>
+        ))}
+      </div>
+      {subs.length ? (
+        <div key={muscle} className="animate-rise-in flex flex-wrap gap-1.5 border-l-2 border-ink pl-2.5">
+          <button type="button" onClick={() => onChange({ muscle, sub: null })} className={`${CHIP} ${sub === null ? CHIP_ON : CHIP_OFF}`}>
+            {t('picker.all')}
+          </button>
+          {subs.map((s) => (
+            <button key={s} type="button" onClick={() => onChange({ muscle, sub: s === sub ? null : s })} className={`${CHIP} ${sub === s ? CHIP_ON : CHIP_OFF}`}>
+              {t(`subgroups.${s}`)}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -89,7 +106,7 @@ export function ExercisePicker({
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
   const [query, setQuery] = useState('');
-  const [muscle, setMuscle] = useState<Muscle | null>(null);
+  const [filter, setFilter] = useState<MuscleFilter>(ANY_MUSCLE);
   const [chosen, setChosen] = useState<string | null>(initial);
   // Техника приезжает с окном, а не со страницей (`exercise-cues.ts`): пока
   // её нет, под мопсом пустые строки той же высоты, и карточка не прыгает.
@@ -104,7 +121,7 @@ export function ExercisePicker({
     };
   }, []);
 
-  const list = useMemo(() => searchExercises(query, muscle), [query, muscle]);
+  const list = useMemo(() => searchExercises(query, filter), [query, filter]);
 
   const exercise = chosen ? exerciseOf(chosen) : null;
   // Окно прокручивается само по себе: выбрал упражнение внизу списка — и
@@ -134,7 +151,8 @@ export function ExercisePicker({
           <div>
             <h3 className="text-xl font-semibold text-ink">{exercise.name[locale]}</h3>
             <p className="ps-label mt-1">
-              {t(`muscles.${exercise.muscle}`)} · {t(`gear.${exercise.gear}`)} · {t(`kinds.${exercise.kind}`)}
+              {t(`muscles.${exercise.muscle}`)}
+              {subgroupOf(exercise) ? ` · ${t(`subgroups.${subgroupOf(exercise)}`)}` : ''} · {t(`gear.${exercise.gear}`)} · {t(`kinds.${exercise.kind}`)}
             </p>
           </div>
           <ExerciseDemo exercise={exercise} />
@@ -166,7 +184,7 @@ export function ExercisePicker({
             className={INPUT}
             aria-label={t('picker.search')}
           />
-          <MuscleChips muscle={muscle} onChange={setMuscle} />
+          <MuscleChips filter={filter} onChange={setFilter} />
           <p className="ps-label">{t('picker.count', { n: list.length })}</p>
           <ul className="flex flex-col divide-y divide-rule-soft">
             {list.map((e) => (

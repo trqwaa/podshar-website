@@ -1664,6 +1664,25 @@
     },
     "doors": {
       "title": "дальше по подвалу"
+    },
+    "subgroups": {
+      "upperChest": "верх груди",
+      "midChest": "середина груди",
+      "lowerChest": "низ груди",
+      "frontDelt": "передняя дельта",
+      "sideDelt": "средняя дельта",
+      "rearDelt": "задняя дельта",
+      "lats": "широчайшие",
+      "midBack": "середина спины",
+      "traps": "трапеции",
+      "lowerBack": "поясница",
+      "biceps": "бицепс",
+      "triceps": "трицепс",
+      "forearms": "предплечья",
+      "quads": "квадрицепс",
+      "hamstrings": "бицепс бедра",
+      "calves": "икры",
+      "adductors": "приводящие"
     }
   }
 }

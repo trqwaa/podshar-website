@@ -565,4 +565,55 @@ export function showcaseOfDay(title: string, exerciseIds: string[], dayIndex: nu
 }
 
 /** Оценка максимума на один раз по Эпли. Для сравнения подходов, не для заявок. */
+/**
+ * Подгруппы мышц для выбора упражнения: плечи — передняя, средняя и задняя
+ * дельта, грудь — верх, середина и низ, и так далее (1.53, просьба владельца).
+ * Выводятся из движения, а не вписаны в каждое из 252 упражнений: жим на
+ * наклонной — верх груди, махи — средняя дельта, тяга лицом — задняя. Новое
+ * упражнение со знакомым движением попадает в подгруппу само.
+ */
+export const SUBGROUPS = {
+  chest: ['upperChest', 'midChest', 'lowerChest'],
+  shoulders: ['frontDelt', 'sideDelt', 'rearDelt'],
+  back: ['lats', 'midBack', 'traps', 'lowerBack'],
+  arms: ['biceps', 'triceps', 'forearms'],
+  legs: ['quads', 'hamstrings', 'calves', 'adductors']
+} as const;
+export type Subgroup = (typeof SUBGROUPS)[keyof typeof SUBGROUPS][number];
+export const subgroupsOf = (muscle: Muscle | null): readonly Subgroup[] =>
+  muscle && muscle in SUBGROUPS ? SUBGROUPS[muscle as keyof typeof SUBGROUPS] : [];
+
+/** Одно движение у разных мышц — разное: жим лёжа у груди — середина, узким хватом у рук — трицепс. */
+const BY_MOTION: Partial<Record<Muscle, Partial<Record<Motion, Subgroup>>>> = {
+  chest: {
+    bench: 'midChest', floorPress: 'midChest', fly: 'midChest', cableFly: 'midChest', pecDeck: 'midChest', chestPress: 'midChest',
+    pushup: 'midChest', kneePushup: 'midChest', pullover: 'midChest', incline: 'upperChest', inclineFly: 'upperChest', decline: 'lowerChest', dip: 'lowerChest'
+  },
+  shoulders: {
+    ohp: 'frontDelt', seatedPress: 'frontDelt', pushPress: 'frontDelt', frontRaise: 'frontDelt', hspu: 'frontDelt',
+    raise: 'sideDelt', uprightRow: 'sideDelt', reverseFly: 'rearDelt', facePull: 'rearDelt'
+  },
+  back: {
+    pullup: 'lats', muscleUp: 'lats', pulldown: 'lats', pullover: 'lats', row: 'midBack', cableRow: 'midBack', invertedRow: 'midBack',
+    shrug: 'traps', deadlift: 'lowerBack', rackPull: 'lowerBack', goodMorning: 'lowerBack', backExt: 'lowerBack', superman: 'lowerBack'
+  },
+  arms: {
+    curl: 'biceps', preacher: 'biceps', concentration: 'biceps', wristCurl: 'forearms', bench: 'triceps', pushdown: 'triceps',
+    overheadExt: 'triceps', skull: 'triceps', kickback: 'triceps', benchDip: 'triceps', dip: 'triceps'
+  },
+  legs: {
+    squat: 'quads', bwSquat: 'quads', hackSquat: 'quads', frontSquat: 'quads', ohSquat: 'quads', goblet: 'quads', deadlift: 'quads',
+    pistol: 'quads', jumpSquat: 'quads', legPress: 'quads', lunge: 'quads', bulgarian: 'quads', stepUp: 'quads', legExt: 'quads',
+    legCurl: 'hamstrings', lyingLegCurl: 'hamstrings', backExt: 'hamstrings', adduction: 'adductors', sumo: 'adductors',
+    calf: 'calves', calfPress: 'calves', seatedCalf: 'calves'
+  }
+};
+
+export function subgroupOf(e: Exercise): Subgroup | null {
+  if (e.id === 'incline-chest-press-machine') return 'upperChest';
+  // Обратный хват сгибаний нагружает в первую очередь предплечье.
+  if (e.muscle === 'arms' && e.id.includes('reverse')) return 'forearms';
+  return BY_MOTION[e.muscle]?.[e.motion] ?? null;
+}
+
 export const oneRepMax = (weight: number, reps: number) => (reps <= 1 ? weight : weight * (1 + reps / 30));

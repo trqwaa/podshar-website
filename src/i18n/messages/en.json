@@ -1664,6 +1664,25 @@
     },
     "doors": {
       "title": "further into the basement"
+    },
+    "subgroups": {
+      "upperChest": "upper chest",
+      "midChest": "mid chest",
+      "lowerChest": "lower chest",
+      "frontDelt": "front delts",
+      "sideDelt": "side delts",
+      "rearDelt": "rear delts",
+      "lats": "lats",
+      "midBack": "mid back",
+      "traps": "traps",
+      "lowerBack": "lower back",
+      "biceps": "biceps",
+      "triceps": "triceps",
+      "forearms": "forearms",
+      "quads": "quads",
+      "hamstrings": "hamstrings",
+      "calves": "calves",
+      "adductors": "adductors"
     }
   }
 }

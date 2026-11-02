@@ -1664,6 +1664,25 @@
     },
     "doors": {
       "title": "weiter im keller"
+    },
+    "subgroups": {
+      "upperChest": "obere brust",
+      "midChest": "mittlere brust",
+      "lowerChest": "untere brust",
+      "frontDelt": "vordere schulter",
+      "sideDelt": "seitliche schulter",
+      "rearDelt": "hintere schulter",
+      "lats": "latissimus",
+      "midBack": "oberer rücken",
+      "traps": "trapez",
+      "lowerBack": "unterer rücken",
+      "biceps": "bizeps",
+      "triceps": "trizeps",
+      "forearms": "unterarme",
+      "quads": "quadrizeps",
+      "hamstrings": "beinbeuger",
+      "calves": "waden",
+      "adductors": "adduktoren"
     }
   }
 }

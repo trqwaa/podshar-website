@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
-import { MUSCLES, type Muscle } from '@/lib/gym/exercises';
-import { ExercisePicker, MuscleChips, searchExercises } from './ExercisePicker';
+import { MUSCLES } from '@/lib/gym/exercises';
+import { ANY_MUSCLE, ExercisePicker, MuscleChips, searchExercises, type MuscleFilter } from './ExercisePicker';
 import { INPUT } from './styles';
 
 /** Рекорд, готовый к показу: строки собрал сервер — даты по Цюриху, числа по языку. */
@@ -88,9 +88,9 @@ export function ExerciseLibrary({ records }: { records: RecordCard[] }) {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
   const [query, setQuery] = useState('');
-  const [muscle, setMuscle] = useState<Muscle | null>(null);
+  const [filter, setFilter] = useState<MuscleFilter>(ANY_MUSCLE);
   const [open, setOpen] = useState<string | null>(null);
-  const list = useMemo(() => searchExercises(query, muscle), [query, muscle]);
+  const list = useMemo(() => searchExercises(query, filter), [query, filter]);
   const groups = MUSCLES.map((m) => ({ muscle: m, items: list.filter((e) => e.muscle === m) })).filter((g) => g.items.length);
   const badges = useMemo(() => new Map(records.map((r) => [r.exercise, r.badge])), [records]);
 
@@ -98,7 +98,7 @@ export function ExerciseLibrary({ records }: { records: RecordCard[] }) {
     <div className="flex flex-col gap-3">
       <Records records={records} />
       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('picker.search')} aria-label={t('picker.search')} className={INPUT} />
-      <MuscleChips muscle={muscle} onChange={setMuscle} />
+      <MuscleChips filter={filter} onChange={setFilter} />
       <p className="ps-label">{t('picker.count', { n: list.length })}</p>
       <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
         {groups.map((g) => (

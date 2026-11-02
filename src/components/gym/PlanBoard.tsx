@@ -28,10 +28,28 @@ const readClock = (text: string) => {
   return Math.round(parts.reduce((acc, v) => acc * 60 + v, 0));
 };
 
+/** Название упражнения — кнопка: открывает его с мопсом, как при выборе. */
+const SHOW = 'text-left underline-offset-4 hover:underline';
+/** Убрать одно упражнение — заметно и под палец: бледный «×» на телефоне не находили. */
+const REMOVE = 'grid h-8 w-8 shrink-0 place-items-center rounded-full text-lg leading-none text-surface/70 transition-colors hover:bg-surface/10 hover:text-surface';
+
 const CHALK_INPUT =
   'min-w-0 rounded border border-surface/25 bg-transparent px-1.5 py-1 text-center text-[1rem] tabular-nums text-surface outline-none placeholder:text-surface/35 focus:border-surface/70 sm:text-[0.9375rem]';
 
-function ItemRow({ item, editable, onChange, onRemove }: { item: PlanItemView; editable: boolean; onChange: (patch: Partial<PlanItemView>) => void; onRemove: () => void }) {
+function ItemRow({
+  item,
+  editable,
+  onChange,
+  onRemove,
+  onShow
+}: {
+  item: PlanItemView;
+  editable: boolean;
+  onChange: (patch: Partial<PlanItemView>) => void;
+  onRemove: () => void;
+  /** Открыть упражнение в окне с мопсом — посмотреть, что выбрано (1.53). */
+  onShow: () => void;
+}) {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
   const exercise = exerciseOf(item.exercise);
@@ -41,7 +59,9 @@ function ItemRow({ item, editable, onChange, onRemove }: { item: PlanItemView; e
   if (!editable) {
     return (
       <li className="flex flex-wrap items-baseline gap-x-2 text-surface/90">
-        <span>{name}</span>
+        <button type="button" onClick={onShow} className={SHOW}>
+          {name}
+        </button>
         <span className="tabular-nums text-surface/60">
           {kind === 'cardio' ? clock(item.seconds ?? 0) : timed ? `${item.sets}×${clock(item.seconds ?? 0)}` : `${item.sets}×${item.reps}`}
           {!timed && item.weight ? ` · ${kind === 'assisted' ? '−' : kind === 'body' ? '+' : ''}${item.weight} ${t('board.weight')}` : ''}
@@ -52,7 +72,9 @@ function ItemRow({ item, editable, onChange, onRemove }: { item: PlanItemView; e
   if (timed) {
     return (
       <li className="flex flex-wrap items-center gap-x-2 gap-y-1 text-surface/90">
-        <span className="min-w-[9rem] flex-1">{name}</span>
+        <button type="button" onClick={onShow} className={`${SHOW} min-w-[9rem] flex-1`}>
+          {name}
+        </button>
         <label className="flex items-center gap-1 text-surface/60">
           {kind === 'time' ? (
             <>
@@ -73,7 +95,7 @@ function ItemRow({ item, editable, onChange, onRemove }: { item: PlanItemView; e
             }}
           />
         </label>
-        <button type="button" onClick={onRemove} className="ps-label !text-surface/50 hover:!text-surface" aria-label={`${t('board.remove')}: ${name}`}>
+        <button type="button" onClick={onRemove} className={REMOVE} aria-label={`${t('board.remove')}: ${name}`}>
           ×
         </button>
       </li>
@@ -81,7 +103,9 @@ function ItemRow({ item, editable, onChange, onRemove }: { item: PlanItemView; e
   }
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 text-surface/90">
-      <span className="min-w-[9rem] flex-1">{name}</span>
+      <button type="button" onClick={onShow} className={`${SHOW} min-w-[9rem] flex-1`}>
+          {name}
+        </button>
       <label className="flex items-center gap-1 text-surface/60">
         <input aria-label={t('board.sets')} defaultValue={item.sets} inputMode="numeric" className={`${CHALK_INPUT} w-10`} onBlur={(e) => {
           const sets = parseNumber(e.target.value);
@@ -106,7 +130,7 @@ function ItemRow({ item, editable, onChange, onRemove }: { item: PlanItemView; e
         />
         {kind === 'assisted' ? `−${t('board.weight')}` : kind === 'body' ? `+${t('board.weight')}` : t('board.weight')}
       </label>
-      <button type="button" onClick={onRemove} className="ps-label !text-surface/50 hover:!text-surface" aria-label={`${t('board.remove')}: ${name}`}>
+      <button type="button" onClick={onRemove} className={REMOVE} aria-label={`${t('board.remove')}: ${name}`}>
         ×
       </button>
     </li>
@@ -117,6 +141,7 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
   const t = useTranslations('gym');
   const { run, pending, error } = useGymAction();
   const [picking, setPicking] = useState<number | null>(null);
+  const [showing, setShowing] = useState<string | null>(null);
   const [local, setLocal] = useState(days);
   const [programs, setPrograms] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -201,6 +226,7 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
                           setLocal((all) => all.map((x) => (x.weekday === weekday ? { ...x, items: x.items.filter((i) => i.id !== item.id) } : x)));
                           void run(removePlanItem, { id: item.id });
                         }}
+                        onShow={() => setShowing(item.exercise)}
                       />
                     ))}
                   </ul>
@@ -228,6 +254,7 @@ export function PlanBoard({ days, names, today, editable }: { days: PlanDayView[
           }}
         />
       ) : null}
+      {showing ? <ExercisePicker initial={showing} onClose={() => setShowing(null)} /> : null}
       {picking !== null ? (
         <ExercisePicker
           onClose={() => setPicking(null)}
