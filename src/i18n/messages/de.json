@@ -1375,7 +1375,9 @@
       "discardTitle": "aufhören?",
       "discardYes": "trotzdem abbrechen",
       "discardNo": "na gut, ich mach fertig",
-      "readOnly": "ein training startest du aus dem eigenen tagebuch"
+      "readOnly": "ein training startest du aus dem eigenen tagebuch",
+      "soundOn": "pausenton an",
+      "soundOff": "pausenton aus"
     },
     "history": {
       "empty": "hier erscheinen die beendeten trainings",

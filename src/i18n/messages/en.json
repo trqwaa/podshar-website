@@ -1375,7 +1375,9 @@
       "discardTitle": "quitting?",
       "discardYes": "quit anyway",
       "discardNo": "fine, i’ll finish",
-      "readOnly": "workouts start from your own diary"
+      "readOnly": "workouts start from your own diary",
+      "soundOn": "rest sound on",
+      "soundOff": "rest sound off"
     },
     "history": {
       "empty": "finished workouts will show up here",

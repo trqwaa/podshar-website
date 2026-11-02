@@ -19,7 +19,7 @@ import {
 } from '@/lib/gym/actions';
 import type { SetView, WorkoutView } from '@/lib/gym/data';
 import { countsVolume, exerciseOf, oneRepMax, type Kind } from '@/lib/gym/exercises';
-import { primeRestSignal, restOver } from './rest-signal';
+import { primeRestSignal, restOver, setSoundOn, soundOn } from './rest-signal';
 import { ExercisePicker } from './ExercisePicker';
 import { PugAvatar } from './PugAvatar';
 import { BUTTON, ErrorLine, GHOST, SMALL_INPUT, parseNumber, useGymAction } from './ui';
@@ -90,6 +90,7 @@ function RestBar({
     };
   }, []);
   const small = 'ps-press rounded-[10px] border-2 border-rule py-2 text-sm font-semibold lowercase text-ink hover:border-ink';
+  const [sound, setSound] = useState(soundOn);
   return (
     <div
       role="timer"
@@ -101,6 +102,22 @@ function RestBar({
           <p className="ps-label">{paused ? t('workout.restPaused') : t('workout.restTitle')}</p>
           <p className={`text-4xl font-bold leading-none tabular-nums ${paused ? 'text-ink-muted' : 'text-ink'}`}>{clock(left)}</p>
         </div>
+        <button
+          type="button"
+          aria-pressed={sound}
+          aria-label={sound ? t('workout.soundOn') : t('workout.soundOff')}
+          title={sound ? t('workout.soundOn') : t('workout.soundOff')}
+          onClick={() => {
+            setSoundOn(!sound);
+            setSound(!sound);
+          }}
+          className={`grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors ${sound ? 'bg-sunk text-ink' : 'bg-sunk text-ink-faint'}`}
+        >
+          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3.5 8h3l4-3.5v11L6.5 12h-3z" />
+            {sound ? <path d="M13.5 7.5a3.5 3.5 0 0 1 0 5M15.8 5.5a6.5 6.5 0 0 1 0 9" /> : <path d="M13.5 8l4 4M17.5 8l-4 4" />}
+          </svg>
+        </button>
         <button type="button" onClick={onPause} className={`${BUTTON} px-5 py-2.5 text-sm sm:text-sm`}>
           {paused ? t('workout.restResume') : t('workout.restPause')}
         </button>

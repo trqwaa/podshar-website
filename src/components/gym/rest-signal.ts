@@ -9,6 +9,28 @@
  */
 let audio: AudioContext | null = null;
 
+/**
+ * Писк выключается кнопкой на таймере — чтобы не орать на весь зал. Выбор
+ * помнит телефон: это удобство одного устройства, а не данные для всех.
+ */
+const SOUND_KEY = 'podshar:rest-sound';
+
+export function soundOn(): boolean {
+  try {
+    return window.localStorage.getItem(SOUND_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function setSoundOn(on: boolean) {
+  try {
+    window.localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
+  } catch {
+    // Приватный режим: выбор проживёт до перезагрузки, и это не страшно.
+  }
+}
+
 export function primeRestSignal() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -38,7 +60,7 @@ function beep(ctx: AudioContext) {
 
 export function restOver() {
   if ('vibrate' in navigator) navigator.vibrate?.([120, 80, 120]);
-  if (audio?.state === 'running') beep(audio);
+  if (audio?.state === 'running' && soundOn()) beep(audio);
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const flash = document.createElement('div');
   flash.className = 'pointer-events-none fixed inset-0 z-50 bg-accent';
