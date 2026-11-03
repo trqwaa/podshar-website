@@ -1409,7 +1409,6 @@
     },
     "body": {
       "goal": "hauptziel",
-      "goalHint": "danach rechnet der mops deine ziele",
       "profile": "für die berechnung",
       "height": "grösse, cm",
       "sex": "geschlecht",
@@ -1427,7 +1426,6 @@
       "age": "alter: {age}",
       "ageFromBirthday": "alter laut geburtstag im profil: {age}",
       "ageUnknown": "alter unbekannt — gerechnet wird mit 17",
-      "targets": "tagesziel: {kcal} kcal · e {protein} · f {fat} · k {carbs}",
       "weightGuess": "noch kein gewicht gemessen — gerechnet wird mit 70 kg",
       "save": "speichern",
       "saved": "gespeichert",
@@ -1470,7 +1468,8 @@
         "kg": "kg",
         "cm": "cm",
         "%": "%"
-      }
+      },
+      "targetsTitle": "pro tag"
     },
     "food": {
       "title": "ernährung",

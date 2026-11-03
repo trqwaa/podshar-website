@@ -8,6 +8,7 @@ import { History } from '@/components/gym/History';
 import { PlanBoard } from '@/components/gym/PlanBoard';
 import { Workout } from '@/components/gym/Workout';
 import { GymTabs } from '@/components/gym/GymTabs';
+import { BoardIcon, DumbbellIcon, HistoryIcon, StopwatchIcon, TargetIcon } from '@/components/gym/icons';
 import { dayKey } from '@/lib/calendar/scales';
 import { GymDoors } from '@/components/gym/GymDoors';
 import { gymContext, gymMood, weekdayNames } from '@/lib/gym/context';
@@ -26,6 +27,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
 const TABS = ['board', 'workout', 'history', 'body', 'library'] as const;
 type Tab = (typeof TABS)[number];
+const TAB_ICONS: Record<Tab, React.ReactNode> = {
+  board: <BoardIcon />,
+  workout: <StopwatchIcon />,
+  history: <HistoryIcon />,
+  body: <TargetIcon />,
+  library: <DumbbellIcon />
+};
 
 /**
  * Качалка: доска с планом, тренировка, история, цели и замеры, упражнения.
@@ -80,7 +88,8 @@ export default async function TrainingPage({
         href: { pathname: '/gym/training', query: { ...whoQuery, tab: name } },
         label: t(`tabs.${name}`),
         current: tab === name,
-        dot: name === 'workout' && Boolean(active)
+        dot: name === 'workout' && Boolean(active),
+        icon: TAB_ICONS[name]
       }))}
     />
   );

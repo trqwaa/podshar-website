@@ -22,7 +22,8 @@ export function GymTabs({
   /** Свой у каждого ряда: плашки двух рядов на одной странице не должны путаться. */
   id: string;
   label: string;
-  items: { key: string; href: Href; label: string; current: boolean; dot?: boolean }[];
+  /** Значок перед подписью (1.56) — у вкладок тренировки; «чей дневник» без них. */
+  items: { key: string; href: Href; label: string; current: boolean; dot?: boolean; icon?: React.ReactNode }[];
 }) {
   const still = useReducedMotion();
   const row = useRef<HTMLElement | null>(null);
@@ -54,7 +55,8 @@ export function GymTabs({
                 transition={still ? { duration: 0 } : { type: 'spring', stiffness: 450, damping: 36 }}
               />
             ) : null}
-            <span className="relative">
+            <span className="relative inline-flex items-center gap-1.5">
+              {item.icon}
               {item.label}
               {item.dot ? <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-win align-middle" /> : null}
             </span>

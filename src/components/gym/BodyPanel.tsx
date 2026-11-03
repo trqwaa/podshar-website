@@ -9,7 +9,11 @@ import { addGoal, addMeasure, removeGoal, removeMeasure, saveProfile } from '@/l
 import type { GoalView, MeasureView } from '@/lib/gym/data';
 import { EXERCISES, exerciseOf } from '@/lib/gym/exercises';
 import { ACTIVITIES, GOALS, GOAL_KINDS, PARTS, SEXES, unitOf, type Activity, type Goal, type GoalKind, type Part, type Sex, type Targets } from '@/lib/gym/norms';
+import { DumbbellIcon, FlameIcon, GrowIcon, InfoIcon } from './icons';
 import { BUTTON, CHIP, CHIP_OFF, CHIP_ON, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
+
+/** Значки основной цели (1.56): описание видно только у выбранной — остальным хватает картинки и слова. */
+const GOAL_ICON: Record<Goal, (props: { className?: string }) => React.ReactNode> = { hypertrophy: GrowIcon, strength: DumbbellIcon, cut: FlameIcon };
 
 /**
  * Цели и замеры: основная цель, данные для норм, конкретные цели с
@@ -92,22 +96,26 @@ export function BodyPanel({
       {/* Основная цель */}
       <section>
         <h3 className="ps-label">{t('body.goal')}</h3>
-        <p className="text-sm text-ink-muted">{t('body.goalHint')}</p>
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {GOALS.map((g) => (
-            <button
-              key={g}
-              type="button"
-              disabled={!editable || pending}
-              aria-pressed={profile.goal === g}
-              onClick={() => void run(saveProfile, { goal: g })}
-              className={`ps-press rounded-[10px] border-2 p-3 text-left ${profile.goal === g ? 'border-ink bg-ink text-surface' : 'border-rule text-ink hover:border-ink'} disabled:cursor-default`}
-            >
-              <span className="block text-lg font-semibold lowercase">{t(`goals.${g}`)}</span>
-              <span className={`block text-xs ${profile.goal === g ? 'text-surface/75' : 'text-ink-muted'}`}>{t(`goalHint.${g}`)}</span>
-            </button>
-          ))}
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {GOALS.map((g) => {
+            const Glyph = GOAL_ICON[g];
+            return (
+              <button
+                key={g}
+                type="button"
+                disabled={!editable || pending}
+                aria-pressed={profile.goal === g}
+                title={t(`goalHint.${g}`)}
+                onClick={() => void run(saveProfile, { goal: g })}
+                className={`ps-press flex flex-col items-center gap-1.5 rounded-[14px] px-2 py-3 transition-colors ${profile.goal === g ? 'bg-ink text-surface' : 'bg-sunk text-ink hover:bg-rule-soft'} disabled:cursor-default`}
+              >
+                <Glyph className="h-6 w-6" />
+                <span className="text-base font-semibold lowercase">{t(`goals.${g}`)}</span>
+              </button>
+            );
+          })}
         </div>
+        <p className="mt-2 text-sm text-ink-muted">{t(`goalHint.${profile.goal}`)}</p>
       </section>
 
       {/* Данные для норм */}
@@ -163,17 +171,22 @@ export function BodyPanel({
             </button>
           ) : null}
         </form>
-        <p className="mt-2 text-sm text-ink">
-          {t('body.targets', {
-            kcal: num.format(profile.targets.kcal),
-            protein: num.format(profile.targets.protein),
-            fat: num.format(profile.targets.fat),
-            carbs: num.format(profile.targets.carbs)
-          })}
-        </p>
-        <p className="text-xs text-ink-muted">
-          {profile.age === null ? t('body.ageUnknown') : profile.ageFromBirthday ? t('body.ageFromBirthday', { age: profile.age }) : t('body.age', { age: profile.age })}
-          {profile.weightKg === null ? ` · ${t('body.weightGuess')}` : ''}
+        {/* Норма — числами в клетках, как цифры на пачке в кладовке (1.56), а не строкой. */}
+        <p className="ps-label mt-4">{t('body.targetsTitle')}</p>
+        <dl className="mt-1.5 grid grid-cols-4 gap-1 rounded-[14px] bg-sunk px-2 py-3 text-center">
+          {(['kcal', 'protein', 'fat', 'carbs'] as const).map((key) => (
+            <div key={key} className="min-w-0">
+              <dt className="truncate text-[0.7rem] text-ink-muted">{t(`food.${key}`)}</dt>
+              <dd className="text-base font-bold tabular-nums text-ink">{num.format(profile.targets[key])}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-1.5 flex items-start gap-1.5 text-xs text-ink-muted">
+          <InfoIcon className="mt-px h-3.5 w-3.5 shrink-0" />
+          <span>
+            {profile.age === null ? t('body.ageUnknown') : profile.ageFromBirthday ? t('body.ageFromBirthday', { age: profile.age }) : t('body.age', { age: profile.age })}
+            {profile.weightKg === null ? ` · ${t('body.weightGuess')}` : ''}
+          </span>
         </p>
       </section>
 

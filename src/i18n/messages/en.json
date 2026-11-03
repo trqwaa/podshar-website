@@ -1409,7 +1409,6 @@
     },
     "body": {
       "goal": "main goal",
-      "goalHint": "the pug sets your targets by it",
       "profile": "for the targets",
       "height": "height, cm",
       "sex": "sex",
@@ -1427,7 +1426,6 @@
       "age": "age: {age}",
       "ageFromBirthday": "age from your profile birthday: {age}",
       "ageUnknown": "age unknown — targets assume 17",
-      "targets": "daily target: {kcal} kcal · p {protein} · f {fat} · c {carbs}",
       "weightGuess": "no weight measured yet — assuming 70 kg",
       "save": "save",
       "saved": "saved",
@@ -1470,7 +1468,8 @@
         "kg": "kg",
         "cm": "cm",
         "%": "%"
-      }
+      },
+      "targetsTitle": "daily target"
     },
     "food": {
       "title": "food",
