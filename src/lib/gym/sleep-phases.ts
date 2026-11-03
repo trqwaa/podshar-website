@@ -56,7 +56,58 @@ const minutesIn = (spans: Span[], [from, to]: Span) =>
 
 const GAP = 90 * 60_000;
 
-export function nightFrom(samples: Sample[]): Night | null {
+/**
+ * Образцы, как их прислала команда. Список словарей айфон отдаёт массивом,
+ * если поле в теле запроса — массив, а если поле текстовое — склеивает
+ * словари в текст, каждый JSON-ом. Принимаются оба вида: на телефоне это
+ * разница в одном переключателе, и угадать его заранее нельзя. Словари
+ * плоские, поэтому достаточно найти каждую пару фигурных скобок.
+ */
+export function samplesFrom(input: unknown): unknown {
+  if (typeof input !== 'string') return input;
+  const text = input.trim();
+  try {
+    if (text.startsWith('[')) return JSON.parse(text);
+    return (text.match(/\{[^{}]*\}/g) ?? []).map((one) => JSON.parse(one));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Три списка вместо словарей: начала, концы и что это было (`starts`, `ends`,
+ * `values`). Так команда обходится без повтора: «сведения об образцах» берёт
+ * список целиком, и запуск занимает секунду, а не полминуты на сотне кусочков
+ * сна — долгий фоновый запуск айфон обрывает. Списки приходят массивами или
+ * текстом, по строке на кусочек; длины обязаны совпасть.
+ */
+export function samplesFromLists(starts: unknown, ends: unknown, values: unknown): unknown {
+  const list = (v: unknown) =>
+    Array.isArray(v)
+      ? v.map(String)
+      : typeof v === 'string'
+        ? v
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+        : null;
+  const [a, b, c] = [list(starts), list(ends), list(values)];
+  if (!a || !b || !c || a.length !== b.length || a.length !== c.length) return null;
+  return a.map((start, i) => ({ start, end: b[i], value: c[i] }));
+}
+
+/** Короче — дневной сон, а не ночь: он не должен затирать настоящую ночь той же даты. */
+const NIGHT = 120;
+const wakeDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/**
+ * Все ночи из образцов — по одной на дату подъёма в Цюрихе, самая длинная за
+ * эту дату. Команда шлёт три последних дня, и ночь, пойманная наполовину
+ * (проснулся в три, открыл телефон, уснул снова), перезаписывается целой при
+ * любом следующем запуске — сегодня или завтра. Владелец нашёл эту дыру сам,
+ * 3 ноября 2026: с одними сутками половинка оставалась навсегда.
+ */
+export function nightsFrom(samples: Sample[]): Night[] {
   const by: Record<Phase, Span[]> = { bed: [], awake: [], deep: [], rem: [], core: [], asleep: [] };
   for (const sample of samples) {
     const phase = phaseOf(sample.value);
@@ -68,16 +119,25 @@ export function nightFrom(samples: Sample[]): Night | null {
   const sleeping = [...by.deep, ...by.rem, ...by.core, ...by.asleep];
   // Одно «в постели» без часов — телефон по расписанию сна: ночь без фаз.
   const base = sleeping.length ? sleeping : by.bed;
-  if (!base.length) return null;
 
-  const pieces = union(base, GAP);
-  const main = pieces.reduce((best, piece) => (minutesIn(base, piece) > minutesIn(base, best) ? piece : best));
-  const staged = by.deep.length + by.rem.length > 0;
-  return {
-    bedAt: new Date(main[0]),
-    wakeAt: new Date(main[1]),
-    minutes: minutesIn(base, main),
-    deep: staged ? minutesIn(by.deep, main) : null,
-    rem: staged ? minutesIn(by.rem, main) : null
-  };
+  const best = new Map<string, Span>();
+  for (const piece of union(base, GAP)) {
+    if (minutesIn(base, piece) < NIGHT) continue;
+    const day = wakeDay.format(new Date(piece[1]));
+    const other = best.get(day);
+    if (!other || minutesIn(base, piece) > minutesIn(base, other)) best.set(day, piece);
+  }
+  return [...best.values()]
+    .sort((a, b) => a[0] - b[0])
+    .map((main) => {
+      // Фазы — только если часы прислали их за эту ночь, иначе «нет данных», а не ноль.
+      const staged = [...by.deep, ...by.rem].some(([from, to]) => to > main[0] && from < main[1]);
+      return {
+        bedAt: new Date(main[0]),
+        wakeAt: new Date(main[1]),
+        minutes: minutesIn(base, main),
+        deep: staged ? minutesIn(by.deep, main) : null,
+        rem: staged ? minutesIn(by.rem, main) : null
+      };
+    });
 }

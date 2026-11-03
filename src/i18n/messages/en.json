@@ -1762,7 +1762,7 @@
     "copied": "copied",
     "sleepUrl": "address",
     "sleepHow": "how to build the shortcut",
-    "sleepSteps": "1. Shortcuts → Automation → + → Time of Day: 10:00, daily, Run Immediately.\n2. Find Health Samples: type Sleep Analysis, start date in the last 1 day.\n3. Repeat with Each — over the samples found.\n4. inside the repeat, Get Details of Health Samples three times for Repeat Item: Start Date, End Date, Value; run both dates through Format Date, format ISO 8601.\n5. last inside the repeat — Dictionary: start — the start date, end — the end date, value — the value.\n6. after the repeat — Get Contents of URL: the address above, method POST, header Authorization = “Bearer ”, a space and the key, JSON body: field samples — Repeat Results.",
+    "sleepSteps": "1. Shortcuts → Automation → + → App → the app you open every morning → Is Opened, Run Immediately. the phone is unlocked at that moment — a locked iPhone keeps Health closed.\n2. Find Health Samples: type Sleep Analysis, start date in the last 3 days.\n3. Get Details of Health Samples → Start Date → Format Date, format ISO 8601 → Set Variable starts.\n4. Get Details of Health Samples again — with the samples from step 2 as input — End Date → Format Date, ISO 8601 → Set Variable ends.\n5. once more details of the same samples → Value → Set Variable values.\n6. Get Contents of URL: the address above, method POST, header Authorization = “Bearer ”, a space and the key, JSON body with three Text fields: starts — starts, ends — ends, values — values.",
     "pushTitle": "notifications from the pug",
     "pushWhat": "every morning the pug tells you what is on the plan: gym or rest",
     "pushOn": "on for this phone",

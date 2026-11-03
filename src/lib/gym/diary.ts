@@ -448,11 +448,17 @@ export async function addSleepFor(userId: string, input: unknown): Promise<GymRe
  * напрямую или через Google Health — уже моментами и фазами
  * (`sleep-phases.ts`). Ночь — по дате подъёма в Цюрихе, вторая за ту же ночь
  * заменяет первую. Источник — `health`.
+ *
+ * Ночь, вписанную руками, телефон не трогает (1.55A), как импорт Zepp:
+ * команда пересылает три дня, и поправленная руками ночь — часы решили, что
+ * ты спал под сериал, — иначе вернулась бы к утру.
  */
 export async function saveNightFor(userId: string, night: Night): Promise<GymResult & { night?: string; minutes?: number }> {
   const day = dayKey(night.wakeAt);
   if (!notFuture(day)) return { error: 'future' };
   if (night.minutes < 30 || night.minutes > 20 * 60) return { error: 'range' };
+  const before = await prisma.sleepEntry.findUnique({ where: { userId_night: { userId, night: day } }, select: { source: true } });
+  if (before?.source === 'manual') return { ok: true, night: day, skipped: 1 };
   const data = { bedAt: night.bedAt, wakeAt: night.wakeAt, minutes: night.minutes, deep: night.deep, rem: night.rem, source: 'health' };
   await prisma.sleepEntry.upsert({ where: { userId_night: { userId, night: day } }, update: data, create: { userId, night: day, ...data } });
   refresh();

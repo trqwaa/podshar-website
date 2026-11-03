@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { saveNightFor } from '@/lib/gym/diary';
-import { nightFrom } from '@/lib/gym/sleep-phases';
+import { nightsFrom, samplesFrom, samplesFromLists } from '@/lib/gym/sleep-phases';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +14,9 @@ export const runtime = 'nodejs';
  * `Authorization: Bearer …`.
  *
  * С 1.55 — образцами из «Здоровья» (`samples`: начало, конец, что это было),
- * и тогда в дневник ложатся фазы: глубокий и быстрый сон. Так приходят и часы
+ * и тогда в дневник ложатся фазы: глубокий и быстрый сон. Образцы — за три
+ * дня, и сохраняется каждая ночь в них: половинка ночи, пойманная ночным
+ * запуском, перезаписывается целой следующим. Так приходят и часы
  * Fitbit — через приложение Google Health, которое пишет в «Здоровье»:
  * напрямую из Google сайт не читает, это проект в Google Cloud, а владелец
  * решил без него (3 ноября 2026). Старая команда с одними `start` и `end`
@@ -25,10 +27,21 @@ export const runtime = 'nodejs';
  * (`lib/connections.ts`).
  */
 const Sample = z.object({ start: z.string().max(40), end: z.string().max(40), value: z.union([z.string().max(60), z.number()]) });
-const Body = z.union([
-  z.object({ samples: z.array(Sample).min(1).max(600) }),
-  z.object({ start: z.string().min(10).max(40), end: z.string().min(10).max(40) })
-]);
+const Samples = z.array(Sample).min(1).max(600);
+
+/**
+ * Три вида тела: три списка (`starts`, `ends`, `values` — команда без
+ * повтора, так в шагах с 1.55A), словари (`samples` — команда с повтором)
+ * и одна ночь (`start`, `end` — команда из 1.53).
+ */
+function samplesOf(body: unknown): unknown {
+  if (!body || typeof body !== 'object') return null;
+  const b = body as Record<string, unknown>;
+  if ('starts' in b) return samplesFromLists(b.starts, b.ends, b.values);
+  if ('samples' in b) return samplesFrom(b.samples);
+  if (typeof b.start === 'string' && typeof b.end === 'string') return [{ start: b.start, end: b.end, value: 'asleep' }];
+  return null;
+}
 
 export async function POST(request: Request) {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ?? '';
@@ -39,12 +52,20 @@ export async function POST(request: Request) {
   });
   if (!row) return NextResponse.json({ error: 'wrong key' }, { status: 401 });
 
-  const body = Body.safeParse(await request.json().catch(() => null));
-  if (!body.success) return NextResponse.json({ error: 'need samples, or start and end' }, { status: 400 });
-  const night = nightFrom('samples' in body.data ? body.data.samples : [{ start: body.data.start, end: body.data.end, value: 'asleep' }]);
-  if (!night) return NextResponse.json({ error: 'no sleep in samples' }, { status: 400 });
+  const samples = Samples.safeParse(samplesOf(await request.json().catch(() => null)));
+  if (!samples.success) return NextResponse.json({ error: 'need starts, ends and values of the same length' }, { status: 400 });
+  const nights = nightsFrom(samples.data);
+  if (!nights.length) return NextResponse.json({ error: 'no sleep in samples' }, { status: 400 });
 
-  const result = await saveNightFor(row.key.slice('sleep-token:'.length), night);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 422 });
-  return NextResponse.json({ ok: true, night: result.night, hours: Math.round(night.minutes / 6) / 10, deep: night.deep, rem: night.rem });
+  const userId = row.key.slice('sleep-token:'.length);
+  const saved: { night: string; hours: number; deep: number | null; rem: number | null }[] = [];
+  const manual: string[] = [];
+  for (const night of nights) {
+    const result = await saveNightFor(userId, night);
+    if (result.ok && result.night && result.skipped) manual.push(result.night);
+    else if (result.ok && result.night) saved.push({ night: result.night, hours: Math.round(night.minutes / 6) / 10, deep: night.deep, rem: night.rem });
+  }
+  if (!saved.length && !manual.length) return NextResponse.json({ error: 'range' }, { status: 422 });
+  // Сверху — последняя ночь, как отвечал старый вид; все — в `nights`; вписанные руками — в `manual`.
+  return NextResponse.json({ ok: true, ...saved[saved.length - 1], nights: saved, manual });
 }
