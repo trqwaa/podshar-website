@@ -1535,7 +1535,11 @@
       "quickWorking": "мопс считает…",
       "quickSaved": "записал в {meal} · {kcal} ккал",
       "undo": "отменить",
-      "undone": "убрал"
+      "undone": "убрал",
+      "tidy": "убрать лишнее",
+      "tidyAll": "убрать все",
+      "tidyDone": "готово",
+      "tidyRemove": "убрать «{name}» из недавнего"
     },
     "sleep": {
       "title": "сон",

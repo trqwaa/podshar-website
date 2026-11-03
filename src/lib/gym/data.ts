@@ -5,7 +5,9 @@ import { authConfigured } from '@/lib/auth/config';
 import { birthdayOf } from '@/lib/birthdays';
 import { zurichMidnight } from '@/lib/calendar/events';
 import { dayKey, shiftDay } from '@/lib/calendar/scales';
+import { recentHiddenKey } from './diary';
 import { kindOf, oneRepMax, trainsOn, type Kind } from './exercises';
+import { recentKey } from './foods';
 import {
   DEFAULTS,
   ageFrom,
@@ -502,19 +504,35 @@ export async function junkNames(userId: string, from: string, to: string): Promi
   return rows.map((r) => r.name);
 }
 
-/** Что человек ест чаще всего — для быстрой записи в один тап. */
+/**
+ * Что человек ест чаще всего — для быстрой записи в один тап. Убранное
+ * кнопкой «убрать лишнее» не показывается, пока его не съедят снова
+ * (`hideRecentFor`).
+ */
 export async function recentFoods(userId: string, limit = 8): Promise<FoodView[]> {
   if (!authConfigured()) return [];
-  const rows = await prisma.foodEntry.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    take: 120,
-    select: FOOD_FIELDS
-  });
+  const [rows, hiddenRow] = await Promise.all([
+    prisma.foodEntry.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 120,
+      select: { ...FOOD_FIELDS, createdAt: true }
+    }),
+    prisma.countdown.findUnique({ where: { key: recentHiddenKey(userId) }, select: { label: true } })
+  ]);
+  let hidden: Record<string, string> = {};
+  try {
+    hidden = hiddenRow ? (JSON.parse(hiddenRow.label) as Record<string, string>) : {};
+  } catch {
+    hidden = {};
+  }
   const seen = new Set<string>();
   const out: FoodView[] = [];
-  for (const row of rows) {
-    const key = `${row.food ?? row.name.toLowerCase()}|${row.grams ?? ''}`;
+  for (const { createdAt, ...row } of rows) {
+    const what = recentKey(row);
+    const until = [hidden[what], hidden['*']].filter(Boolean).sort().pop();
+    if (until && createdAt.toISOString() <= until) continue;
+    const key = `${what}|${row.grams ?? ''}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(row);

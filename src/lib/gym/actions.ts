@@ -32,6 +32,7 @@ import {
   addMeasureFor,
   addSleepFor,
   customRow,
+  hideRecentFor,
   notFuture,
   refresh,
   removeFoodsFor,
@@ -476,6 +477,11 @@ export async function addFood(input: unknown): Promise<GymResult> {
 /** Всё с одного фото разом: тарелка — это несколько записей, но одно нажатие. */
 export async function addFoods(input: unknown): Promise<GymResult> {
   return asMe(addFoodsFor)(input);
+}
+
+/** Убрать продукты из недавнего под «что съел?» — дневник не трогается. */
+export async function hideRecent(input: unknown): Promise<GymResult> {
+  return asMe(hideRecentFor)(input);
 }
 
 export async function removeFood(input: unknown): Promise<GymResult> {

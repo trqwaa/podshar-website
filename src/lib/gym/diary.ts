@@ -385,6 +385,35 @@ export async function removeFoodsFor(userId: string, ids: unknown): Promise<GymR
   return { ok: true, count };
 }
 
+/**
+ * Убрать продукт из недавнего под «что съел?» (1.54) — записи дневника не
+ * трогаются: недавнее из них только собирается. Без миграции, в `countdowns`:
+ * `food-recent-hidden:<id>`, в `label` — что и когда убрано. Прячется то, что
+ * записано до нажатия: съел снова — продукт вернулся сам. `*` — «убрать все».
+ * Удаляя человека, убери и эту строку.
+ */
+export const recentHiddenKey = (userId: string) => `food-recent-hidden:${userId}`;
+
+export async function hideRecentFor(userId: string, input: unknown): Promise<GymResult> {
+  const parsed = z.object({ keys: z.array(z.string().trim().min(1).max(120)).min(1).max(20) }).safeParse(input);
+  if (!parsed.success) return { error: 'invalid' };
+  const key = recentHiddenKey(userId);
+  const row = await prisma.countdown.findUnique({ where: { key }, select: { label: true } });
+  let hidden: Record<string, string> = {};
+  try {
+    hidden = row ? (JSON.parse(row.label) as Record<string, string>) : {};
+  } catch {
+    hidden = {};
+  }
+  const now = new Date().toISOString();
+  for (const what of parsed.data.keys) hidden[what] = now;
+  // Сотни убранного хватит: дальше старое забывается, а недавнее и так берёт 120 последних записей.
+  const label = JSON.stringify(Object.fromEntries(Object.entries(hidden).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 100)));
+  await prisma.countdown.upsert({ where: { key }, update: { label, targetAt: new Date() }, create: { key, label, targetAt: new Date() } });
+  refresh();
+  return { ok: true };
+}
+
 // ─── Сон ────────────────────────────────────────────────────────────────────
 
 /**

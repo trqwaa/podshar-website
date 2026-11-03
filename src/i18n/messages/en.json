@@ -1535,7 +1535,11 @@
       "quickWorking": "the pug is counting…",
       "quickSaved": "logged to {meal} · {kcal} kcal",
       "undo": "undo",
-      "undone": "removed"
+      "undone": "removed",
+      "tidy": "tidy up",
+      "tidyAll": "remove all",
+      "tidyDone": "done",
+      "tidyRemove": "remove “{name}” from recent"
     },
     "sleep": {
       "title": "sleep",

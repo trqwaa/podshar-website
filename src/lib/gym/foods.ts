@@ -286,6 +286,13 @@ const JUNK_WORDS = [
   'haribo', ' торт', ' cake', ' kuchen', 'пончик', 'donut', 'пирожн'
 ];
 
+/**
+ * Чем продукт узнаётся среди недавнего под «что съел?»: номер в справочнике
+ * или название. По нему же недавнее и прячется (`hideRecentFor`), поэтому
+ * сервер и браузер считают его одной функцией.
+ */
+export const recentKey = (entry: { food: string | null; name: string }) => entry.food ?? entry.name.toLowerCase();
+
 export function junkByName(name: string): boolean {
   const hay = ` ${name.toLowerCase().replace(/ё/g, 'е')} `;
   return JUNK_WORDS.some((word) => hay.includes(word.replace(/ё/g, 'е')));

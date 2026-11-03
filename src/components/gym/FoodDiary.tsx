@@ -5,11 +5,11 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
-import { addFood, importFatsecret, removeFood, removeFoods } from '@/lib/gym/actions';
+import { addFood, hideRecent, importFatsecret, removeFood, removeFoods } from '@/lib/gym/actions';
 import type { FoodView } from '@/lib/gym/data';
 import { logMeal } from '@/lib/gym/food-actions';
 import type { MealItem } from '@/lib/gym/food-estimate';
-import { foodOf, macrosFor, searchFoods, type Food } from '@/lib/gym/foods';
+import { foodOf, macrosFor, recentKey, searchFoods, type Food } from '@/lib/gym/foods';
 import type { Targets } from '@/lib/gym/norms';
 import { CsvImport } from './CsvImport';
 import { FoodPhoto } from './FoodPhoto';
@@ -151,6 +151,102 @@ function Picked({ item, day, meal, onDone }: { item: Food; day: string; meal: Me
       </div>
       <ErrorLine message={error} />
     </div>
+  );
+}
+
+/**
+ * Недавнее — в один тап. «Убрать лишнее» включает крестики, и чипы покачиваются,
+ * как иконки айфона в режиме правки: тап — продукт ушёл из недавнего. Дневник
+ * не трогается (`hideRecent`), съел снова — продукт вернётся сам.
+ */
+function RecentChips({ recent, day, meal, custom, onCustom }: { recent: FoodView[]; day: string; meal: Meal; custom: boolean; onCustom: () => void }) {
+  const t = useTranslations('gym');
+  const locale = useLocale() as Locale;
+  const still = useReducedMotion();
+  const { run, pending, error } = useGymAction();
+  const [tidy, setTidy] = useState(false);
+  const [gone, setGone] = useState<Set<string>>(new Set());
+  const shown = recent.filter((r) => !gone.has(recentKey(r)));
+  const editing = tidy && shown.length > 0;
+  const hide = (keys: string[], what: string[]) => {
+    setGone((g) => new Set([...g, ...what]));
+    void run(hideRecent, { keys });
+  };
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <AnimatePresence initial={false} mode="popLayout">
+          {shown.map((r, n) => {
+            const item = r.food ? foodOf(r.food) : undefined;
+            const name = item ? item.name[locale] : r.name;
+            return (
+              <motion.span
+                key={r.id}
+                layout={!still}
+                exit={still ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, scale: 0.6, transition: { duration: 0.18 } }}
+                className="inline-flex"
+              >
+                {editing ? (
+                  <button
+                    type="button"
+                    onClick={() => hide([recentKey(r)], [recentKey(r)])}
+                    aria-label={t('food.tidyRemove', { name })}
+                    className={`${CHIP} inline-flex animate-chip-wiggle items-center gap-1.5 bg-loss/10 text-loss hover:bg-loss/15`}
+                    style={{ animationDelay: `${(n % 3) * -90}ms` }}
+                  >
+                    {name}
+                    <span aria-hidden="true" className="text-base leading-none">
+                      ×
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      void run(
+                        addFood,
+                        item
+                          ? { day, meal, locale, food: item.id, grams: r.grams ?? item.portion.grams }
+                          : { day, meal, locale, name: r.name, grams: r.grams, kcal: r.kcal, protein: r.protein, fat: r.fat, carbs: r.carbs }
+                      )
+                    }
+                    className={`${CHIP} ${CHIP_OFF}`}
+                  >
+                    + {name}
+                  </button>
+                )}
+              </motion.span>
+            );
+          })}
+        </AnimatePresence>
+        {editing ? (
+          <>
+            <button type="button" onClick={() => hide(['*'], shown.map(recentKey))} className="ps-label px-1 hover:text-loss hover:underline">
+              {t('food.tidyAll')}
+            </button>
+            <button type="button" onClick={() => setTidy(false)} className="ps-label px-1 text-ink hover:underline">
+              {t('food.tidyDone')}
+            </button>
+          </>
+        ) : (
+          <>
+            {custom ? null : (
+              <button type="button" onClick={onCustom} className="ps-label px-1 hover:text-ink hover:underline">
+                {t('food.custom')}
+              </button>
+            )}
+            {shown.length ? (
+              <button type="button" onClick={() => setTidy(true)} className="ps-label px-1 hover:text-ink hover:underline">
+                {t('food.tidy')}
+              </button>
+            ) : null}
+          </>
+        )}
+      </div>
+      <ErrorLine message={error} />
+    </>
   );
 }
 
@@ -324,36 +420,7 @@ function QuickAdd({ day, initialMeal, recent }: { day: string; initialMeal: Meal
         <Picked item={extra} day={day} meal={meal} onDone={() => setExtra(null)} />
       ) : null}
 
-      {recent.length || !extra ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {recent.map((r) => {
-            const item = r.food ? foodOf(r.food) : undefined;
-            return (
-              <button
-                key={r.id}
-                type="button"
-                disabled={pending}
-                onClick={() =>
-                  void run(
-                    addFood,
-                    item
-                      ? { day, meal, locale, food: item.id, grams: r.grams ?? item.portion.grams }
-                      : { day, meal, locale, name: r.name, grams: r.grams, kcal: r.kcal, protein: r.protein, fat: r.fat, carbs: r.carbs }
-                  )
-                }
-                className={`${CHIP} ${CHIP_OFF}`}
-              >
-                + {item ? item.name[locale] : r.name}
-              </button>
-            );
-          })}
-          {extra ? null : (
-            <button type="button" onClick={() => setExtra('custom')} className="ps-label px-1 hover:text-ink hover:underline">
-              {t('food.custom')}
-            </button>
-          )}
-        </div>
-      ) : null}
+      {recent.length || !extra ? <RecentChips recent={recent} day={day} meal={meal} custom={Boolean(extra)} onCustom={() => setExtra('custom')} /> : null}
     </section>
   );
 }
