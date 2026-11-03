@@ -18,6 +18,10 @@ export const dynamic = 'force-dynamic';
  * Звать может только Vercel: он кладёт `CRON_SECRET` в заголовок. Нет ключей
  * уведомлений — молчит, а не падает. Телефон отписался (404 или 410 от службы
  * уведомлений) — его строчка удаляется, мусор не копится.
+ *
+ * Каждый запуск оставляет след в `countdowns` (`cron:morning`): когда, кто
+ * позвал, сколько ушло и какие ошибки (1.55). Журнал Vercel отсюда не
+ * прочитать, а на вопрос «почему утром не пришло» иначе не ответить.
  */
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -35,6 +39,7 @@ export async function GET(request: Request) {
   const weekday = weekdayOf(dayKey(new Date()));
 
   let sent = 0;
+  const failed: (number | string)[] = [];
   for (const id of ids) {
     const locale = users.find((u) => u.id === id)?.locale ?? 'ru';
     const t = await getTranslations({ locale, namespace: 'push' });
@@ -47,10 +52,15 @@ export async function GET(request: Request) {
         sent += 1;
       } catch (error) {
         const status = (error as { statusCode?: number }).statusCode;
+        failed.push(status ?? 'error');
         if (status === 404 || status === 410) await prisma.countdown.delete({ where: { key: row.key } }).catch(() => undefined);
         else console.warn('[podshar] push не ушёл:', status, error instanceof Error ? error.message : error);
       }
     }
   }
-  return NextResponse.json({ sent });
+  const label = JSON.stringify({ sent, failed, by: (request.headers.get('user-agent') ?? '').slice(0, 60) });
+  await prisma.countdown
+    .upsert({ where: { key: 'cron:morning' }, update: { label, targetAt: new Date() }, create: { key: 'cron:morning', label, targetAt: new Date() } })
+    .catch(() => undefined);
+  return NextResponse.json({ sent, failed });
 }

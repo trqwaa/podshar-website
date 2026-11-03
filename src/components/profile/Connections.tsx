@@ -6,7 +6,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import { createSleepToken, dropPush, revokeSleepToken, savePush } from '@/lib/connections';
 
 /**
- * Подключения (1.53): сон из «Здоровья» айфона и утренние уведомления мопса.
+ * Подключения (1.53): сон с часов и утренние уведомления мопса.
+ *
+ * Часы пишут сон в «Здоровье» айфона сами (Apple Watch, Zepp) или через
+ * приложение Google Health (Fitbit) — с 1.55 это выбор на карточке: у Google
+ * Health на один шаг больше, дальше путь общий. Напрямую из Google сайт не
+ * читает: нужен свой проект в Google Cloud, и владелец решил без него.
  *
  * Сон — быстрой командой, которую человек собирает сам: сайт не может
  * залезть в «Здоровье», а команда — может. Отсюда — личный ключ (показывается
@@ -37,6 +42,7 @@ export function Connections({ sleepSince, pushKey, sleepUrl }: { sleepSince: num
   const [token, setToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [push, setPush] = useState<PushState>('checking');
+  const [from, setFrom] = useState<'apple' | 'google'>('apple');
 
   useEffect(() => {
     void (async () => {
@@ -85,6 +91,21 @@ export function Connections({ sleepSince, pushKey, sleepUrl }: { sleepSince: num
           <span className={`text-xs font-semibold ${since ? 'text-win' : 'text-ink-muted'}`}>{since ? t('sleepOn', { date: sinceText ?? '' }) : t('sleepOff')}</span>
         </div>
         <p className="text-sm text-ink-muted">{t('sleepWhat')}</p>
+        <div role="radiogroup" aria-label={t('sleepFrom')} className="flex flex-wrap gap-1.5">
+          {(['apple', 'google'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              role="radio"
+              aria-checked={from === f}
+              onClick={() => setFrom(f)}
+              className={`ps-press rounded-full px-3.5 py-1.5 text-sm font-semibold lowercase transition-colors ${from === f ? 'bg-ink text-surface' : 'bg-canvas text-ink hover:bg-rule-soft'}`}
+            >
+              {t(f === 'apple' ? 'sleepApple' : 'sleepGoogle')}
+            </button>
+          ))}
+        </div>
+        {from === 'google' ? <p className="text-sm leading-relaxed text-ink">{t('sleepGoogleFirst')}</p> : null}
         {token ? (
           <div className="flex flex-col gap-2 rounded-[10px] bg-canvas p-3">
             <p className="ps-label">{t('sleepKey')}</p>

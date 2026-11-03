@@ -70,6 +70,13 @@ export const SIGNED_IN = [
  */
 export const GYM = ['gym', 'calendar.prev', 'calendar.next', 'calendar.clear', 'calendar.noDate'] as const;
 
+/**
+ * Загрузки из Strong, FatSecret и Zepp Life на странице настроек (1.55) —
+ * кусок зала вне зала. Свой провайдер с одними этими строками: весь раздел
+ * зала ради трёх блоков ехал бы в браузер с каждой страницей настроек.
+ */
+export const IMPORTS = ['gym.imports', 'gym.strong', 'gym.fatsecret', 'gym.sleep.import', 'gym.errors'] as const;
+
 type Tree = { [key: string]: string | Tree };
 
 export async function clientMessages(locale: Locale, paths: readonly string[]): Promise<Tree> {

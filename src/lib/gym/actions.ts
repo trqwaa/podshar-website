@@ -660,7 +660,7 @@ export async function importFatsecret(formData: FormData): Promise<GymResult> {
 
 /**
  * Свои упражнения всех троих — те, что уже стоят у кого-то на доске или в
- * тренировке. Отдельной таблицы нет (`custom:` в id, 1.54), поэтому «список
+ * тренировке. Отдельной таблицы нет (`custom:` в id, 1.53), поэтому «список
  * своих» и есть то, чем пользуются.
  */
 export async function customExercises(): Promise<string[]> {

@@ -12,6 +12,7 @@ import { dropFromPantry, eatFromPantry, scanToPantry } from '@/lib/gym/food-acti
 import { gradeColor, type Grade, type Tier } from '@/lib/gym/grade';
 import type { PantryItem } from '@/lib/gym/pantry';
 import { Camera } from './BarcodeScanner';
+import { TrashIcon } from './icons';
 import { MealSwitch, type Meal } from './MealSwitch';
 import { PugFace } from './PugFace';
 import { BUTTON, CHIP, CHIP_OFF, CHIP_ON, INPUT } from './styles';
@@ -362,7 +363,13 @@ function ProductCard({
               {say(problem)}
             </p>
           ) : null}
-          <button type="button" disabled={busy} onClick={drop} className={`ps-label self-center py-1 ${sure ? 'text-loss' : 'hover:text-loss'}`}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={drop}
+            className={`${CHIP} inline-flex items-center gap-1.5 self-center ${sure ? 'bg-loss text-surface' : 'bg-loss/10 text-loss hover:bg-loss/15'}`}
+          >
+            <TrashIcon />
             {sure ? t('pantry.removeSure') : t('pantry.remove')}
           </button>
         </section>

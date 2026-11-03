@@ -1556,22 +1556,24 @@
       "sources": {
         "manual": "von hand",
         "zepp": "zepp life",
-        "csv": "datei"
+        "csv": "datei",
+        "health": "uhr"
       },
       "import": {
-        "title": "aus einer datei",
+        "title": "schlaf aus zepp life",
         "hint": "zepp life (ordner SLEEP, .csv) oder jede tabelle mit schlafbeginn und -ende",
         "button": "csv hochladen",
         "done": "importiert: {n, plural, one {# nacht} other {# nächte}}",
         "skipped": "von hand eingetragene nächte blieben unberührt: {n}"
       },
-      "connect": {
-        "title": "schlaf von der uhr holen",
-        "zepp": "zepp life: profil → einstellungen → daten exportieren. das archiv kommt per mail, die datei aus SLEEP kommt hierher",
-        "apple": "iphone: automatisch — später, per kurzbefehl",
-        "android": "android: automatisch braucht eine begleit-app — später"
-      },
-      "readOnly": "fremdes tagebuch — nur ansehen"
+      "readOnly": "fremdes tagebuch — nur ansehen",
+      "watch": "uhr und importe",
+      "phases": {
+        "label": "tiefschlaf {deep} h, REM {rem} h",
+        "deep": "tief",
+        "rem": "rem",
+        "light": "leicht"
+      }
     },
     "errors": {
       "signedOut": "zuerst anmelden",
@@ -1741,12 +1743,15 @@
         "ultra": "hochverarbeitet",
         "additives": "{n, plural, one {# zusatzstoff} other {# zusatzstoffe}}"
       }
+    },
+    "imports": {
+      "title": "importe aus anderen apps"
     }
   },
   "connections": {
     "title": "verbindungen",
-    "sleepTitle": "schlaf aus Apple Health",
-    "sleepWhat": "die uhr schreibt den schlaf in Health auf dem iphone, und ein kurzbefehl schickt die nacht jeden morgen hierher",
+    "sleepTitle": "schlaf von der uhr",
+    "sleepWhat": "die uhr schreibt den schlaf in Health auf dem iphone — selbst oder über Google Health — und ein kurzbefehl schickt die nacht jeden morgen hierher, mit schlafphasen",
     "sleepOn": "verbunden seit {date}",
     "sleepOff": "nicht verbunden",
     "sleepGet": "schlüssel holen",
@@ -1757,7 +1762,7 @@
     "copied": "kopiert",
     "sleepUrl": "adresse",
     "sleepHow": "so baust du den kurzbefehl",
-    "sleepSteps": "1. Kurzbefehle → Automation → + → Tageszeit: 10:00, täglich, Sofort ausführen.\n2. Health-Beispiele suchen: Typ Schlafanalyse, Startdatum im letzten 1 Tag, sortiert nach Startdatum.\n3. Objekt aus Liste abrufen → Erstes Objekt → Details von Health-Beispiel abrufen → Startdatum.\n4. nochmal Objekt aus Liste abrufen, aus denselben Beispielen → Letztes Objekt → Details → Enddatum.\n5. beide Daten durch Datum formatieren, Format ISO 8601.\n6. Inhalte von URL abrufen: die Adresse oben, Methode POST, Header Authorization = „Bearer “, Leerzeichen und der Schlüssel, JSON-Body: start — das erste Datum, end — das zweite.",
+    "sleepSteps": "1. Kurzbefehle → Automation → + → Tageszeit: 10:00, täglich, Sofort ausführen.\n2. Health-Beispiele suchen: Typ Schlafanalyse, Startdatum im letzten 1 Tag.\n3. Mit jedem wiederholen — über die gefundenen Beispiele.\n4. in der Wiederholung dreimal Details von Health-Beispielen abrufen für Wiederholungsobjekt: Startdatum, Enddatum, Wert; beide Daten durch Datum formatieren, Format ISO 8601.\n5. als Letztes in der Wiederholung — Wörterbuch: start — Startdatum, end — Enddatum, value — Wert.\n6. nach der Wiederholung — Inhalte von URL abrufen: die Adresse oben, Methode POST, Header Authorization = „Bearer “, Leerzeichen und der Schlüssel, JSON-Body: Feld samples — Wiederholungsergebnisse.",
     "pushTitle": "mitteilungen vom mops",
     "pushWhat": "jeden morgen schreibt der mops, was heute im plan steht: training oder ruhe",
     "pushOn": "an auf diesem handy",
@@ -1767,7 +1772,11 @@
     "pushNotReady": "mitteilungen sind noch nicht eingerichtet — die schlüssel fehlen",
     "pushInstall": "auf dem iphone bekommt nur die seite vom home-bildschirm mitteilungen: in Safari teilen → zum home-bildschirm, die seite von dort öffnen und hierher zurückkommen",
     "pushDenied": "mitteilungen sind in den handy-einstellungen gesperrt — erlaube sie für podshar",
-    "pushUnsupported": "dieser browser kann keine mitteilungen"
+    "pushUnsupported": "dieser browser kann keine mitteilungen",
+    "sleepFrom": "wohin die uhr schreibt",
+    "sleepApple": "apple health",
+    "sleepGoogle": "google health",
+    "sleepGoogleFirst": "zuerst in der Google-Health-App: einstellungen → Apple Health → einschalten und „Schlaf“ erlauben. danach alles wie bei Health"
   },
   "push": {
     "title": "mops-coach",

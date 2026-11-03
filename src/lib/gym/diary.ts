@@ -10,6 +10,7 @@ import type { GymResult } from './actions';
 import { isExercise } from './exercises';
 import { junkByName } from './foods';
 import { ACTIVITIES, GOALS, GOAL_KINDS, PARTS, SEXES, isPart } from './norms';
+import type { Night } from './sleep-phases';
 
 /**
  * Запись в дневник зала — с человеком, названным явно.
@@ -386,7 +387,7 @@ export async function removeFoodsFor(userId: string, ids: unknown): Promise<GymR
 }
 
 /**
- * Убрать продукт из недавнего под «что съел?» (1.54) — записи дневника не
+ * Убрать продукт из недавнего под «что съел?» (1.54A) — записи дневника не
  * трогаются: недавнее из них только собирается. Без миграции, в `countdowns`:
  * `food-recent-hidden:<id>`, в `label` — что и когда убрано. Прячется то, что
  * записано до нажатия: съел снова — продукт вернулся сам. `*` — «убрать все».
@@ -440,6 +441,22 @@ export async function addSleepFor(userId: string, input: unknown): Promise<GymRe
   });
   refresh();
   return { ok: true, minutes };
+}
+
+/**
+ * Ночь с телефона (1.55): быстрая команда шлёт её из «Здоровья» — с часов
+ * напрямую или через Google Health — уже моментами и фазами
+ * (`sleep-phases.ts`). Ночь — по дате подъёма в Цюрихе, вторая за ту же ночь
+ * заменяет первую. Источник — `health`.
+ */
+export async function saveNightFor(userId: string, night: Night): Promise<GymResult & { night?: string; minutes?: number }> {
+  const day = dayKey(night.wakeAt);
+  if (!notFuture(day)) return { error: 'future' };
+  if (night.minutes < 30 || night.minutes > 20 * 60) return { error: 'range' };
+  const data = { bedAt: night.bedAt, wakeAt: night.wakeAt, minutes: night.minutes, deep: night.deep, rem: night.rem, source: 'health' };
+  await prisma.sleepEntry.upsert({ where: { userId_night: { userId, night: day } }, update: data, create: { userId, night: day, ...data } });
+  refresh();
+  return { ok: true, night: day, minutes: night.minutes };
 }
 
 export async function removeSleepFor(userId: string, id: unknown): Promise<GymResult> {

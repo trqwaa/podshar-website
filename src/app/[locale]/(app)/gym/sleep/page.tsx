@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 
+import { Link } from '@/i18n/routing';
 import { GymHeader } from '@/components/gym/GymHeader';
 import { PugFace } from '@/components/gym/PugFace';
 import { SleepChart, SleepLog } from '@/components/gym/SleepLog';
@@ -82,23 +83,17 @@ export default async function SleepPage({
         </div>
       </section>
 
-      <section className="block-card animate-rise-in p-4 [animation-delay:120ms] sm:p-6">
-        <h2 className="text-lg font-semibold text-ink">{t('sleep.connect.title')}</h2>
-        <ul className="mt-2 flex flex-col gap-2 text-sm leading-snug text-ink">
-          <li>
-            <span className="ps-label mr-2">zepp life</span>
-            {t('sleep.connect.zepp')}
-          </li>
-          <li>
-            <span className="ps-label mr-2">iphone</span>
-            {t('sleep.connect.apple')}
-          </li>
-          <li>
-            <span className="ps-label mr-2">android</span>
-            {t('sleep.connect.android')}
-          </li>
-        </ul>
-      </section>
+      {/* Часы и загрузки — в настройках (1.55): здесь была стена текста о том,
+          как подключать, а нужна она один раз в жизни. */}
+      {mine ? (
+        <Link href="/profile#connections" className="ps-press inline-flex items-center gap-2 justify-self-start rounded-full bg-sunk px-4 py-2 text-sm font-semibold lowercase text-ink transition-colors hover:bg-rule-soft">
+          <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="8" height="8" rx="2" />
+            <path d="M6 4V1.5h4V4M6 12v2.5h4V12M8 6.5V8l1 1" />
+          </svg>
+          {t('sleep.watch')}
+        </Link>
+      ) : null}
       <GymDoors
         current="sleep"
         query={whoQuery}

@@ -3,36 +3,32 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
-import { ZONE } from '@/lib/calendar/scales';
-import { addSleepFor } from '@/lib/gym/diary';
+import { saveNightFor } from '@/lib/gym/diary';
+import { nightFrom } from '@/lib/gym/sleep-phases';
 
 export const runtime = 'nodejs';
 
 /**
- * Сон из «Здоровья» айфона (1.53). Быструю команду человек собирает сам по
- * шагам из настроек; каждое утро она шлёт сюда начало и конец ночи (ISO 8601)
- * с личным ключом в заголовке `Authorization: Bearer …`.
+ * Сон с телефона (1.53). Быструю команду человек собирает сам по шагам из
+ * настроек; каждое утро она шлёт сюда ночь с личным ключом в заголовке
+ * `Authorization: Bearer …`.
+ *
+ * С 1.55 — образцами из «Здоровья» (`samples`: начало, конец, что это было),
+ * и тогда в дневник ложатся фазы: глубокий и быстрый сон. Так приходят и часы
+ * Fitbit — через приложение Google Health, которое пишет в «Здоровье»:
+ * напрямую из Google сайт не читает, это проект в Google Cloud, а владелец
+ * решил без него (3 ноября 2026). Старая команда с одними `start` и `end`
+ * работает как раньше.
  *
  * Сессии здесь нет и быть не может — запрос делает телефон, а не браузер, —
  * поэтому кто это, решает ключ: в базе лежит только его SHA-256
- * (`lib/connections.ts`). Записывает через `addSleepFor`, как ручной ввод:
- * ночь — по дате подъёма в Цюрихе, вторая запись за ту же ночь заменяет первую.
+ * (`lib/connections.ts`).
  */
-const Body = z.object({ start: z.string().min(10).max(40), end: z.string().min(10).max(40) });
-
-const zurich = (at: Date) => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23'
-  }).formatToParts(at);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return { day: `${get('year')}-${get('month')}-${get('day')}`, clock: `${get('hour')}:${get('minute')}` };
-};
+const Sample = z.object({ start: z.string().max(40), end: z.string().max(40), value: z.union([z.string().max(60), z.number()]) });
+const Body = z.union([
+  z.object({ samples: z.array(Sample).min(1).max(600) }),
+  z.object({ start: z.string().min(10).max(40), end: z.string().min(10).max(40) })
+]);
 
 export async function POST(request: Request) {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ?? '';
@@ -44,16 +40,11 @@ export async function POST(request: Request) {
   if (!row) return NextResponse.json({ error: 'wrong key' }, { status: 401 });
 
   const body = Body.safeParse(await request.json().catch(() => null));
-  if (!body.success) return NextResponse.json({ error: 'need start and end' }, { status: 400 });
-  const start = new Date(body.data.start);
-  const end = new Date(body.data.end);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-    return NextResponse.json({ error: 'bad dates' }, { status: 400 });
-  }
+  if (!body.success) return NextResponse.json({ error: 'need samples, or start and end' }, { status: 400 });
+  const night = nightFrom('samples' in body.data ? body.data.samples : [{ start: body.data.start, end: body.data.end, value: 'asleep' }]);
+  if (!night) return NextResponse.json({ error: 'no sleep in samples' }, { status: 400 });
 
-  const bed = zurich(start);
-  const wake = zurich(end);
-  const result = await addSleepFor(row.key.slice('sleep-token:'.length), { night: wake.day, bed: bed.clock, wake: wake.clock });
+  const result = await saveNightFor(row.key.slice('sleep-token:'.length), night);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 422 });
-  return NextResponse.json({ ok: true, night: wake.day, hours: Math.round((result.minutes ?? 0) / 6) / 10 });
+  return NextResponse.json({ ok: true, night: result.night, hours: Math.round(night.minutes / 6) / 10, deep: night.deep, rem: night.rem });
 }

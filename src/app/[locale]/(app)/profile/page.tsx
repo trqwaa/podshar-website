@@ -1,6 +1,9 @@
+import { NextIntlClientProvider } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 
+import { Imports } from '@/components/gym/Imports';
 import { Connections } from '@/components/profile/Connections';
+import { IMPORTS, clientMessages } from '@/i18n/client-messages';
 import { CANONICAL_ORIGIN } from '@/lib/auth/origin';
 
 import {
@@ -122,6 +125,13 @@ export default async function ProfilePage({
           pushKey={process.env.VAPID_PUBLIC_KEY ?? null}
           sleepUrl={`${CANONICAL_ORIGIN}/api/gym/sleep`}
         />
+      </div>
+
+      {/* Загрузки из чужих приложений — переехали сюда из зала (1.55). */}
+      <div id="imports" className="animate-rise-in scroll-mt-20 [animation-delay:110ms]">
+        <NextIntlClientProvider locale={locale} messages={await clientMessages(locale, IMPORTS)} timeZone="Europe/Zurich">
+          <Imports />
+        </NextIntlClientProvider>
       </div>
 
       {/* Якорь: плитка в шторке ведёт сюда, а не на верх страницы. Человек,

@@ -1,17 +1,17 @@
 'use client';
 
-import { useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { DayField } from '@/components/calendar/DayField';
 import type { Locale } from '@/i18n/routing';
-import { addSleep, importSleep, removeSleep } from '@/lib/gym/actions';
+import { addSleep, removeSleep } from '@/lib/gym/actions';
 import type { SleepView } from '@/lib/gym/data';
 import type { SleepNorm } from '@/lib/gym/norms';
-import { BUTTON, ErrorLine, GHOST, INPUT, useGymAction } from './ui';
+import { BUTTON, ErrorLine, INPUT, useGymAction } from './ui';
 
 /**
- * Сон: две недели столбиками с полосой нормы, ночь руками и импорт файла.
+ * Сон: две недели столбиками с полосой нормы и ночь руками. Загрузка файла
+ * из Zepp Life с 1.55 — в настройках → подключения, рядом с часами.
  *
  * Норма — полосой по возрасту, черта «невыспался» — на семи часах: ниже неё
  * столбик красный, выше нормы с запасом — янтарный, в норме — синий.
@@ -45,12 +45,31 @@ export function SleepChart({ nights, days, norm, locale }: { nights: SleepView[]
   );
 }
 
+/**
+ * Фазы ночи полоской (1.55): глубокий — чернилами, быстрый — акцентом,
+ * остальное — лёгкий. Только у ночей с часов; цифры — в подсказке и для
+ * скринридера, на экране хватает полоски.
+ */
+function Phases({ night }: { night: SleepView }) {
+  const t = useTranslations('gym');
+  const locale = useLocale();
+  if (night.deep === null || night.rem === null || night.minutes <= 0) return null;
+  const share = (m: number) => `${Math.max(0, Math.min(100, (m / night.minutes) * 100))}%`;
+  const hours = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+  const label = t('sleep.phases.label', { deep: hours.format(night.deep / 60), rem: hours.format(night.rem / 60) });
+  return (
+    <span role="img" aria-label={label} title={label} className="flex h-2 w-20 overflow-hidden rounded-full bg-accent/25">
+      <span className="h-full bg-ink" style={{ width: share(night.deep) }} />
+      <span className="h-full bg-accent" style={{ width: share(night.rem) }} />
+    </span>
+  );
+}
+
 export function SleepLog({ nights, today, editable }: { nights: SleepView[]; today: string; editable: boolean }) {
   const t = useTranslations('gym');
   const locale = useLocale() as Locale;
   const { run, pending, error } = useGymAction();
-  const [imported, setImported] = useState<string | null>(null);
-  const file = useRef<HTMLInputElement | null>(null);
+  const staged = nights.some((n) => n.deep !== null && n.rem !== null);
   const time = clockFormat(locale);
   const date = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
   const hours = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
@@ -85,6 +104,22 @@ export function SleepLog({ nights, today, editable }: { nights: SleepView[]; tod
       <ErrorLine message={error} />
 
       {nights.length === 0 ? <p className="text-sm text-ink-muted">{t('sleep.empty')}</p> : null}
+      {staged ? (
+        <p className="-mb-4 flex items-center gap-3 text-xs text-ink-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ink" />
+            {t('sleep.phases.deep')}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent" />
+            {t('sleep.phases.rem')}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent/25" />
+            {t('sleep.phases.light')}
+          </span>
+        </p>
+      ) : null}
       <ul className="flex flex-col divide-y divide-rule-soft">
         {nights.map((n) => (
           <li key={n.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
@@ -93,7 +128,8 @@ export function SleepLog({ nights, today, editable }: { nights: SleepView[]; tod
               {time.format(n.bedAt)} — {time.format(n.wakeAt)}
             </span>
             <span className="text-sm font-semibold tabular-nums text-ink">{t('sleep.hours', { hours: hours.format(n.minutes / 60) })}</span>
-            <span className="ps-label">{t(`sleep.sources.${n.source === 'zepp' || n.source === 'csv' ? n.source : 'manual'}`)}</span>
+            <Phases night={n} />
+            <span className="ps-label">{t(`sleep.sources.${n.source === 'zepp' || n.source === 'csv' || n.source === 'health' ? n.source : 'manual'}`)}</span>
             {editable ? (
               <button type="button" aria-label={t('sleep.remove')} onClick={() => void run(removeSleep, { id: n.id })} className="text-ink-faint hover:text-loss">
                 ×
@@ -103,33 +139,6 @@ export function SleepLog({ nights, today, editable }: { nights: SleepView[]; tod
         ))}
       </ul>
 
-      {editable ? (
-        <section className="rounded-[10px] border-2 border-rule-soft p-4">
-          <h3 className="font-semibold text-ink">{t('sleep.import.title')}</h3>
-          <p className="mt-1 text-sm text-ink-muted">{t('sleep.import.hint')}</p>
-          <form
-            className="mt-3 flex flex-wrap items-center gap-2"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setImported(null);
-              const data = new FormData(e.currentTarget);
-              const result = await run(importSleep, data);
-              if (result.ok) {
-                setImported(
-                  [t('sleep.import.done', { n: result.count ?? 0 }), result.skipped ? t('sleep.import.skipped', { n: result.skipped }) : null].filter(Boolean).join(' · ')
-                );
-                if (file.current) file.current.value = '';
-              }
-            }}
-          >
-            <input ref={file} name="file" type="file" accept=".csv,text/csv" required className="text-sm text-ink file:mr-3 file:rounded file:border-2 file:border-rule file:bg-canvas file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink" />
-            <button type="submit" disabled={pending} className={GHOST}>
-              {t('sleep.import.button')}
-            </button>
-          </form>
-          {imported ? <p className="mt-2 text-sm font-medium text-win">{imported}</p> : null}
-        </section>
-      ) : null}
     </div>
   );
 }

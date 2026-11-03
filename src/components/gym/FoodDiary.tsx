@@ -5,14 +5,14 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 
 import type { Locale } from '@/i18n/routing';
-import { addFood, hideRecent, importFatsecret, removeFood, removeFoods } from '@/lib/gym/actions';
+import { addFood, hideRecent, removeFood, removeFoods } from '@/lib/gym/actions';
 import type { FoodView } from '@/lib/gym/data';
 import { logMeal } from '@/lib/gym/food-actions';
 import type { MealItem } from '@/lib/gym/food-estimate';
 import { foodOf, macrosFor, recentKey, searchFoods, type Food } from '@/lib/gym/foods';
 import type { Targets } from '@/lib/gym/norms';
-import { CsvImport } from './CsvImport';
 import { FoodPhoto } from './FoodPhoto';
+import { CheckIcon, PencilIcon, TrashIcon } from './icons';
 import { MEALS, MealSwitch, type Meal } from './MealSwitch';
 import { BUTTON, CHIP, CHIP_OFF, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
 
@@ -223,11 +223,18 @@ function RecentChips({ recent, day, meal, custom, onCustom }: { recent: FoodView
         </AnimatePresence>
         {editing ? (
           <>
-            <button type="button" onClick={() => hide(['*'], shown.map(recentKey))} className="ps-label px-1 hover:text-loss hover:underline">
+            <button type="button" onClick={() => hide(['*'], shown.map(recentKey))} className={`${CHIP} inline-flex items-center gap-1.5 bg-loss/10 text-loss hover:bg-loss/15`}>
+              <TrashIcon />
               {t('food.tidyAll')}
             </button>
-            <button type="button" onClick={() => setTidy(false)} className="ps-label px-1 text-ink hover:underline">
-              {t('food.tidyDone')}
+            <button
+              type="button"
+              onClick={() => setTidy(false)}
+              aria-label={t('food.tidyDone')}
+              title={t('food.tidyDone')}
+              className="ps-press grid h-9 w-9 place-items-center rounded-full bg-ink text-surface transition-opacity hover:opacity-90"
+            >
+              <CheckIcon className="h-5 w-5" />
             </button>
           </>
         ) : (
@@ -238,8 +245,14 @@ function RecentChips({ recent, day, meal, custom, onCustom }: { recent: FoodView
               </button>
             )}
             {shown.length ? (
-              <button type="button" onClick={() => setTidy(true)} className="ps-label px-1 hover:text-ink hover:underline">
-                {t('food.tidy')}
+              <button
+                type="button"
+                onClick={() => setTidy(true)}
+                aria-label={t('food.tidy')}
+                title={t('food.tidy')}
+                className="ps-press grid h-8 w-8 place-items-center rounded-full bg-sunk text-ink-muted transition-colors hover:bg-rule-soft hover:text-ink"
+              >
+                <PencilIcon />
               </button>
             ) : null}
           </>
@@ -566,15 +579,6 @@ export function FoodDiary({
       </details>
 
       <ErrorLine message={error} />
-      {editable ? (
-        <CsvImport
-          action={importFatsecret}
-          title={t('fatsecret.title')}
-          hint={t('fatsecret.hint')}
-          button={t('fatsecret.button')}
-          done={(r) => t('fatsecret.done', { n: r.count ?? 0, days: r.days ?? 0 })}
-        />
-      ) : null}
     </div>
   );
 }

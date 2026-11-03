@@ -1556,22 +1556,24 @@
       "sources": {
         "manual": "by hand",
         "zepp": "zepp life",
-        "csv": "file"
+        "csv": "file",
+        "health": "watch"
       },
       "import": {
-        "title": "from a file",
+        "title": "sleep from zepp life",
         "hint": "zepp life (the SLEEP folder, .csv) or any table with sleep start and end",
         "button": "upload csv",
         "done": "imported: {n, plural, one {# night} other {# nights}}",
         "skipped": "nights logged by hand were left alone: {n}"
       },
-      "connect": {
-        "title": "how to pull sleep from a watch",
-        "zepp": "zepp life: profile → settings → export data. the archive comes by email, the file from SLEEP goes here",
-        "apple": "iphone: automatic — later, via a shortcut",
-        "android": "android: automatic needs a companion app — later"
-      },
-      "readOnly": "someone else’s diary — look only"
+      "readOnly": "someone else’s diary — look only",
+      "watch": "watch and imports",
+      "phases": {
+        "label": "deep {deep} h, REM {rem} h",
+        "deep": "deep",
+        "rem": "rem",
+        "light": "light"
+      }
     },
     "errors": {
       "signedOut": "sign in first",
@@ -1741,12 +1743,15 @@
         "ultra": "ultra-processed",
         "additives": "{n, plural, one {# additive} other {# additives}}"
       }
+    },
+    "imports": {
+      "title": "imports from other apps"
     }
   },
   "connections": {
     "title": "connections",
-    "sleepTitle": "sleep from Apple Health",
-    "sleepWhat": "your watch writes sleep into Health on the iPhone, and a shortcut sends last night here every morning",
+    "sleepTitle": "sleep from your watch",
+    "sleepWhat": "the watch writes sleep into Health on the iPhone — itself or through Google Health — and a shortcut sends last night here every morning, with its stages",
     "sleepOn": "connected since {date}",
     "sleepOff": "not connected",
     "sleepGet": "get a key",
@@ -1757,7 +1762,7 @@
     "copied": "copied",
     "sleepUrl": "address",
     "sleepHow": "how to build the shortcut",
-    "sleepSteps": "1. Shortcuts → Automation → + → Time of Day: 10:00, daily, Run Immediately.\n2. Find Health Samples: type Sleep Analysis, start date in the last 1 day, sorted by start date.\n3. Get Item from List → First Item → Get Details of Health Sample → Start Date.\n4. Get Item from List again, from the same samples → Last Item → details → End Date.\n5. run both dates through Format Date, format ISO 8601.\n6. Get Contents of URL: the address above, method POST, header Authorization = “Bearer ”, a space and the key, JSON body: start — the first date, end — the second.",
+    "sleepSteps": "1. Shortcuts → Automation → + → Time of Day: 10:00, daily, Run Immediately.\n2. Find Health Samples: type Sleep Analysis, start date in the last 1 day.\n3. Repeat with Each — over the samples found.\n4. inside the repeat, Get Details of Health Samples three times for Repeat Item: Start Date, End Date, Value; run both dates through Format Date, format ISO 8601.\n5. last inside the repeat — Dictionary: start — the start date, end — the end date, value — the value.\n6. after the repeat — Get Contents of URL: the address above, method POST, header Authorization = “Bearer ”, a space and the key, JSON body: field samples — Repeat Results.",
     "pushTitle": "notifications from the pug",
     "pushWhat": "every morning the pug tells you what is on the plan: gym or rest",
     "pushOn": "on for this phone",
@@ -1767,7 +1772,11 @@
     "pushNotReady": "notifications are not set up yet — their keys have not been added",
     "pushInstall": "on an iPhone only the site added to the Home Screen gets notifications: in Safari tap Share → Add to Home Screen, open the site from there and come back here",
     "pushDenied": "notifications are blocked in the phone settings — allow them for podshar",
-    "pushUnsupported": "this browser cannot do notifications"
+    "pushUnsupported": "this browser cannot do notifications",
+    "sleepFrom": "where the watch writes",
+    "sleepApple": "apple health",
+    "sleepGoogle": "google health",
+    "sleepGoogleFirst": "first, in the Google Health app: settings → Apple Health → turn it on and allow Sleep. after that it is the same as for Health"
   },
   "push": {
     "title": "pug coach",
