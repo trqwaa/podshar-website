@@ -1601,7 +1601,8 @@
       "foodCooldown": "a second, the pug is still chewing the last one",
       "foodCap": "the pug has counted enough for today. use the label numbers",
       "barcodeUnknown": "this product is not in the database — write it in words and the pug will count it",
-      "cameraDenied": "no camera access — allow it for the site in the settings"
+      "cameraDenied": "no camera access — allow it for the site in the settings",
+      "pantryGone": "that product isn't in the pantry anymore"
     },
     "kinds": {
       "weight": "weight & reps",
@@ -1697,13 +1698,45 @@
       "adductors": "adductors"
     },
     "scanner": {
-      "open": "scanner",
-      "title": "barcode scanner",
-      "per100": "per 100 g",
-      "add": "log to {meal}",
       "again": "again",
       "looking": "looking it up…",
       "hint": "point the camera at the barcode on the pack"
+    },
+    "pantry": {
+      "title": "pantry",
+      "open": "pantry and barcode scanner",
+      "scan": "scan a barcode",
+      "count": "{n, plural, one {# product} other {# products}}",
+      "empty": "empty for now. scan the barcode on a pack — it lands here with a photo, macros and a score",
+      "emptyDesk": "empty for now. barcodes get scanned from a phone — the red button at the bottom of food",
+      "emptyTheirs": "nothing here yet",
+      "per100": "per 100 {unit}",
+      "ml": "ml",
+      "salt": "salt",
+      "serving": "serving · {n} {unit}",
+      "eat": "log to {meal}",
+      "done": "done",
+      "remove": "remove from the pantry",
+      "removeSure": "sure? tap again"
+    },
+    "grade": {
+      "trash": "bioweapon",
+      "bad": "gristle",
+      "mid": "mid",
+      "good": "legit",
+      "god": "food of the gods",
+      "label": "score {n} out of 100",
+      "rough": "the database is short on numbers — this score is a rough guess",
+      "why": {
+        "protein": "high protein",
+        "fiber": "high fiber",
+        "clean": "clean label",
+        "sugar": "lots of sugar",
+        "satFat": "lots of saturated fat",
+        "salt": "lots of salt",
+        "ultra": "ultra-processed",
+        "additives": "{n, plural, one {# additive} other {# additives}}"
+      }
     }
   },
   "connections": {

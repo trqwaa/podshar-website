@@ -1601,7 +1601,8 @@
       "foodCooldown": "moment, der mops kaut noch am letzten",
       "foodCap": "der mops hat für heute genug gerechnet. nimm die werte von der packung",
       "barcodeUnknown": "dieses produkt ist nicht in der datenbank — schreib es in worten, der mops rechnet",
-      "cameraDenied": "kein kamerazugriff — erlaube ihn für die seite in den einstellungen"
+      "cameraDenied": "kein kamerazugriff — erlaube ihn für die seite in den einstellungen",
+      "pantryGone": "das produkt ist nicht mehr in der speisekammer"
     },
     "kinds": {
       "weight": "gewicht & wdh.",
@@ -1697,13 +1698,45 @@
       "adductors": "adduktoren"
     },
     "scanner": {
-      "open": "scanner",
-      "title": "barcode-scanner",
-      "per100": "pro 100 g",
-      "add": "eintragen: {meal}",
       "again": "nochmal",
       "looking": "suche das produkt…",
       "hint": "halte die kamera auf den barcode der packung"
+    },
+    "pantry": {
+      "title": "speisekammer",
+      "open": "speisekammer und barcode-scanner",
+      "scan": "barcode scannen",
+      "count": "{n, plural, one {# produkt} other {# produkte}}",
+      "empty": "noch leer. scann den barcode auf der packung — das produkt landet hier mit foto, nährwerten und bewertung",
+      "emptyDesk": "noch leer. barcodes scannt man mit dem handy — der rote knopf unten bei ernährung",
+      "emptyTheirs": "hier ist noch nichts",
+      "per100": "pro 100 {unit}",
+      "ml": "ml",
+      "salt": "salz",
+      "serving": "portion · {n} {unit}",
+      "eat": "eintragen: {meal}",
+      "done": "fertig",
+      "remove": "aus der speisekammer nehmen",
+      "removeSure": "sicher? nochmal tippen"
+    },
+    "grade": {
+      "trash": "biowaffe",
+      "bad": "knorpel",
+      "mid": "geht so",
+      "good": "sauber",
+      "god": "speise der götter",
+      "label": "bewertung {n} von 100",
+      "rough": "in der datenbank fehlen zahlen — die bewertung ist geschätzt",
+      "why": {
+        "protein": "viel eiweiss",
+        "fiber": "viele ballaststoffe",
+        "clean": "unverarbeitet",
+        "sugar": "viel zucker",
+        "satFat": "viele gesättigte fette",
+        "salt": "viel salz",
+        "ultra": "hochverarbeitet",
+        "additives": "{n, plural, one {# zusatzstoff} other {# zusatzstoffe}}"
+      }
     }
   },
   "connections": {

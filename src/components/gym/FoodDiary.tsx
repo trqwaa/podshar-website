@@ -12,8 +12,8 @@ import type { MealItem } from '@/lib/gym/food-estimate';
 import { foodOf, macrosFor, searchFoods, type Food } from '@/lib/gym/foods';
 import type { Targets } from '@/lib/gym/norms';
 import { CsvImport } from './CsvImport';
-import { BarcodeScanner } from './BarcodeScanner';
 import { FoodPhoto } from './FoodPhoto';
+import { MEALS, MealSwitch, type Meal } from './MealSwitch';
 import { BUTTON, CHIP, CHIP_OFF, ErrorLine, GHOST, INPUT, parseNumber, useGymAction } from './ui';
 
 /**
@@ -27,11 +27,9 @@ import { BUTTON, CHIP, CHIP_OFF, ErrorLine, GHOST, INPUT, parseNumber, useGymAct
  * некогда выбирать из списка. Записанное отменяется одной кнопкой.
  *
  * Справочник остался: из него — недавнее в один тап и запасной выбор, когда
- * мопс не на связи. Своя еда с цифрами с упаковки — по ссылке.
+ * мопс не на связи. Своя еда с цифрами с упаковки — по ссылке. Упаковки со
+ * штрихкодом — в кладовке (`Pantry.tsx`, 1.54), сканер переехал туда.
  */
-
-const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
-type Meal = (typeof MEALS)[number];
 
 function Bar({ label, value, target, unit, limit = false }: { label: string; value: number; target: number; unit: string; limit?: boolean }) {
   const share = target > 0 ? value / target : 0;
@@ -55,35 +53,6 @@ function Bar({ label, value, target, unit, limit = false }: { label: string; val
           style={{ width: `${Math.min(100, Math.round(share * 100))}%` }}
         />
       </span>
-    </div>
-  );
-}
-
-/** Приём пищи — переключателем, выбранный подсвечен плашкой, которая переезжает. */
-function MealSwitch({ meal, onPick }: { meal: Meal; onPick: (meal: Meal) => void }) {
-  const t = useTranslations('gym');
-  const still = useReducedMotion();
-  return (
-    <div role="radiogroup" aria-label={t('food.mealPick')} className="grid grid-cols-4 gap-1 rounded-full bg-sunk p-1">
-      {MEALS.map((m) => (
-        <button
-          key={m}
-          type="button"
-          role="radio"
-          aria-checked={meal === m}
-          onClick={() => onPick(m)}
-          className="relative rounded-full px-1 py-2 text-[0.8rem] font-semibold lowercase sm:text-sm"
-        >
-          {meal === m ? (
-            <motion.span
-              layoutId="food-meal"
-              className="absolute inset-0 rounded-full bg-ink"
-              transition={still ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 38 }}
-            />
-          ) : null}
-          <span className={`relative transition-colors ${meal === m ? 'text-surface' : 'text-ink-muted'}`}>{t(`food.meals.${m}`)}</span>
-        </button>
-      ))}
     </div>
   );
 }
@@ -232,10 +201,7 @@ function QuickAdd({ day, initialMeal, recent }: { day: string; initialMeal: Meal
     <section aria-label={t('food.quickTitle')} className="flex flex-col gap-3 rounded-[16px] border-2 border-ink p-3 sm:p-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-lg font-semibold lowercase text-ink">{t('food.quickTitle')}</h3>
-        <div className="flex flex-wrap justify-end gap-1.5">
-          <BarcodeScanner day={day} meal={meal} />
-          <FoodPhoto day={day} meal={meal} onDone={() => setSaved(null)} />
-        </div>
+        <FoodPhoto day={day} meal={meal} onDone={() => setSaved(null)} />
       </div>
       <MealSwitch
         meal={meal}

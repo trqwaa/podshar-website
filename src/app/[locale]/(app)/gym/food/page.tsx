@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/routing';
 import { FoodDiary } from '@/components/gym/FoodDiary';
 import { GymHeader } from '@/components/gym/GymHeader';
+import { PantryFab, PantryPanel } from '@/components/gym/Pantry';
 import { PugFace } from '@/components/gym/PugFace';
 import { dayKey, shiftDay } from '@/lib/calendar/scales';
 import { sharedDayIndex } from '@/lib/day';
@@ -11,6 +12,7 @@ import { gymContext, gymMood } from '@/lib/gym/context';
 import { foodDayFace } from '@/lib/gym/critic';
 import { foodDay, foodTotals, gymProfile, recentFoods } from '@/lib/gym/data';
 import { DEFAULTS, targetsFor } from '@/lib/gym/norms';
+import { pantryOf } from '@/lib/gym/pantry';
 import { resolveLocale } from '@/lib/locale';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -23,6 +25,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
  * Питание: дневник одного дня. День — в адресе (`?day=`), как у календаря:
  * вчерашний ужин можно дописать утром, и ссылка на «смотри, что он ел в
  * пятницу» открывает пятницу.
+ *
+ * Кладовка со штрихкодами (1.54) — в колонке справа на компьютере и красной
+ * кнопкой внизу экрана на телефоне; под кнопку странице нужен запас снизу.
  */
 export default async function FoodPage({
   params,
@@ -46,9 +51,9 @@ export default async function FoodPage({
   const initialMeal = hour >= 5 && hour < 11 ? 'breakfast' : hour >= 11 && hour < 16 ? 'lunch' : hour >= 16 && hour < 22 ? 'dinner' : 'snack';
   const id = member?.id ?? null;
 
-  const [profile, entries, recent, week] = id
-    ? await Promise.all([gymProfile(id, today), foodDay(id, day), mine ? recentFoods(id) : Promise.resolve([]), foodTotals(id, shiftDay(day, -6), day)])
-    : [null, [], [], []];
+  const [profile, entries, recent, week, pantry] = id
+    ? await Promise.all([gymProfile(id, today), foodDay(id, day), mine ? recentFoods(id) : Promise.resolve([]), foodTotals(id, shiftDay(day, -6), day), pantryOf(id)])
+    : [null, [], [], [], []];
   const targets = profile?.targets ?? targetsFor({ ...DEFAULTS, sex: 'male', activity: 'mid', goal: 'hypertrophy' });
   const totals = entries.reduce((s, e) => ({ kcal: s.kcal + e.kcal, protein: s.protein + e.protein }), { kcal: 0, protein: 0 });
   const reaction = foodDayFace(
@@ -69,7 +74,7 @@ export default async function FoodPage({
   const peak = Math.max(targets.kcal * 1.3, ...week.map((w) => w.kcal));
 
   return (
-    <div className="grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4">
+    <div className={`grid grid-cols-1 content-start gap-3 p-3 sm:gap-4 sm:p-4 ${mine ? 'pb-28 sm:pb-28 lg:pb-4' : ''}`}>
       <GymHeader
         title={t('food.title')}
         back={t('back')}
@@ -139,6 +144,7 @@ export default async function FoodPage({
               {t('food.norm')}: {targets.kcal} {t('food.kcal')}
             </p>
           </div>
+          {member ? <PantryPanel items={pantry} day={day} initialMeal={initialMeal} editable={mine} /> : null}
         </aside>
       </section>
       <GymDoors
@@ -154,6 +160,7 @@ export default async function FoodPage({
           }
         }}
       />
+      {mine ? <PantryFab items={pantry} day={day} initialMeal={initialMeal} /> : null}
     </div>
   );
 }

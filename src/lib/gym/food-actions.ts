@@ -4,9 +4,9 @@ import { z } from 'zod';
 
 import { readSession } from '@/lib/auth/session';
 import { routing } from '@/i18n/routing';
-import { productByBarcode, type Barcoded } from './barcode';
 import { Day, MEALS, addFoodsFor } from './diary';
 import { estimateMeal, type MealItem } from './food-estimate';
+import { eatFor, shelveFor, unshelveFor, type PantryItem } from './pantry';
 
 /**
  * Еда через мопса — словами и по фото. Только для себя и с потолком: каждый
@@ -96,15 +96,25 @@ export async function logMeal(input: unknown): Promise<LoggedMeal> {
   return saved.ok ? { ids: saved.ids, items: result.items } : { error: saved.error };
 }
 
-/** Штрихкод с упаковки — продукт и КБЖУ на 100 г. Бесплатно: модель не зовётся. */
-export async function lookupBarcode(input: unknown): Promise<{ product?: Barcoded; error?: string }> {
+/**
+ * Кладовка (1.54, `pantry.ts`): пикнул штрихкод — продукт с КБЖУ из Open Food
+ * Facts ложится на полку, оттуда — в приём пищи. Бесплатно: модель не
+ * зовётся.
+ */
+export async function scanToPantry(input: unknown): Promise<{ item?: PantryItem; error?: string }> {
   const session = await readSession();
   if (!session) return { error: 'signedOut' };
-  const code = z
-    .string()
-    .regex(/^\d{8,14}$/)
-    .safeParse((input as { code?: unknown })?.code);
-  if (!code.success) return { error: 'invalid' };
-  const product = await productByBarcode(code.data);
-  return product ? { product } : { error: 'barcodeUnknown' };
+  return shelveFor(session.userId, (input as { code?: unknown })?.code);
+}
+
+export async function eatFromPantry(input: unknown): Promise<{ ok?: boolean; ids?: string[]; kcal?: number; error?: string }> {
+  const session = await readSession();
+  if (!session) return { error: 'signedOut' };
+  return eatFor(session.userId, input);
+}
+
+export async function dropFromPantry(input: unknown): Promise<{ ok?: boolean; error?: string }> {
+  const session = await readSession();
+  if (!session) return { error: 'signedOut' };
+  return unshelveFor(session.userId, (input as { code?: unknown })?.code);
 }

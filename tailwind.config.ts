@@ -54,6 +54,8 @@ const config: Config = {
         'pug-mask': 'rgb(var(--pug-mask) / <alpha-value>)',
         chalkboard: 'rgb(var(--chalkboard) / <alpha-value>)',
         queasy: 'rgb(var(--queasy) / <alpha-value>)',
+        // Красная кнопка сканера в питании — луч кассы, не реактор.
+        laser: 'rgb(var(--laser) / <alpha-value>)',
         // Derived, never hand-typed at call sites.
         'ink-muted': 'rgb(var(--ink) / 0.62)',
         'ink-faint': 'rgb(var(--ink) / 0.34)',
@@ -204,6 +206,21 @@ const config: Config = {
         'pug-drip': {
           '0%, 100%': { transform: 'scaleY(1)' },
           '50%': { transform: 'scaleY(1.45)' }
+        },
+        // Кнопка кладовки горит: кольцо расходится и тает — рамкой, не тенью.
+        'pantry-glow': {
+          '0%': { transform: 'scale(1)', opacity: '0.6' },
+          '100%': { transform: 'scale(1.6)', opacity: '0' }
+        },
+        // Искры вокруг божества мерцают по очереди.
+        'pantry-spark': {
+          '0%, 100%': { transform: 'scale(0.3) rotate(0deg)', opacity: '0' },
+          '50%': { transform: 'scale(1) rotate(45deg)', opacity: '1' }
+        },
+        // Луч кассы в прицеле сканера ходит вверх-вниз.
+        'pantry-laser': {
+          '0%, 100%': { transform: 'translateY(-2.4rem)' },
+          '50%': { transform: 'translateY(2.4rem)' }
         }
       },
       animation: {
@@ -221,7 +238,10 @@ const config: Config = {
         'gym-swing': 'gym-swing 5.5s ease-in-out infinite',
         'gym-flicker': 'gym-flicker 9s linear infinite',
         'gym-mote': 'gym-mote 12s ease-in-out infinite',
-        'gym-walk': 'gym-walk 19s linear infinite'
+        'gym-walk': 'gym-walk 19s linear infinite',
+        'pantry-glow': 'pantry-glow 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite',
+        'pantry-spark': 'pantry-spark 2.4s ease-in-out infinite',
+        'pantry-laser': 'pantry-laser 1.8s ease-in-out infinite'
       }
     }
   },
