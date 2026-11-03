@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { createSleepToken, dropPush, revokeSleepToken, savePush } from '@/lib/connections';
+import { Flow, Icon, Steps, type Glyph } from './HowTo';
 
 /**
  * Подключения (1.53): сон с часов и утренние уведомления мопса.
@@ -23,6 +24,10 @@ import { createSleepToken, dropPush, revokeSleepToken, savePush } from '@/lib/co
  */
 
 type PushState = 'checking' | 'notReady' | 'install' | 'unsupported' | 'denied' | 'off' | 'on';
+
+/** Значки к шагам из каталога — по порядку строк. */
+const SLEEP_STEPS: Glyph[] = ['shortcut', 'health', 'list', 'list', 'list', 'send'];
+const PUSH_STEPS: Glyph[] = ['share', 'home', 'bell'];
 
 const CARD = 'flex flex-col gap-3 rounded-[14px] bg-sunk p-4';
 const BTN = 'ps-press rounded-full bg-ink px-4 py-2 text-sm font-semibold lowercase text-surface transition-opacity hover:opacity-90 disabled:opacity-40';
@@ -105,7 +110,24 @@ export function Connections({ sleepSince, pushKey, sleepUrl }: { sleepSince: num
             </button>
           ))}
         </div>
-        {from === 'google' ? <p className="text-sm leading-relaxed text-ink">{t('sleepGoogleFirst')}</p> : null}
+        <Flow
+          label={[t('flowWatch'), from === 'google' ? t('flowGoogle') : null, t('flowHealth'), t('flowShortcut'), t('flowSite')].filter(Boolean).join(' → ')}
+          steps={[
+            { icon: 'watch', label: t('flowWatch') },
+            ...(from === 'google' ? [{ icon: 'google' as const, label: t('flowGoogle') }] : []),
+            { icon: 'health', label: t('flowHealth') },
+            { icon: 'shortcut', label: t('flowShortcut') },
+            { icon: 'pug', label: t('flowSite') }
+          ]}
+        />
+        {from === 'google' ? (
+          <p className="flex items-start gap-3 text-sm leading-relaxed text-ink">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface">
+              <Icon name="google" />
+            </span>
+            <span className="pt-1">{t('sleepGoogleFirst')}</span>
+          </p>
+        ) : null}
         {token ? (
           <div className="flex flex-col gap-2 rounded-[10px] bg-canvas p-3">
             <p className="ps-label">{t('sleepKey')}</p>
@@ -122,7 +144,7 @@ export function Connections({ sleepSince, pushKey, sleepUrl }: { sleepSince: num
             <p className="ps-label mt-1">{t('sleepUrl')}</p>
             <code className="break-all text-sm text-ink">{sleepUrl}</code>
             <p className="ps-label mt-1">{t('sleepHow')}</p>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{t('sleepSteps')}</p>
+            <Steps text={t('sleepSteps')} icons={SLEEP_STEPS} />
           </div>
         ) : null}
         <div className="flex flex-wrap gap-2">
@@ -169,7 +191,20 @@ export function Connections({ sleepSince, pushKey, sleepUrl }: { sleepSince: num
           <span className={`text-xs font-semibold ${push === 'on' ? 'text-win' : 'text-ink-muted'}`}>{push === 'on' ? t('pushOn') : t('pushOffLabel')}</span>
         </div>
         <p className="text-sm text-ink-muted">{t('pushWhat')}</p>
-        {push === 'off' ? (
+        {push === 'install' ? (
+          <>
+            <Flow
+              label={[t('flowSafari'), t('flowShare'), t('flowHome'), t('flowBell')].join(' → ')}
+              steps={[
+                { icon: 'safari', label: t('flowSafari') },
+                { icon: 'share', label: t('flowShare') },
+                { icon: 'home', label: t('flowHome') },
+                { icon: 'pug', label: t('flowBell') }
+              ]}
+            />
+            <Steps text={t('pushSteps')} icons={PUSH_STEPS} />
+          </>
+        ) : push === 'off' ? (
           <button type="button" disabled={busy} onClick={enable} className={`${BTN} self-start`}>
             {t('pushEnable')}
           </button>
@@ -178,7 +213,7 @@ export function Connections({ sleepSince, pushKey, sleepUrl }: { sleepSince: num
             {t('pushDisable')}
           </button>
         ) : push === 'checking' ? null : (
-          <p className="text-sm font-medium text-ink">{t(push === 'notReady' ? 'pushNotReady' : push === 'install' ? 'pushInstall' : push === 'denied' ? 'pushDenied' : 'pushUnsupported')}</p>
+          <p className="text-sm font-medium text-ink">{t(push === 'notReady' ? 'pushNotReady' : push === 'denied' ? 'pushDenied' : 'pushUnsupported')}</p>
         )}
       </div>
     </section>

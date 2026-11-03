@@ -222,6 +222,14 @@ const config: Config = {
           '0%, 100%': { transform: 'rotate(-1.5deg)' },
           '50%': { transform: 'rotate(1.5deg)' }
         },
+        // Схемы подключений: по стрелкам бегут точки, значки вспыхивают по очереди.
+        'flow-dash': {
+          to: { strokeDashoffset: '-12' }
+        },
+        'step-pulse': {
+          '0%': { transform: 'scale(1)', opacity: '0.6' },
+          '60%, 100%': { transform: 'scale(1.45)', opacity: '0' }
+        },
         // Луч кассы в прицеле сканера ходит вверх-вниз.
         'pantry-laser': {
           '0%, 100%': { transform: 'translateY(-2.4rem)' },
@@ -247,7 +255,9 @@ const config: Config = {
         'pantry-glow': 'pantry-glow 2.2s cubic-bezier(0.22, 1, 0.36, 1) infinite',
         'pantry-spark': 'pantry-spark 2.4s ease-in-out infinite',
         'pantry-laser': 'pantry-laser 1.8s ease-in-out infinite',
-        'chip-wiggle': 'chip-wiggle 0.3s ease-in-out infinite'
+        'chip-wiggle': 'chip-wiggle 0.3s ease-in-out infinite',
+        'flow-dash': 'flow-dash 0.9s linear infinite',
+        'step-pulse': 'step-pulse 2.7s ease-out infinite'
       }
     }
   },
